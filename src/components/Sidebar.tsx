@@ -22,10 +22,13 @@ interface TreeItemProps {
   onFileDoubleClick?: (path: string) => void;
   onRightFileSelect?: (path: string) => void;
   depth: number;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  expandedPaths: Set<string>;
+  onToggleExpandPath: (path: string) => void;
 }
 
-function TreeItem({ node, currentFile, isSplit, onFileSelect, onFileDoubleClick, onRightFileSelect, depth }: TreeItemProps) {
-  const [expanded, setExpanded] = useState(true);
+function TreeItem({ node, currentFile, isSplit, onFileSelect, onFileDoubleClick, onRightFileSelect, depth, isExpanded, onToggleExpand, expandedPaths, onToggleExpandPath }: TreeItemProps) {
   const isSelected = node.path === currentFile;
   const paddingLeft = 12 + depth * 16;
 
@@ -33,7 +36,7 @@ function TreeItem({ node, currentFile, isSplit, onFileSelect, onFileDoubleClick,
     return (
       <div>
         <button
-          onClick={() => setExpanded(!expanded)}
+          onClick={onToggleExpand}
           className="w-full text-left py-1.5 pr-2 flex items-center gap-1.5 text-sm transition-colors"
           style={{
             paddingLeft,
@@ -52,17 +55,17 @@ function TreeItem({ node, currentFile, isSplit, onFileSelect, onFileDoubleClick,
             className="w-4 h-4 flex items-center justify-center transition-transform"
             style={{
               color: 'var(--text-secondary)',
-              transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
+              transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
             }}
           >
             <ChevronIcon />
           </span>
           <span className="w-4 h-4 flex items-center justify-center">
-            <FolderIcon open={expanded} />
+            <FolderIcon open={isExpanded} />
           </span>
           <span className="truncate">{node.name}</span>
         </button>
-        {expanded && node.children && (
+        {isExpanded && node.children && (
           <div>
             {node.children.map((child) => (
               <TreeItem
@@ -74,6 +77,10 @@ function TreeItem({ node, currentFile, isSplit, onFileSelect, onFileDoubleClick,
                 onFileDoubleClick={onFileDoubleClick}
                 onRightFileSelect={onRightFileSelect}
                 depth={depth + 1}
+                isExpanded={expandedPaths.has(child.path)}
+                onToggleExpand={() => onToggleExpandPath(child.path)}
+                expandedPaths={expandedPaths}
+                onToggleExpandPath={onToggleExpandPath}
               />
             ))}
           </div>
@@ -122,11 +129,64 @@ function TreeItem({ node, currentFile, isSplit, onFileSelect, onFileDoubleClick,
   );
 }
 
+// Helper to collect all directory paths from a file tree
+function getAllDirectoryPaths(nodes: FileTreeNode[]): string[] {
+  const paths: string[] = [];
+  const traverse = (node: FileTreeNode) => {
+    if (node.isDirectory) {
+      paths.push(node.path);
+      node.children?.forEach(traverse);
+    }
+  };
+  nodes.forEach(traverse);
+  return paths;
+}
+
 export function Sidebar({ fileTree, currentFile, workspacePath, isSplit, onFileSelect, onFileDoubleClick, onRightFileSelect, onClose }: SidebarProps) {
   const workspaceName = workspacePath?.split('/').pop() ?? workspacePath?.split('\\').pop() ?? 'Workspace';
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
+
+  // Expanded state management - start with all directories expanded
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => {
+    return new Set(getAllDirectoryPaths(fileTree));
+  });
+
+  // Update expanded paths when file tree changes (e.g., new directories added)
+  useEffect(() => {
+    const allDirs = getAllDirectoryPaths(fileTree);
+    setExpandedPaths(prev => {
+      // Add any new directories that aren't in the set yet (keep them expanded by default)
+      const next = new Set(prev);
+      allDirs.forEach(path => {
+        if (!prev.has(path)) {
+          next.add(path);
+        }
+      });
+      return next;
+    });
+  }, [fileTree]);
+
+  const toggleExpandPath = (path: string) => {
+    setExpandedPaths(prev => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  };
+
+  const expandAll = () => {
+    setExpandedPaths(new Set(getAllDirectoryPaths(fileTree)));
+  };
+
+  const collapseAll = () => {
+    setExpandedPaths(new Set());
+  };
 
   const {
     activeFilter,
@@ -188,6 +248,42 @@ export function Sidebar({ fileTree, currentFile, workspacePath, isSplit, onFileS
           {workspaceName}
         </span>
         <div className="flex items-center gap-1">
+          {/* Expand all button */}
+          <button
+            onClick={expandAll}
+            className="w-6 h-6 flex items-center justify-center rounded transition-colors"
+            style={{ color: 'var(--text-secondary)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--text-primary)';
+              e.currentTarget.style.backgroundColor = 'var(--bg-primary)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--text-secondary)';
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+            title="Expand all folders"
+          >
+            <ExpandAllIcon />
+          </button>
+
+          {/* Collapse all button */}
+          <button
+            onClick={collapseAll}
+            className="w-6 h-6 flex items-center justify-center rounded transition-colors"
+            style={{ color: 'var(--text-secondary)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--text-primary)';
+              e.currentTarget.style.backgroundColor = 'var(--bg-primary)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--text-secondary)';
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+            title="Collapse all folders"
+          >
+            <CollapseAllIcon />
+          </button>
+
           {/* Filter button */}
           <div className="relative">
             <button
@@ -344,6 +440,10 @@ export function Sidebar({ fileTree, currentFile, workspacePath, isSplit, onFileS
               onFileDoubleClick={onFileDoubleClick}
               onRightFileSelect={onRightFileSelect}
               depth={0}
+              isExpanded={expandedPaths.has(node.path)}
+              onToggleExpand={() => toggleExpandPath(node.path)}
+              expandedPaths={expandedPaths}
+              onToggleExpandPath={toggleExpandPath}
             />
           ))
         )}
@@ -404,6 +504,24 @@ function CheckIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
       <path d="M20 6L9 17l-5-5" />
+    </svg>
+  );
+}
+
+function ExpandAllIcon() {
+  // ChevronsDown icon - double chevrons pointing down
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M7 13l5 5 5-5M7 6l5 5 5-5" />
+    </svg>
+  );
+}
+
+function CollapseAllIcon() {
+  // ChevronsUp icon - double chevrons pointing up
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M17 11l-5-5-5 5M17 18l-5-5-5 5" />
     </svg>
   );
 }
