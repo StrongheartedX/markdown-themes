@@ -4,6 +4,8 @@ import { CodeViewer } from './viewers/CodeViewer';
 import { ImageViewer } from './viewers/ImageViewer';
 import { CsvViewer } from './viewers/CsvViewer';
 import { JsonViewer } from './viewers/JsonViewer';
+import { AudioViewer } from './viewers/AudioViewer';
+import { SvgViewer } from './viewers/SvgViewer';
 import { PromptNotebook } from './PromptNotebook';
 import { isPromptyFile } from '../utils/promptyUtils';
 
@@ -15,13 +17,15 @@ interface ViewerContainerProps {
   fontSize?: number;
 }
 
-type ViewerType = 'markdown' | 'code' | 'image' | 'csv' | 'json' | 'prompty';
+type ViewerType = 'markdown' | 'code' | 'image' | 'csv' | 'json' | 'audio' | 'svg' | 'prompty';
 
 // Extensions for each viewer type
 const markdownExtensions = new Set(['md', 'markdown', 'mdx']);
-const imageExtensions = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'bmp', 'avif']);
+const imageExtensions = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp', 'avif']);
 const csvExtensions = new Set(['csv', 'tsv']);
 const jsonExtensions = new Set(['json', 'jsonc', 'json5']);
+const audioExtensions = new Set(['mp3', 'wav', 'ogg', 'flac', 'm4a', 'webm', 'aac', 'wma']);
+const svgExtensions = new Set(['svg']);
 
 function getViewerType(filePath: string): ViewerType {
   const fileName = filePath.split('/').pop() || '';
@@ -29,6 +33,11 @@ function getViewerType(filePath: string): ViewerType {
 
   if (markdownExtensions.has(ext)) {
     return 'markdown';
+  }
+
+  // Check SVG before generic images (SVG has special viewer with source toggle)
+  if (svgExtensions.has(ext)) {
+    return 'svg';
   }
 
   if (imageExtensions.has(ext)) {
@@ -41,6 +50,10 @@ function getViewerType(filePath: string): ViewerType {
 
   if (jsonExtensions.has(ext)) {
     return 'json';
+  }
+
+  if (audioExtensions.has(ext)) {
+    return 'audio';
   }
 
   if (isPromptyFile(filePath)) {
@@ -79,6 +92,12 @@ export function ViewerContainer({
 
     case 'json':
       return <JsonViewer content={content} fontSize={fontSize} />;
+
+    case 'audio':
+      return <AudioViewer filePath={filePath} fontSize={fontSize} />;
+
+    case 'svg':
+      return <SvgViewer filePath={filePath} content={content} fontSize={fontSize} />;
 
     case 'prompty':
       return (

@@ -5,6 +5,7 @@ import {
   FileJson,
   FileImage,
   FileVideo,
+  FileAudio,
   FileSpreadsheet,
   File,
   FileType,
@@ -12,7 +13,7 @@ import {
 } from 'lucide-react';
 
 // File type categories
-type FileCategory = 'code' | 'markdown' | 'json' | 'config' | 'image' | 'video' | 'data' | 'text' | 'unknown';
+type FileCategory = 'code' | 'markdown' | 'json' | 'config' | 'image' | 'video' | 'audio' | 'data' | 'text' | 'unknown';
 
 interface FileIconInfo {
   icon: LucideIcon;
@@ -28,6 +29,7 @@ const ICON_COLORS = {
   config: '#f97316',    // Orange - config files
   image: '#eab308',     // Yellow - images
   video: '#a855f7',     // Purple - video
+  audio: '#ec4899',     // Pink - audio files
   data: '#10b981',      // Emerald - CSV, data files
   text: '#6b7280',      // Gray - text files
   unknown: '#6b7280',   // Gray - unknown
@@ -91,7 +93,12 @@ const IMAGE_EXTENSIONS = new Set([
 
 // Video extensions
 const VIDEO_EXTENSIONS = new Set([
-  'mp4', 'webm', 'ogg', 'ogv', 'mov', 'avi', 'mkv', 'm4v', 'wmv', 'flv',
+  'mp4', 'webm', 'ogv', 'mov', 'avi', 'mkv', 'm4v', 'wmv', 'flv',
+]);
+
+// Audio extensions
+const AUDIO_EXTENSIONS = new Set([
+  'mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac', 'wma', 'aiff', 'ape',
 ]);
 
 // Data file extensions
@@ -147,6 +154,7 @@ function getFileCategory(filePath: string): FileCategory {
   if (CODE_EXTENSIONS.has(ext)) return 'code';
   if (IMAGE_EXTENSIONS.has(ext)) return 'image';
   if (VIDEO_EXTENSIONS.has(ext)) return 'video';
+  if (AUDIO_EXTENSIONS.has(ext)) return 'audio';
   if (DATA_EXTENSIONS.has(ext)) return 'data';
 
   // Files without extension or unknown
@@ -170,6 +178,8 @@ function getIconForCategory(category: FileCategory): LucideIcon {
       return FileImage;
     case 'video':
       return FileVideo;
+    case 'audio':
+      return FileAudio;
     case 'data':
       return FileSpreadsheet;
     case 'text':
