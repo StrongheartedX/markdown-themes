@@ -24,8 +24,7 @@ export function StatusBadge({
   if (!isDirty && !hasRemoteChanges) {
     return (
       <span
-        className={`flex items-center gap-1 text-xs ${className}`}
-        style={{ color: '#34d399' }}
+        className={`flex items-center gap-1 text-xs status-clean ${className}`}
       >
         <CheckCircle2 className="w-3 h-3" />
         Clean
@@ -37,7 +36,7 @@ export function StatusBadge({
     <div className={`flex items-center gap-2 text-xs ${className}`}>
       {/* Dirty indicator */}
       {isDirty && (
-        <span className="flex items-center gap-1" style={{ color: '#fbbf24' }}>
+        <span className="flex items-center gap-1 status-changes">
           <AlertCircle className="w-3 h-3" />
           {staged + unstaged + untracked} changes
         </span>
@@ -45,13 +44,13 @@ export function StatusBadge({
 
       {/* Ahead/behind */}
       {ahead > 0 && (
-        <span className="flex items-center gap-0.5" style={{ color: '#60a5fa' }}>
+        <span className="flex items-center gap-0.5 status-ahead">
           <ArrowUp className="w-3 h-3" />
           {ahead}
         </span>
       )}
       {behind > 0 && (
-        <span className="flex items-center gap-0.5" style={{ color: '#fb923c' }}>
+        <span className="flex items-center gap-0.5 status-behind">
           <ArrowDown className="w-3 h-3" />
           {behind}
         </span>

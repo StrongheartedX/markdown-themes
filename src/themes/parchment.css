@@ -533,63 +533,11 @@
    ======================================== */
 
 .theme-parchment {
-  /* Badge colors - darker versions for light background */
-  /* Green: Clean/Success - forest green for readability */
-  --badge-success: #146b3f;        /* Forest green, 5.0:1 contrast on parchment */
-  --badge-success-bg: rgba(20, 107, 63, 0.12);
-
-  /* Yellow: Changes/Warning - darker amber/brown for contrast */
-  --badge-warning: #7a5800;        /* Dark amber/gold, 5.2:1 contrast */
-  --badge-warning-bg: rgba(122, 88, 0, 0.12);
-
-  /* Blue: Ahead - deeper blue for visibility */
-  --badge-info: #1d5a9e;           /* Darker blue */
-  --badge-info-bg: rgba(29, 90, 158, 0.12);
-
-  /* Orange: Behind - burnt orange for contrast */
-  --badge-attention: #944a00;      /* Burnt orange, 5.1:1 contrast */
-  --badge-attention-bg: rgba(148, 74, 0, 0.12);
-
-  /* Red: Error/Delete/Discard - darker crimson */
-  --badge-error: #a12b2b;          /* Dark crimson */
-  --badge-error-bg: rgba(161, 43, 43, 0.12);
-}
-
-/* Status badge text - override inline styles */
-.theme-parchment [style*="color: #34d399"],
-.theme-parchment [style*="color:#34d399"] {
-  color: var(--badge-success) !important;
-}
-
-.theme-parchment [style*="color: #fbbf24"],
-.theme-parchment [style*="color:#fbbf24"] {
-  color: var(--badge-warning) !important;
-}
-
-.theme-parchment [style*="color: #60a5fa"],
-.theme-parchment [style*="color:#60a5fa"] {
-  color: var(--badge-info) !important;
-}
-
-.theme-parchment [style*="color: #fb923c"],
-.theme-parchment [style*="color:#fb923c"] {
-  color: var(--badge-attention) !important;
-}
-
-.theme-parchment [style*="color: #f87171"],
-.theme-parchment [style*="color:#f87171"] {
-  color: var(--badge-error) !important;
-}
-
-/* File status icons in ChangesTree */
-.theme-parchment svg[style*="color: #34d399"],
-.theme-parchment svg[style*="color:#34d399"] {
-  color: var(--badge-success) !important;
-}
-
-.theme-parchment svg[style*="color: #fbbf24"],
-.theme-parchment svg[style*="color:#fbbf24"] {
-  color: var(--badge-warning) !important;
+  /* Override status colors for better contrast on parchment */
+  --status-clean: #146b3f;         /* Forest green, good contrast on parchment */
+  --status-changes: #7a5800;       /* Dark amber/gold */
+  --status-ahead: #1d5a9e;         /* Deep blue */
+  --status-behind: #944a00;        /* Burnt orange */
 }
 
 .theme-parchment svg[style*="color: #f87171"],

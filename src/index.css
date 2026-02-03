@@ -19,6 +19,12 @@
   --font-mono: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
   --radius: 0.5rem;
 
+  /* Status colors for git badges */
+  --status-clean: #34d399;
+  --status-changes: #fbbf24;
+  --status-ahead: #60a5fa;
+  --status-behind: #fb923c;
+
   /* Shiki CSS Variables - Default theme (light) */
   --shiki-foreground: #1a1a2e;
   --shiki-background: #f8f9fa;
@@ -69,6 +75,12 @@
 .text-theme-secondary { color: var(--text-secondary); }
 .text-theme-accent { color: var(--accent); }
 .border-theme { border-color: var(--border); }
+
+/* Git status badge colors */
+.status-clean { color: var(--status-clean); }
+.status-changes { color: var(--status-changes); }
+.status-ahead { color: var(--status-ahead); }
+.status-behind { color: var(--status-behind); }
 
 /* Base styles */
 body {
