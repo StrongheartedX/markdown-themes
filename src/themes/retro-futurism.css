@@ -709,19 +709,20 @@
 
 /* Source Control action buttons (Fetch/Pull/Push) - ensure white text on glossy blue bubbles */
 /* These buttons have inline color styles, so we need !important */
-.theme-retro-futurism main button[title*="Fetch"],
-.theme-retro-futurism main button[title*="Pull"],
-.theme-retro-futurism main button[title*="Push"],
-.theme-retro-futurism main button[title*="push"] {
+/* Target buttons NOT in header or aside (main content area) */
+.theme-retro-futurism button[title*="Fetch"],
+.theme-retro-futurism button[title*="Pull"],
+.theme-retro-futurism button[title*="Push"],
+.theme-retro-futurism button[title*="push"] {
   color: white !important;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
 }
 
 /* Their icons should also be white */
-.theme-retro-futurism main button[title*="Fetch"] svg,
-.theme-retro-futurism main button[title*="Pull"] svg,
-.theme-retro-futurism main button[title*="Push"] svg,
-.theme-retro-futurism main button[title*="push"] svg {
+.theme-retro-futurism button[title*="Fetch"] svg,
+.theme-retro-futurism button[title*="Pull"] svg,
+.theme-retro-futurism button[title*="Push"] svg,
+.theme-retro-futurism button[title*="push"] svg {
   color: white !important;
 }
 
