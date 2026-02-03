@@ -105,6 +105,61 @@ npm run preview      # Preview production build
 Available themes (from htmlstyleguides):
 - dark-academia, cyberpunk, parchment, cosmic
 - noir, nordic, glassmorphism
-- art-deco, editorial
+- art-deco, retro-futurism
 
-Port more from `~/projects/htmlstyleguides/styles/`.
+### Adding a New Theme
+
+To port a theme from `~/projects/htmlstyleguides/styles/`:
+
+1. **Create CSS file**: `src/themes/{theme-name}.css`
+   ```css
+   .theme-{theme-name} {
+     /* Required CSS variables */
+     --bg-primary: #...;      /* Main background */
+     --bg-secondary: #...;    /* Cards, code blocks */
+     --text-primary: #...;    /* Main text */
+     --text-secondary: #...;  /* Muted text */
+     --accent: #...;          /* Links, highlights */
+     --border: #...;          /* Borders */
+     --radius: 8px;           /* Border radius */
+
+     /* Fonts */
+     --font-body: 'Font Name', serif;
+     --font-display: 'Display Font', sans-serif;
+     --font-mono: 'Mono Font', monospace;
+   }
+
+   /* Then add .theme-{name} .prose styles for typography */
+   ```
+
+2. **Register theme** in `src/themes/index.ts`:
+   ```ts
+   import './{theme-name}.css';
+
+   // Add to themes array
+   { id: '{theme-name}', name: 'Theme Name', className: 'theme-{theme-name}' }
+
+   // Add to ThemeId type
+
+   // Add Shiki mapping in shikiThemeMap
+   '{theme-name}': ['light-theme', 'dark-theme'],
+   ```
+
+3. **Add fonts** to `src/index.css` Google Fonts import URL
+
+4. **Reference**: Study the HTML file at `~/projects/htmlstyleguides/styles/{theme}.html`
+   - Extract color palette from CSS variables
+   - Note fonts used (check @import or link tags)
+   - Copy texture/pattern techniques (gradients, SVG noise, etc.)
+   - Match typography (font sizes, line-height, letter-spacing)
+
+### Shiki Theme Mapping
+
+Pick Shiki themes that match the aesthetic. Browse: https://shiki.style/themes
+
+Common mappings:
+- Warm/sepia → `rose-pine`, `monokai-pro`
+- Neon/cyber → `synthwave-84`, `tokyo-night`
+- Minimal/clean → `github-light`, `github-dark`
+- Purple/cosmic → `dracula`
+- Blue/cold → `nord`
