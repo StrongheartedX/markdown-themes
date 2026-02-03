@@ -10,13 +10,10 @@ import type { FileTreeNode } from '../hooks/useWorkspace';
  * Other patterns match file names exactly or as suffixes.
  */
 export const CLAUDE_CODE_PATTERNS = [
-  '.claude/',         // Claude config directory
+  '.claude/',         // Claude config directory (includes hooks/, settings.json)
   'CLAUDE.md',        // Project instructions
-  'plugin.json',      // MCP plugin manifest
   '.mcp.json',        // MCP server config
-  'keybindings.json', // Custom keybindings
   '.claudeignore',    // Ignore patterns
-  'hooks/',           // Git hooks for Claude
 ];
 
 export type FilterId = 'claude-code';
