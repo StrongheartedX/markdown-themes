@@ -1,42 +1,482 @@
-/* Parchment Theme */
+/* Parchment Theme - Medieval Manuscript Style */
+
 .theme-parchment {
-  --bg-primary: #f4ecd8;
-  --bg-secondary: #ebe3cf;
-  --text-primary: #3d3424;
-  --text-secondary: #5c5243;
-  --accent: #8b4513;
-  --accent-hover: #a0522d;
-  --border: #d4c9b0;
-  --font-body: 'Crimson Text', 'Palatino', 'Georgia', serif;
-  --font-heading: 'Cinzel', 'Trajan Pro', serif;
-  --font-mono: 'Courier Prime', monospace;
+  /* === Typography === */
+  --font-display: 'Cinzel', serif;
+  --font-decorative: 'UnifrakturMaguntia', cursive;
+  --font-body: 'EB Garamond', 'Crimson Text', Georgia, serif;
+  --font-accent: 'Crimson Text', Georgia, serif;
+  --font-heading: var(--font-display);
+  --font-mono: 'Courier Prime', 'Courier New', monospace;
+
+  /* === Parchment Colors === */
+  --parchment-light: #f4e4c1;  /* Vellum */
+  --parchment: #e8d5a3;        /* Base parchment */
+  --parchment-dark: #d4c089;   /* Aged paper */
+  --parchment-aged: #c9b87a;   /* Antique */
+
+  /* === Ink Colors === */
+  --ink-black: #2a1f1a;        /* Iron gall */
+  --ink-brown: #4a3728;        /* Sepia ink */
+  --ink-sepia: #704214;        /* Bistre */
+  --ink-faded: #8b7355;        /* Faded ink */
+  --ink-light: #a89070;
+
+  /* === Illumination Colors === */
+  --vermillion: #c53a27;
+  --gold: #b8860b;
+  --gold-light: #d4a84b;
+  --burgundy: #722f37;
+  --forest: #2d4a3e;
+  --royal-blue: #1e3a5f;
+
+  /* === Wax Seal Colors === */
+  --wax-red: #8b2500;
+  --wax-burgundy: #5c1a1b;
+  --wax-gold: #8b7500;
+
+  /* === Aging Effects === */
+  --foxing: rgba(139, 90, 43, 0.15);
+  --age-stain: rgba(160, 120, 60, 0.1);
+  --shadow-warm: rgba(74, 55, 40, 0.2);
+
+  /* === Theme Variables (for app integration) === */
+  --bg-primary: var(--parchment);
+  --bg-secondary: var(--parchment-light);
+  --text-primary: var(--ink-black);
+  --text-secondary: var(--ink-brown);
+  --accent: var(--vermillion);
+  --accent-hover: var(--burgundy);
+  --border: var(--ink-light);
   --radius: 0;
 }
 
+/* === Base Background with Texture === */
 .theme-parchment {
+  background-color: var(--parchment);
+  position: relative;
+}
+
+/* Parchment texture - noise + gradient aging */
+.theme-parchment::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  background:
+    /* Subtle noise texture */
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"),
+    /* Gradient aging effect - vignette at corners */
+    radial-gradient(ellipse at 20% 20%, transparent 40%, var(--age-stain) 100%),
+    radial-gradient(ellipse at 80% 80%, transparent 50%, var(--age-stain) 100%),
+    radial-gradient(ellipse at 80% 20%, transparent 60%, var(--age-stain) 100%),
+    radial-gradient(ellipse at 20% 80%, transparent 55%, var(--age-stain) 100%),
+    /* Base parchment color variation */
+    linear-gradient(180deg, var(--parchment-light) 0%, var(--parchment) 30%, var(--parchment-dark) 70%, var(--parchment-aged) 100%);
+  opacity: 0.4;
+  z-index: 0;
+}
+
+/* Foxing spots overlay */
+.theme-parchment::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
   background-image:
-    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+    radial-gradient(circle at 15% 25%, var(--foxing) 0%, transparent 2%),
+    radial-gradient(circle at 85% 15%, var(--foxing) 0%, transparent 1.5%),
+    radial-gradient(circle at 45% 75%, var(--foxing) 0%, transparent 1%),
+    radial-gradient(circle at 75% 45%, var(--foxing) 0%, transparent 2.5%),
+    radial-gradient(circle at 25% 85%, var(--foxing) 0%, transparent 1.8%),
+    radial-gradient(circle at 55% 35%, var(--foxing) 0%, transparent 1.2%),
+    radial-gradient(circle at 35% 55%, var(--foxing) 0%, transparent 0.8%),
+    radial-gradient(circle at 95% 65%, var(--foxing) 0%, transparent 1.5%),
+    radial-gradient(circle at 5% 55%, var(--foxing) 0%, transparent 2%),
+    radial-gradient(circle at 65% 95%, var(--foxing) 0%, transparent 1%),
+    radial-gradient(circle at 10% 70%, var(--foxing) 0%, transparent 1.3%),
+    radial-gradient(circle at 90% 40%, var(--foxing) 0%, transparent 1.7%);
+  opacity: 0.6;
+  z-index: 1;
+}
+
+/* Page edge shadows */
+.theme-parchment .prose {
+  position: relative;
+  z-index: 2;
+  box-shadow:
+    /* Left edge */
+    inset 30px 0 30px -30px rgba(139, 115, 85, 0.25),
+    /* Right edge */
+    inset -30px 0 30px -30px rgba(139, 115, 85, 0.25);
+}
+
+/* === Typography === */
+.theme-parchment .prose {
+  line-height: 1.7;
+  font-size: 1.125rem;
+  max-width: 60ch;
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+/* Headings - Cinzel display font */
+.theme-parchment .prose h1,
+.theme-parchment .prose h2,
+.theme-parchment .prose h3,
+.theme-parchment .prose h4,
+.theme-parchment .prose h5,
+.theme-parchment .prose h6 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.05em;
+  color: var(--ink-brown);
+  text-align: left;
 }
 
 .theme-parchment .prose h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
   text-align: center;
-  border-bottom: 2px double var(--accent);
-  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--ink-light);
+  padding-bottom: 1rem;
+  margin-bottom: 2rem;
+  position: relative;
 }
 
+/* Double line under h1 */
+.theme-parchment .prose h1::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 2px;
+  background: var(--ink-light);
+}
+
+.theme-parchment .prose h2 {
+  font-size: 1.75rem;
+  letter-spacing: 0.1em;
+  margin-top: 2.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.theme-parchment .prose h3 {
+  font-size: 1.4rem;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+/* === Dropcap - Medieval Illuminated Initial === */
+.theme-parchment .prose > p:first-of-type::first-letter {
+  float: left;
+  font-family: var(--font-decorative);
+  font-size: 4.5rem;
+  line-height: 0.8;
+  padding-right: 0.5rem;
+  padding-top: 0.25rem;
+  color: var(--vermillion);
+  text-shadow: 2px 2px 0 var(--gold);
+}
+
+/* === Links - Gold illumination === */
+.theme-parchment .prose a {
+  color: var(--ink-sepia);
+  text-decoration: underline;
+  text-decoration-color: var(--gold);
+  text-underline-offset: 3px;
+  transition: all 0.3s ease;
+}
+
+.theme-parchment .prose a:hover {
+  color: var(--vermillion);
+  text-decoration-color: var(--vermillion);
+}
+
+/* === Blockquotes - Marginalia style === */
 .theme-parchment .prose blockquote {
-  border-left: 3px solid var(--accent);
+  font-family: var(--font-accent);
   font-style: italic;
-  background: rgba(139, 69, 19, 0.05);
+  font-size: 0.95rem;
+  color: var(--ink-faded);
+  border-left: 2px solid var(--ink-light);
+  padding-left: 1.5rem;
+  margin: 2rem 0;
+  background: transparent;
 }
 
+.theme-parchment .prose blockquote p {
+  margin: 0;
+}
+
+/* === Horizontal Rules - Decorative flourish === */
 .theme-parchment .prose hr {
   border: none;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  height: auto;
+  text-align: center;
+  margin: 2.5rem 0;
+  background: transparent;
 }
 
-.theme-parchment .prose ::first-letter {
-  font-size: 1.5em;
-  font-weight: bold;
+.theme-parchment .prose hr::before {
+  content: '\2767';  /* Floral heart */
+  display: block;
+  font-size: 1.5rem;
+  color: var(--ink-faded);
+  letter-spacing: 0.5em;
+}
+
+.theme-parchment .prose hr::after {
+  content: '';
+  display: block;
+  width: 60%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--ink-faded), transparent);
+  margin: 0.5rem auto 0;
+}
+
+/* === Lists === */
+.theme-parchment .prose ul,
+.theme-parchment .prose ol {
+  padding-left: 1.5rem;
+}
+
+.theme-parchment .prose li {
+  margin-bottom: 0.5rem;
+}
+
+.theme-parchment .prose ul > li::marker {
+  color: var(--vermillion);
+}
+
+.theme-parchment .prose ol > li::marker {
+  font-family: var(--font-display);
+  color: var(--ink-sepia);
+  font-weight: 500;
+}
+
+/* === Code - Manuscript annotation style === */
+.theme-parchment .prose code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--ink-light);
+  border-bottom: 2px solid var(--ink-brown);
+  padding: 0.15em 0.4em;
+  color: var(--ink-brown);
+}
+
+.theme-parchment .prose pre {
+  background: linear-gradient(135deg, var(--parchment-light) 0%, var(--parchment) 100%);
+  border: 2px solid var(--ink-light);
+  padding: 1.5rem;
+  position: relative;
+  margin: 1.5rem 0;
+  overflow-x: auto;
+}
+
+/* Inner border for pre blocks */
+.theme-parchment .prose pre::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  border: 1px solid var(--ink-light);
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.theme-parchment .prose pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+/* === Tables - Ledger style === */
+.theme-parchment .prose table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid var(--ink-light);
+  margin: 1.5rem 0;
+}
+
+.theme-parchment .prose th,
+.theme-parchment .prose td {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--ink-light);
+}
+
+.theme-parchment .prose th {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--ink-sepia);
+  border-bottom: 2px solid var(--ink-brown);
+}
+
+.theme-parchment .prose tbody tr:hover td {
+  background: rgba(184, 134, 11, 0.1);
+}
+
+.theme-parchment .prose tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* === Strong/Bold - Sepia emphasis === */
+.theme-parchment .prose strong {
+  color: var(--ink-brown);
+  font-weight: 600;
+}
+
+/* === Emphasis/Italic - Crimson Text === */
+.theme-parchment .prose em {
+  font-family: var(--font-accent);
+  font-style: italic;
+  color: var(--ink-sepia);
+}
+
+/* === Images === */
+.theme-parchment .prose img {
+  border: 3px double var(--ink-light);
+  padding: 4px;
+}
+
+/* === Shiki code highlighting - Sepia filter === */
+.theme-parchment .prose pre.shiki,
+.theme-parchment .streamdown-content pre.shiki {
+  background: linear-gradient(135deg, var(--parchment-light) 0%, var(--parchment) 100%) !important;
+  border: 2px solid var(--ink-light);
+  filter: sepia(15%);
+}
+
+.theme-parchment .prose pre.shiki::before,
+.theme-parchment .streamdown-content pre.shiki::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  border: 1px solid var(--ink-light);
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* === Candlelight glow for focus states === */
+.theme-parchment .prose a:focus,
+.theme-parchment input:focus,
+.theme-parchment textarea:focus {
+  outline: none;
+  box-shadow: 0 0 20px rgba(255, 200, 100, 0.3), 0 0 40px rgba(255, 180, 80, 0.1);
+}
+
+/* === Streamdown integration === */
+.theme-parchment .streamdown-content {
+  position: relative;
+  z-index: 2;
+}
+
+.theme-parchment .streamdown-content [data-caret] {
+  background-color: var(--vermillion);
+}
+
+/* === Metadata bar styling === */
+.theme-parchment .metadata-bar {
+  background: linear-gradient(135deg, var(--parchment-light) 0%, var(--parchment-dark) 100%);
+  border-bottom: 2px solid var(--ink-light);
+  font-family: var(--font-body);
+}
+
+.theme-parchment .metadata-tag {
+  background: rgba(184, 134, 11, 0.15);
+  color: var(--ink-sepia);
+  border: 1px solid var(--gold);
+  border-radius: 0;
+}
+
+.theme-parchment .metadata-tag:hover {
+  background: rgba(184, 134, 11, 0.25);
+}
+
+/* === Wax seal badges (for potential use) === */
+.theme-parchment .badge-seal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, var(--wax-red) 0%, #6b1c00 100%);
+  color: var(--parchment-light);
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  box-shadow:
+    inset -2px -2px 4px rgba(0, 0, 0, 0.3),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.1),
+    2px 2px 6px var(--shadow-warm);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+}
+
+.theme-parchment .badge-seal-gold {
+  background: radial-gradient(circle at 30% 30%, var(--gold-light) 0%, var(--wax-gold) 100%);
+  color: var(--ink-black);
+}
+
+.theme-parchment .badge-seal-burgundy {
+  background: radial-gradient(circle at 30% 30%, #8b3a3a 0%, var(--wax-burgundy) 100%);
+}
+
+/* === Gold leaf illumination text (utility class) === */
+.theme-parchment .illuminated {
+  display: inline-block;
+  font-family: var(--font-decorative);
+  font-size: 3rem;
+  color: var(--vermillion);
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 50%, var(--gold) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(1px 1px 0 var(--ink-brown));
+}
+
+/* === Toolbar/UI elements === */
+.theme-parchment button {
+  font-family: var(--font-display);
+  letter-spacing: 0.05em;
+}
+
+.theme-parchment input,
+.theme-parchment select {
+  font-family: var(--font-body);
+  background: rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--ink-light);
+  border-bottom: 2px solid var(--ink-brown);
+  color: var(--ink-brown);
+}
+
+.theme-parchment input::placeholder {
+  color: var(--ink-faded);
+  font-style: italic;
 }

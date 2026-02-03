@@ -19,7 +19,7 @@ export const shikiThemeMap: Record<string, [BundledTheme, BundledTheme]> = {
   'parchment': ['github-light', 'min-light'],              // Clean, paper-like
   'cosmic': ['material-theme-lighter', 'dracula'],         // Deep purples
   'noir': ['min-light', 'github-dark'],                    // High contrast monochrome
-  'nordic': ['nord', 'nord'],                              // Muted blues/greens
+  'nordic': ['github-light', 'nord'],                       // Warm muted tones
   'glassmorphism': ['github-light', 'github-dark-dimmed'], // Soft, translucent feel
   'retro-futurism': ['solarized-light', 'solarized-dark'], // Warm pastels
   'art-deco': ['one-light', 'one-dark-pro'],               // Gold/elegant accents

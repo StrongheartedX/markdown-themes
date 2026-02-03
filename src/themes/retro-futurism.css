@@ -1,75 +1,572 @@
-/* Retro Futurism Theme */
-/* 1950s-60s Space Age aesthetic - atomic starbursts, Googie curves, optimistic pastels */
+/* Retro Futurism Theme
+ * A blend of Frutiger Aero (2004-2013) and Mid-Century Modern (1950s-60s)
+ * Glossy overlays, atomic age decorations, warm optimistic pastels
+ */
+
 .theme-retro-futurism {
-  --bg-primary: #fff8e7;
-  --bg-secondary: #fff5dc;
-  --text-primary: #1a1a3e;
-  --text-secondary: #4a4a6a;
-  --accent: #40e0d0;
-  --accent-hover: #ff6b6b;
-  --border: rgba(26, 26, 62, 0.15);
-  --font-body: 'Questrial', -apple-system, sans-serif;
-  --font-heading: 'Audiowide', 'Orbitron', cursive;
-  --font-mono: 'Space Mono', 'Courier New', monospace;
-  --radius: 100px;
+  /* Frutiger Aero Color Palette - Sky, Nature, Corporate Optimism */
+  --sky-blue: #3A9FD5;
+  --sky-blue-light: #7EC8F0;
+  --sky-blue-dark: #1A6FA5;
+  --grass-green: #7CB342;
+  --grass-green-light: #A5D66A;
+  --sunrise-orange: #F5A623;
+  --sunrise-orange-light: #FFC866;
+
+  /* Mid-Century Palette */
+  --burnt-orange: #CC5500;
+  --olive-green: #6B8E23;
+  --mustard: #DAA520;
+  --brass: #D4AF37;
+  --brass-light: #E8C860;
+  --teak: #8B5A2B;
+
+  /* Base Colors */
+  --cream: #FDF5E6;
+  --cream-warm: #FAF0DC;
+  --off-white: #FFFEF9;
+  --text-dark: #1A3A4A;
+  --text-medium: #4A6A7A;
+
+  /* Glass Effects */
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.9);
+  --glass-shadow: 0 8px 32px rgba(0, 80, 140, 0.15);
+
+  /* Theme Variables */
+  --bg-primary: var(--cream);
+  --bg-secondary: var(--cream-warm);
+  --text-primary: var(--text-dark);
+  --text-secondary: var(--text-medium);
+  --accent: var(--sky-blue);
+  --accent-hover: var(--burnt-orange);
+  --border: rgba(58, 159, 213, 0.3);
+
+  /* Typography - Atomic Age meets Friendly Corporate */
+  --font-display: 'Archivo Black', 'Impact', sans-serif;
+  --font-heading: 'Archivo Black', 'Impact', sans-serif;
+  --font-body: 'Josefin Sans', 'Source Sans Pro', sans-serif;
+  --font-mono: 'Space Mono', 'Consolas', monospace;
+
+  /* Space-Age Curves - Bubble/Optimistic Feel */
+  --radius: 16px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+
+  /* Glossy Gradients */
+  --gloss-highlight: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.6) 0%,
+    rgba(255, 255, 255, 0.2) 49%,
+    rgba(255, 255, 255, 0) 50%,
+    rgba(255, 255, 255, 0.1) 100%);
+  --aurora-gradient: linear-gradient(135deg,
+    #7EC8F0 0%,
+    #3A9FD5 25%,
+    #7CB342 50%,
+    #A5D66A 75%,
+    #7EC8F0 100%);
+  --sky-gradient: linear-gradient(180deg,
+    #1A6FA5 0%,
+    #3A9FD5 30%,
+    #7EC8F0 60%,
+    #C5E8F7 100%);
+  --gold-shine: linear-gradient(135deg, #D4AF37 0%, #F5D76E 50%, #D4AF37 100%);
 }
 
-.theme-retro-futurism .prose h1,
-.theme-retro-futurism .prose h2 {
+/* Sky Background with Aurora Effect */
+.theme-retro-futurism::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(180deg,
+    #E8F4FC 0%,
+    #C5E8F7 30%,
+    var(--cream) 60%,
+    var(--cream-warm) 100%);
+  opacity: 0.7;
+}
+
+/* Floating Cloud Animation */
+.theme-retro-futurism::after {
+  content: '';
+  position: fixed;
+  top: 5%;
+  left: -10%;
+  width: 300px;
+  height: 120px;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(ellipse at center,
+    rgba(255, 255, 255, 0.8) 0%,
+    rgba(255, 255, 255, 0.5) 40%,
+    rgba(255, 255, 255, 0) 70%);
+  border-radius: 50%;
+  animation: float-cloud 80s linear infinite;
+}
+
+@keyframes float-cloud {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(100vw + 400px)); }
+}
+
+/* Atomic Dots Pattern Overlay */
+.theme-retro-futurism {
+  background-image: radial-gradient(var(--brass) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: 0 0;
+}
+
+/* Content container positioning */
+.theme-retro-futurism > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Body Typography - Friendly, Approachable */
+.theme-retro-futurism .prose {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Headings - Bold Geometric Display */
+.theme-retro-futurism .prose h1 {
+  font-family: var(--font-display);
   font-weight: 400;
-  letter-spacing: 0.05em;
   text-transform: uppercase;
-  background: linear-gradient(135deg, #ff6b6b, #f4d03f);
+  letter-spacing: 0.02em;
+  color: var(--text-dark);
+  background: linear-gradient(180deg, var(--sky-blue-dark) 0%, var(--sky-blue) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  text-shadow: none;
+}
+
+.theme-retro-futurism .prose h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--sky-blue-dark);
 }
 
 .theme-retro-futurism .prose h3 {
-  font-family: var(--font-heading);
+  font-family: var(--font-body);
+  font-weight: 600;
   letter-spacing: 0.05em;
+  color: var(--burnt-orange);
+}
+
+.theme-retro-futurism .prose h4,
+.theme-retro-futurism .prose h5,
+.theme-retro-futurism .prose h6 {
+  font-family: var(--font-body);
+  font-weight: 600;
   text-transform: uppercase;
-  color: var(--text-primary);
+  letter-spacing: 0.15em;
+  font-size: 0.875rem;
+  color: var(--olive-green);
 }
 
+/* Blockquotes - Glass Panel with Gloss */
 .theme-retro-futurism .prose blockquote {
-  background: linear-gradient(135deg, rgba(64, 224, 208, 0.1), rgba(152, 216, 170, 0.1));
-  border-left: 4px solid var(--accent);
-  border-radius: 0 1rem 1rem 0;
-  padding: 1rem 1.5rem;
+  position: relative;
+  font-family: var(--font-body);
+  font-size: 1.125rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.6;
+  padding: 1.5rem 2rem;
+  margin: 1.5rem 0;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-left: 4px solid var(--sky-blue);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  box-shadow: var(--glass-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  color: var(--text-medium);
+  overflow: hidden;
 }
 
-.theme-retro-futurism .prose hr {
-  border: none;
-  height: 3px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-hover), #f4d03f, var(--accent));
-  border-radius: var(--radius);
+/* Glossy overlay on blockquote */
+.theme-retro-futurism .prose blockquote::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.1) 100%);
+  border-radius: 0 var(--radius) 0 0;
+  pointer-events: none;
 }
 
-.theme-retro-futurism .prose code {
-  background: linear-gradient(135deg, rgba(64, 224, 208, 0.15), rgba(152, 216, 170, 0.15));
-  border-radius: var(--radius);
-  padding: 0.125rem 0.5rem;
+.theme-retro-futurism .prose blockquote p {
+  position: relative;
+  margin: 0;
+  z-index: 1;
 }
 
-.theme-retro-futurism .prose pre {
-  background: var(--bg-secondary);
-  border: 2px solid var(--border);
-  border-radius: 1rem;
-  box-shadow: 0 4px 20px rgba(26, 26, 62, 0.08);
-}
-
+/* Links - Sky Blue Aero Style */
 .theme-retro-futurism .prose a {
-  color: var(--accent);
+  color: var(--sky-blue);
   text-decoration: none;
   font-weight: 500;
-  transition: color 0.2s;
+  transition: all 0.2s ease;
+  padding: 0.125rem 0.25rem;
+  border-radius: 4px;
 }
 
 .theme-retro-futurism .prose a:hover {
-  color: var(--accent-hover);
+  color: var(--burnt-orange);
+  background: rgba(245, 166, 35, 0.1);
+  transform: translateY(-1px);
 }
 
+/* Horizontal Rules - Atomic Starburst Divider */
+.theme-retro-futurism .prose hr {
+  border: none;
+  height: 40px;
+  margin: 2.5rem 0;
+  background: transparent;
+  position: relative;
+}
+
+.theme-retro-futurism .prose hr::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60px;
+  height: 60px;
+  background: var(--brass);
+  clip-path: polygon(
+    50% 0%, 53% 38%, 100% 25%, 58% 50%,
+    100% 75%, 53% 62%, 50% 100%, 47% 62%,
+    0% 75%, 42% 50%, 0% 25%, 47% 38%
+  );
+  opacity: 0.5;
+  animation: rotate-starburst 20s linear infinite;
+}
+
+.theme-retro-futurism .prose hr::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    var(--sky-blue-light) 20%,
+    transparent 45%,
+    transparent 55%,
+    var(--sky-blue-light) 80%,
+    transparent 100%);
+  transform: translateY(-50%);
+}
+
+@keyframes rotate-starburst {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Code Blocks - Aero Glass Panel */
+.theme-retro-futurism .prose pre {
+  position: relative;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+  padding: 1.5rem;
+  overflow: hidden;
+}
+
+/* Glossy shine on code blocks */
+.theme-retro-futurism .prose pre::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(255, 255, 255, 0.1) 100%);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  pointer-events: none;
+}
+
+.theme-retro-futurism .prose pre code {
+  font-family: var(--font-mono);
+  color: var(--text-dark);
+  background: transparent;
+  position: relative;
+  z-index: 1;
+}
+
+/* Inline Code - Pill shaped */
+.theme-retro-futurism .prose :not(pre) > code {
+  background: linear-gradient(180deg, var(--sky-blue-light) 0%, var(--sky-blue) 100%);
+  color: white;
+  padding: 0.2em 0.6em;
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(58, 159, 213, 0.3);
+  position: relative;
+}
+
+/* Glossy shine on inline code */
+.theme-retro-futurism .prose :not(pre) > code::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.1) 100%);
+  border-radius: var(--radius-full) var(--radius-full) 0 0;
+  pointer-events: none;
+}
+
+/* Lists */
+.theme-retro-futurism .prose ul,
+.theme-retro-futurism .prose ol {
+  color: var(--text-primary);
+}
+
+.theme-retro-futurism .prose li::marker {
+  color: var(--sky-blue);
+}
+
+/* Tables - Console Cabinet Style with Brass Trim */
+.theme-retro-futurism .prose table {
+  background: var(--off-white);
+  border-radius: var(--radius);
+  border: 2px solid var(--brass);
+  overflow: hidden;
+  box-shadow: var(--glass-shadow);
+}
+
+.theme-retro-futurism .prose th {
+  font-family: var(--font-body);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.75rem;
+  color: var(--cream);
+  background: linear-gradient(135deg, var(--teak) 0%, #6B4423 100%);
+  border-bottom: 3px solid var(--brass);
+  padding: 1rem;
+}
+
+.theme-retro-futurism .prose td {
+  border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+  padding: 0.875rem 1rem;
+}
+
+.theme-retro-futurism .prose tr:hover {
+  background: rgba(126, 200, 240, 0.1);
+}
+
+/* Strong/Bold - Burnt Orange Accent */
 .theme-retro-futurism .prose strong {
-  color: var(--accent-hover);
+  color: var(--burnt-orange);
+  font-weight: 600;
+}
+
+/* Emphasis/Italic */
+.theme-retro-futurism .prose em {
+  font-style: italic;
+  color: var(--olive-green);
+}
+
+/* Images - Glossy Frame with Hover Lift */
+.theme-retro-futurism .prose img {
+  border-radius: var(--radius);
+  box-shadow: var(--glass-shadow);
+  transition: all 0.3s ease;
+}
+
+.theme-retro-futurism .prose img:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 80, 140, 0.2);
+}
+
+/* Shiki syntax highlighting - solarized warm pastels */
+.theme-retro-futurism .streamdown-content pre.shiki {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+/* Streamdown specific overrides */
+.theme-retro-futurism .streamdown-content {
+  font-family: var(--font-body);
+  line-height: 1.7;
+}
+
+.theme-retro-futurism .streamdown-content [data-caret] {
+  background-color: var(--sky-blue);
+  box-shadow: 0 0 8px rgba(58, 159, 213, 0.6);
+}
+
+/* Buttons - Glossy Bubble Style with Shine Effect */
+.theme-retro-futurism button,
+.theme-retro-futurism .btn {
+  position: relative;
+  background: linear-gradient(180deg, var(--sky-blue-light) 0%, var(--sky-blue) 50%, var(--sky-blue-dark) 100%);
+  color: white;
+  border: 1px solid var(--sky-blue-dark);
+  border-radius: var(--radius);
+  font-family: var(--font-body);
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.1) inset,
+    0 4px 12px rgba(58, 159, 213, 0.4);
+  overflow: hidden;
+  transition: all 0.15s ease;
+}
+
+/* Button glossy overlay */
+.theme-retro-futurism button::before,
+.theme-retro-futurism .btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.6) 0%,
+    rgba(255, 255, 255, 0.2) 100%);
+  border-radius: var(--radius) var(--radius) 0 0;
+  pointer-events: none;
+}
+
+.theme-retro-futurism button:hover,
+.theme-retro-futurism .btn:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.1) inset,
+    0 6px 20px rgba(58, 159, 213, 0.5);
+}
+
+/* Metadata bar customization */
+.theme-retro-futurism .metadata-bar {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.theme-retro-futurism .metadata-tag {
+  background: linear-gradient(180deg, var(--grass-green-light) 0%, var(--grass-green) 100%);
+  color: white;
+  border: none;
+  box-shadow: 0 2px 4px rgba(124, 179, 66, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.theme-retro-futurism .metadata-tag::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.1) 100%);
+  pointer-events: none;
+}
+
+/* Toolbar customization */
+.theme-retro-futurism .toolbar {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+}
+
+/* Scrollbar styling */
+.theme-retro-futurism ::-webkit-scrollbar {
+  width: 12px;
+}
+
+.theme-retro-futurism ::-webkit-scrollbar-track {
+  background: var(--cream-warm);
+  border-radius: var(--radius-full);
+}
+
+.theme-retro-futurism ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--sky-blue-light) 0%, var(--sky-blue) 100%);
+  border-radius: var(--radius-full);
+  border: 2px solid var(--cream-warm);
+}
+
+.theme-retro-futurism ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #8ED0F5 0%, #4AAEE0 100%);
+}
+
+/* Pulse glow animation for interactive elements */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(58, 159, 213, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(58, 159, 213, 0.5); }
+}
+
+.theme-retro-futurism .pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Boomerang decorative element (can be used for hr alternatives) */
+.theme-retro-futurism .boomerang-decoration {
+  position: relative;
+  height: 24px;
+  margin: 2rem auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+}
+
+.theme-retro-futurism .boomerang-decoration::before,
+.theme-retro-futurism .boomerang-decoration::after {
+  content: '';
+  width: 80px;
+  height: 24px;
+  background: var(--burnt-orange);
+  clip-path: polygon(0 100%, 20% 0, 80% 0, 100% 100%, 80% 60%, 20% 60%);
+  opacity: 0.6;
+}
+
+.theme-retro-futurism .boomerang-decoration::after {
+  transform: scaleX(-1);
 }
