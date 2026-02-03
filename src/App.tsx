@@ -158,6 +158,7 @@ function App() {
                   content={markdownContent}
                   isStreaming={isStreaming}
                   themeClassName={themeClass}
+                  themeId={appState.theme}
                 />
               </div>
             </>

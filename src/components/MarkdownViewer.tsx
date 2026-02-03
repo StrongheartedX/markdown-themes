@@ -1,18 +1,29 @@
-import { forwardRef, useImperativeHandle, useRef } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useMemo } from 'react';
 import { Streamdown } from 'streamdown';
+import { createCodePlugin } from '@streamdown/code';
+import { getShikiThemes, type ThemeId } from '../themes';
 
 interface MarkdownViewerProps {
   content: string;
   isStreaming?: boolean;
   themeClassName?: string;
+  themeId?: ThemeId;
 }
 
 export interface MarkdownViewerHandle {
   getHtml: () => string;
 }
 
-export const MarkdownViewer = forwardRef<MarkdownViewerHandle, MarkdownViewerProps>(function MarkdownViewer({ content, isStreaming = false }, ref) {
+export const MarkdownViewer = forwardRef<MarkdownViewerHandle, MarkdownViewerProps>(function MarkdownViewer({ content, isStreaming = false, themeId = 'default' }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Create code plugin with theme-specific Shiki configuration
+  const codePlugin = useMemo(() => {
+    const [lightTheme, darkTheme] = getShikiThemes(themeId);
+    return createCodePlugin({
+      themes: [lightTheme, darkTheme],
+    });
+  }, [themeId]);
 
   useImperativeHandle(ref, () => ({
     getHtml: () => {
@@ -32,7 +43,6 @@ export const MarkdownViewer = forwardRef<MarkdownViewerHandle, MarkdownViewerPro
     );
   }
 
-  // Streamdown without Shiki code plugin
   return (
     <article ref={containerRef} className="prose prose-lg max-w-none p-8">
       <Streamdown
@@ -40,6 +50,7 @@ export const MarkdownViewer = forwardRef<MarkdownViewerHandle, MarkdownViewerPro
         caret={isStreaming ? 'block' : undefined}
         parseIncompleteMarkdown={true}
         className="streamdown-content"
+        plugins={{ code: codePlugin }}
       >
         {content}
       </Streamdown>
