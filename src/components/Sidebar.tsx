@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import type { FileTreeNode } from '../context/WorkspaceContext';
-import { useFileFilter } from '../hooks/useFileFilter';
-import { FILTERS } from '../lib/filters';
+import { useFileFilter, type ScopedFileTreeNode } from '../hooks/useFileFilter';
+import { FILTERS, type FilterId } from '../lib/filters';
 
 interface SidebarProps {
   fileTree: FileTreeNode[];
   currentFile: string | null;
   workspacePath: string | null;
+  /** User's home directory path for fetching user-level config files */
+  homePath?: string;
   isSplit?: boolean;
   onFileSelect: (path: string) => void;
   onFileDoubleClick?: (path: string) => void;
@@ -14,7 +16,7 @@ interface SidebarProps {
 }
 
 interface TreeItemProps {
-  node: FileTreeNode;
+  node: ScopedFileTreeNode;
   currentFile: string | null;
   isSplit?: boolean;
   onFileSelect: (path: string) => void;
@@ -30,6 +32,63 @@ interface TreeItemProps {
 function TreeItem({ node, currentFile, isSplit, onFileSelect, onFileDoubleClick, onRightFileSelect, depth, isExpanded, onToggleExpand, expandedPaths, onToggleExpandPath }: TreeItemProps) {
   const isSelected = node.path === currentFile;
   const paddingLeft = 12 + depth * 16;
+
+  // Scope header nodes (Project / User (~)) get special styling
+  if (node.isScopeHeader) {
+    return (
+      <div>
+        <button
+          onClick={onToggleExpand}
+          className="w-full text-left py-2 pr-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide transition-colors"
+          style={{
+            paddingLeft: 12,
+            color: 'var(--accent)',
+            backgroundColor: 'color-mix(in srgb, var(--accent) 8%, transparent)',
+            borderBottom: '1px solid var(--border)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--accent) 15%, transparent)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--accent) 8%, transparent)';
+          }}
+        >
+          <span
+            className="w-4 h-4 flex items-center justify-center transition-transform"
+            style={{
+              transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+            }}
+          >
+            <ChevronIcon />
+          </span>
+          <span className="w-4 h-4 flex items-center justify-center">
+            {node.scope === 'project' ? <ProjectIcon /> : <HomeIcon />}
+          </span>
+          <span>{node.name}</span>
+        </button>
+        {isExpanded && node.children && (
+          <div>
+            {node.children.map((child) => (
+              <TreeItem
+                key={child.path}
+                node={child as ScopedFileTreeNode}
+                currentFile={currentFile}
+                isSplit={isSplit}
+                onFileSelect={onFileSelect}
+                onFileDoubleClick={onFileDoubleClick}
+                onRightFileSelect={onRightFileSelect}
+                depth={0}
+                isExpanded={expandedPaths.has(child.path)}
+                onToggleExpand={() => onToggleExpandPath(child.path)}
+                expandedPaths={expandedPaths}
+                onToggleExpandPath={onToggleExpandPath}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (node.isDirectory) {
     return (
@@ -69,7 +128,7 @@ function TreeItem({ node, currentFile, isSplit, onFileSelect, onFileDoubleClick,
             {node.children.map((child) => (
               <TreeItem
                 key={child.path}
-                node={child}
+                node={child as ScopedFileTreeNode}
                 currentFile={currentFile}
                 isSplit={isSplit}
                 onFileSelect={onFileSelect}
@@ -141,11 +200,21 @@ function getAllDirectoryPaths(nodes: FileTreeNode[]): string[] {
   return paths;
 }
 
-export function Sidebar({ fileTree, currentFile, workspacePath, isSplit, onFileSelect, onFileDoubleClick, onRightFileSelect }: SidebarProps) {
+export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSplit, onFileSelect, onFileDoubleClick, onRightFileSelect }: SidebarProps) {
   const workspaceName = workspacePath?.split('/').pop() ?? workspacePath?.split('\\').pop() ?? 'Workspace';
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
+
+  const {
+    activeFilter,
+    setFilter,
+    clearFilter,
+    filteredFiles,
+    matchCount,
+    isFiltered,
+    homeLoading,
+  } = useFileFilter({ files: fileTree, homePath });
 
   // Expanded state management - start with all directories expanded
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => {
@@ -153,19 +222,21 @@ export function Sidebar({ fileTree, currentFile, workspacePath, isSplit, onFileS
   });
 
   // Update expanded paths when file tree changes (e.g., new directories added)
+  // Also auto-expand scope headers and filtered home files
   useEffect(() => {
     const allDirs = getAllDirectoryPaths(fileTree);
+    const filteredDirs = getAllDirectoryPaths(filteredFiles);
     setExpandedPaths(prev => {
       // Add any new directories that aren't in the set yet (keep them expanded by default)
       const next = new Set(prev);
-      allDirs.forEach(path => {
+      [...allDirs, ...filteredDirs].forEach(path => {
         if (!prev.has(path)) {
           next.add(path);
         }
       });
       return next;
     });
-  }, [fileTree]);
+  }, [fileTree, filteredFiles]);
 
   const toggleExpandPath = (path: string) => {
     setExpandedPaths(prev => {
@@ -180,21 +251,12 @@ export function Sidebar({ fileTree, currentFile, workspacePath, isSplit, onFileS
   };
 
   const expandAll = () => {
-    setExpandedPaths(new Set(getAllDirectoryPaths(fileTree)));
+    setExpandedPaths(new Set([...getAllDirectoryPaths(fileTree), ...getAllDirectoryPaths(filteredFiles)]));
   };
 
   const collapseAll = () => {
     setExpandedPaths(new Set());
   };
-
-  const {
-    activeFilter,
-    setFilter,
-    clearFilter,
-    filteredFiles,
-    matchCount,
-    isFiltered,
-  } = useFileFilter(fileTree);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -214,11 +276,11 @@ export function Sidebar({ fileTree, currentFile, workspacePath, isSplit, onFileS
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [filterMenuOpen]);
 
-  const handleFilterSelect = (filterId: string | null) => {
+  const handleFilterSelect = (filterId: FilterId | null) => {
     if (filterId === null) {
       clearFilter();
     } else {
-      setFilter(filterId as 'claude-code');
+      setFilter(filterId);
     }
     setFilterMenuOpen(false);
   };
@@ -231,9 +293,9 @@ export function Sidebar({ fileTree, currentFile, workspacePath, isSplit, onFileS
         borderRight: '1px solid var(--border)',
       }}
     >
-      {/* Header - z-index ensures dropdowns appear above file tree */}
+      {/* Header - z-10 keeps it above scrolling file tree but below toolbar dropdowns (z-100) */}
       <div
-        className="flex items-center justify-between px-3 py-2.5 relative z-20"
+        className="flex items-center justify-between px-3 py-2.5 relative z-10"
         style={{
           borderBottom: '1px solid var(--border)',
           backgroundColor: 'var(--bg-secondary)',
@@ -392,8 +454,11 @@ export function Sidebar({ fileTree, currentFile, workspacePath, isSplit, onFileS
             color: 'var(--accent)',
           }}
         >
-          <span>
+          <span className="flex items-center gap-1.5">
             {FILTERS.find(f => f.id === activeFilter)?.name}: {matchCount} file{matchCount !== 1 ? 's' : ''}
+            {homeLoading && (
+              <span className="opacity-70">(loading...)</span>
+            )}
           </span>
           <button
             onClick={clearFilter}
@@ -496,6 +561,26 @@ function CollapseAllIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M17 11l-5-5-5 5M17 18l-5-5-5 5" />
+    </svg>
+  );
+}
+
+function ProjectIcon() {
+  // Briefcase/project icon
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+    </svg>
+  );
+}
+
+function HomeIcon() {
+  // Home icon for user scope
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <polyline points="9 22 9 12 15 12 15 22" />
     </svg>
   );
 }
