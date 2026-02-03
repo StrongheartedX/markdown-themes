@@ -2,7 +2,8 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { GitBranch, RefreshCw, AlertCircle, Search, ArrowLeft } from 'lucide-react';
 import { useGitRepos } from '../hooks/useGitRepos';
-import { RepoCard } from '../components/git';
+import { useBulkGitOperations } from '../hooks/useBulkGitOperations';
+import { RepoCard, BulkActionsBar } from '../components/git';
 
 // Default projects directory
 const DEFAULT_PROJECTS_DIR = '/home/marci/projects';
@@ -39,6 +40,9 @@ function RepoSkeleton() {
 export function SourceControl() {
   const [projectsDir] = useState(DEFAULT_PROJECTS_DIR);
   const { data, loading, error, refetch } = useGitRepos(projectsDir);
+
+  // Bulk operations
+  const { progress, isRunning, fetchAll, pullAll, pushAll, clearProgress } = useBulkGitOperations();
 
   // Search and filtering
   const [searchQuery, setSearchQuery] = useState('');
@@ -103,6 +107,31 @@ export function SourceControl() {
       )
     );
   }, [filteredRepos]);
+
+  // Bulk operation handlers
+  const handleFetchAll = useCallback(() => {
+    const repoNames = filteredRepos.map((r) => r.name);
+    fetchAll(repoNames, () => {
+      clearProgress();
+      refetch();
+    }, projectsDir);
+  }, [filteredRepos, fetchAll, clearProgress, refetch, projectsDir]);
+
+  const handlePullAll = useCallback(() => {
+    const repoNames = filteredRepos.map((r) => r.name);
+    pullAll(repoNames, () => {
+      clearProgress();
+      refetch();
+    }, projectsDir);
+  }, [filteredRepos, pullAll, clearProgress, refetch, projectsDir]);
+
+  const handlePushAll = useCallback(() => {
+    const repoNames = filteredRepos.map((r) => r.name);
+    pushAll(repoNames, () => {
+      clearProgress();
+      refetch();
+    }, projectsDir);
+  }, [filteredRepos, pushAll, clearProgress, refetch, projectsDir]);
 
   // Auto-expand if only one repo is showing (on initial load)
   const hasAutoExpanded = useRef(false);
@@ -244,6 +273,18 @@ export function SourceControl() {
           {filteredRepos.length} / {data?.repos.length || 0} repos
         </span>
       </div>
+
+      {/* Bulk actions bar */}
+      {filteredRepos.length > 0 && (
+        <BulkActionsBar
+          repoCount={filteredRepos.length}
+          onFetchAll={handleFetchAll}
+          onPullAll={handlePullAll}
+          onPushAll={handlePushAll}
+          progress={progress}
+          isRunning={isRunning}
+        />
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-auto p-4">
