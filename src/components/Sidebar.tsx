@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import type { FileTreeNode } from '../context/WorkspaceContext';
 import { useFileFilter, type ScopedFileTreeNode } from '../hooks/useFileFilter';
 import { FILTERS, type FilterId } from '../lib/filters';
+import { getFileIconInfo } from '../utils/fileIcons';
 
 interface SidebarProps {
   fileTree: FileTreeNode[];
@@ -179,9 +180,7 @@ function TreeItem({ node, currentFile, isSplit, onFileSelect, onFileDoubleClick,
       }}
       title={isSplit ? 'Click to open, Ctrl+click to open in right pane' : undefined}
     >
-      <span className="w-4 h-4 flex items-center justify-center">
-        <FileIcon />
-      </span>
+      <FileIcon path={node.path} />
       <span className="truncate">{node.name}</span>
     </button>
   );
@@ -523,11 +522,12 @@ function FolderIcon({ open }: { open: boolean }) {
   );
 }
 
-function FileIcon() {
+function FileIcon({ path }: { path: string }) {
+  const { icon: Icon, color } = getFileIconInfo(path);
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z"/>
-    </svg>
+    <span className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+      <Icon size={14} style={{ color }} />
+    </span>
   );
 }
 

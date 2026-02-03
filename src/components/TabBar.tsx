@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Tab } from '../hooks/useTabManager';
+import { getFileIconInfo } from '../utils/fileIcons';
 
 interface TabBarProps {
   tabs: Tab[];
@@ -68,6 +69,7 @@ function TabItem({ tab, isActive, onSelect, onClose, onPin }: TabItemProps) {
       onMouseLeave={() => setIsHovered(false)}
       title={tab.path}
     >
+      <FileIcon path={tab.path} />
       <span
         className="truncate"
         style={{
@@ -136,5 +138,14 @@ function CloseIcon() {
     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
       <path d="M18 6L6 18M6 6l12 12" />
     </svg>
+  );
+}
+
+function FileIcon({ path }: { path: string }) {
+  const { icon: Icon, color } = getFileIconInfo(path);
+  return (
+    <span className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+      <Icon size={14} style={{ color }} />
+    </span>
   );
 }
