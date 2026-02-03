@@ -693,6 +693,84 @@
 }
 
 /* ========================================
+   SOURCE CONTROL PAGE
+   Clean, readable without glossy bubble buttons
+   ======================================== */
+
+/* Override git status colors for this theme */
+.theme-retro-futurism {
+  --git-changes-color: #b8860b;      /* Darker gold - visible on cream */
+  --git-staged-color: #2d6a1e;       /* Dark forest green */
+  --git-untracked-color: #4a6a7a;    /* Medium slate */
+  --git-added-color: #2d6a1e;
+  --git-modified-color: #b8860b;
+  --git-deleted-color: #a52a2a;      /* Dark red */
+}
+
+/* Default: all button SVGs should be white (for glossy blue buttons) */
+.theme-retro-futurism button svg[class] {
+  color: white !important;
+}
+
+/* Header buttons are non-glossy, so restore dark icons */
+.theme-retro-futurism header button svg[class] {
+  color: var(--text-dark) !important;
+}
+
+/* Sidebar buttons are non-glossy, so restore dark icons */
+.theme-retro-futurism aside button svg[class] {
+  color: var(--text-dark) !important;
+}
+
+/* Preserve accent button styling (like "Open File") */
+.theme-retro-futurism .btn-accent {
+  background: linear-gradient(180deg, var(--sunrise-orange-light) 0%, var(--burnt-orange) 100%) !important;
+  color: white !important;
+  border: 1px solid #a04000 !important;
+}
+
+/* Search icon (not in a button) should be dark */
+.theme-retro-futurism .relative > .absolute svg {
+  color: var(--text-medium) !important;
+}
+
+/* Recent Files list and similar full-width list buttons - remove glossy styling */
+.theme-retro-futurism button.w-full.text-left {
+  background: var(--off-white) !important;
+  border: 1px solid var(--brass) !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  color: var(--text-dark) !important;
+}
+
+.theme-retro-futurism button.w-full.text-left::before {
+  display: none !important;
+}
+
+.theme-retro-futurism button.w-full.text-left:hover {
+  background: rgba(212, 175, 55, 0.15) !important;
+}
+
+/* Text inside these buttons should be dark and readable */
+.theme-retro-futurism button.w-full.text-left span {
+  color: var(--text-dark) !important;
+}
+
+.theme-retro-futurism button.w-full.text-left .text-xs {
+  color: var(--text-medium) !important;
+}
+
+/* Repo cards background */
+.theme-retro-futurism [class*="rounded-lg"][style*="border"] {
+  background: var(--off-white);
+}
+
+/* Status badge text should be dark for readability */
+.theme-retro-futurism [class*="text-xs"][class*="rounded"] {
+  color: var(--text-primary) !important;
+}
+
+/* ========================================
    SHIKI CSS VARIABLES THEME
    Syntax highlighting colors for Retro Futurism
    ======================================== */

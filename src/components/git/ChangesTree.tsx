@@ -29,13 +29,13 @@ interface ChangesTreeProps {
 function FileIcon({ status }: { status: string }) {
   switch (status) {
     case 'A':
-      return <FilePlus className="w-4 h-4" style={{ color: '#34d399' }} />;
+      return <FilePlus className="w-4 h-4" style={{ color: 'var(--git-added-color, #34d399)' }} />;
     case 'D':
-      return <FileMinus className="w-4 h-4" style={{ color: '#f87171' }} />;
+      return <FileMinus className="w-4 h-4" style={{ color: 'var(--git-deleted-color, #f87171)' }} />;
     case 'M':
-      return <FileEdit className="w-4 h-4" style={{ color: '#fbbf24' }} />;
+      return <FileEdit className="w-4 h-4" style={{ color: 'var(--git-modified-color, #fbbf24)' }} />;
     case '?':
-      return <FileQuestion className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} />;
+      return <FileQuestion className="w-4 h-4" style={{ color: 'var(--git-untracked-color, var(--text-secondary))' }} />;
     default:
       return <File className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} />;
   }
@@ -271,7 +271,7 @@ export function ChangesTree({
       <FileList
         files={staged}
         title="Staged Changes"
-        titleColor="#34d399"
+        titleColor="var(--git-staged-color, #34d399)"
         actionIcon={Minus}
         actionLabel="Unstage"
         onAction={onUnstage}
@@ -280,7 +280,7 @@ export function ChangesTree({
       <FileList
         files={unstaged}
         title="Changes"
-        titleColor="#fbbf24"
+        titleColor="var(--git-changes-color, #fbbf24)"
         actionIcon={Plus}
         actionLabel="Stage"
         onAction={onStage}
@@ -293,7 +293,7 @@ export function ChangesTree({
       <FileList
         files={untracked}
         title="Untracked"
-        titleColor="var(--text-secondary)"
+        titleColor="var(--git-untracked-color, var(--text-secondary))"
         actionIcon={Plus}
         actionLabel="Stage"
         onAction={onStage}

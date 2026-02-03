@@ -564,5 +564,19 @@
 /* Border left indicator for dirty repos */
 .theme-parchment [style*="border-left: 2px solid #fbbf24"],
 .theme-parchment [style*="borderLeft: 2px solid #fbbf24"] {
-  border-left-color: var(--badge-warning) !important;
+  border-left-color: #8b6914 !important;
+}
+
+/* ========================================
+   SOURCE CONTROL - GIT STATUS COLORS
+   Darker versions for readability on parchment
+   ======================================== */
+
+.theme-parchment {
+  --git-changes-color: #8b6914;      /* Dark amber for "Changes" */
+  --git-staged-color: #146b3f;       /* Forest green for "Staged" */
+  --git-untracked-color: #5a4a3a;    /* Dark brown for "Untracked" */
+  --git-added-color: #146b3f;        /* Forest green */
+  --git-modified-color: #8b6914;     /* Dark amber */
+  --git-deleted-color: #a32b2b;      /* Dark red */
 }
