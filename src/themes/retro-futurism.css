@@ -586,17 +586,25 @@
    ======================================== */
 
 .theme-retro-futurism aside {
+  /* Override CSS variables for sidebar context */
+  --text-primary: #0d2535;
+  --text-secondary: #2a4a5a;
+  --bg-secondary: var(--off-white);
+  --bg-primary: var(--cream);
+  --accent: var(--burnt-orange);
+  --border: var(--brass);
   background: var(--off-white) !important;
   border-right: 2px solid var(--brass) !important;
 }
 
-.theme-retro-futurism aside button,
-.theme-retro-futurism aside span {
-  color: var(--text-dark) !important;
+/* Tone down file type icons - less neon, more retro */
+.theme-retro-futurism aside svg {
+  filter: saturate(0.6) brightness(0.8);
 }
 
-.theme-retro-futurism aside button:hover {
-  color: var(--burnt-orange) !important;
+/* Keep folder icons normal */
+.theme-retro-futurism aside button > span:first-of-type svg {
+  filter: none;
 }
 
 /* ========================================
