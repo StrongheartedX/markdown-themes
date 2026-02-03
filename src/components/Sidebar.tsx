@@ -226,15 +226,15 @@ export function Sidebar({ fileTree, currentFile, workspacePath, isSplit, onFileS
 
   return (
     <aside
-      className="w-[250px] min-w-[250px] flex flex-col h-full relative z-10"
+      className="w-[250px] min-w-[250px] flex flex-col h-full relative"
       style={{
         backgroundColor: 'var(--bg-secondary)',
         borderRight: '1px solid var(--border)',
       }}
     >
-      {/* Header */}
+      {/* Header - z-index ensures dropdowns appear above file tree */}
       <div
-        className="flex items-center justify-between px-3 py-2.5"
+        className="flex items-center justify-between px-3 py-2.5 relative z-20"
         style={{
           borderBottom: '1px solid var(--border)',
           backgroundColor: 'var(--bg-secondary)',
@@ -315,10 +315,11 @@ export function Sidebar({ fileTree, currentFile, workspacePath, isSplit, onFileS
             {filterMenuOpen && (
               <div
                 ref={filterMenuRef}
-                className="absolute top-full left-0 mt-1 py-1 rounded-md shadow-lg z-50 min-w-[160px]"
+                className="absolute top-full left-0 mt-1 py-1 rounded-md z-[100] min-w-[160px]"
                 style={{
                   backgroundColor: 'var(--bg-secondary)',
                   border: '1px solid var(--border)',
+                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -4px rgba(0, 0, 0, 0.15)',
                 }}
               >
                 {/* Clear filter option */}

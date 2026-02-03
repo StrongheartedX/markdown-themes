@@ -221,11 +221,12 @@ export function Toolbar({
 
             {showRecentFiles && recentFiles.length > 0 && (
               <div
-                className="absolute top-full left-0 mt-1 z-[100] min-w-[280px] max-w-[400px] py-1 overflow-hidden shadow-lg"
+                className="absolute top-full left-0 mt-1 z-[100] min-w-[280px] max-w-[400px] py-1 overflow-hidden"
                 style={{
                   backgroundColor: 'var(--bg-secondary)',
                   border: '1px solid var(--border)',
                   borderRadius: 'var(--radius)',
+                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -4px rgba(0, 0, 0, 0.15)',
                 }}
               >
                 <div
@@ -293,11 +294,12 @@ export function Toolbar({
 
               {showRecentFolders && recentFolders.length > 0 && (
                 <div
-                  className="absolute top-full left-0 mt-1 z-[100] min-w-[280px] max-w-[400px] py-1 overflow-hidden shadow-lg"
+                  className="absolute top-full left-0 mt-1 z-[100] min-w-[280px] max-w-[400px] py-1 overflow-hidden"
                   style={{
                     backgroundColor: 'var(--bg-secondary)',
                     border: '1px solid var(--border)',
                     borderRadius: 'var(--radius)',
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -4px rgba(0, 0, 0, 0.15)',
                   }}
                 >
                   <div

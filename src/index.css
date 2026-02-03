@@ -418,3 +418,34 @@ body {
 .image-viewer button:hover {
   opacity: 0.9;
 }
+
+/* ========================================
+   DROPDOWN MENU STYLES
+   Consistent z-index handling for all dropdowns
+   ======================================== */
+
+/* Base dropdown menu styling */
+.dropdown-menu {
+  position: absolute;
+  z-index: 50;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+}
+
+/* Ensure dropdown containers create proper stacking context */
+.dropdown-container {
+  position: relative;
+  z-index: auto;
+}
+
+/* High-priority dropdowns (toolbar, header) that need to appear above most content */
+.dropdown-menu-elevated {
+  position: absolute;
+  z-index: 100;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+}

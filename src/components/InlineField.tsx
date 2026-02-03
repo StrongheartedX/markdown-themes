@@ -192,13 +192,14 @@ export function InlineField({
           createPortal(
             <div
               ref={dropdownRef}
-              className="fixed min-w-[120px] rounded-lg shadow-xl py-1 max-h-48 overflow-auto"
+              className="fixed min-w-[120px] rounded-lg py-1 max-h-48 overflow-auto"
               style={{
                 top: dropdownPos.top,
                 left: dropdownPos.left,
                 zIndex: 9999,
                 backgroundColor: 'var(--bg-secondary)',
                 border: '1px solid var(--border)',
+                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -4px rgba(0, 0, 0, 0.15)',
               }}
             >
               {options!.map((option, idx) => (
