@@ -72,12 +72,10 @@ export function Landing() {
                   className="mb-4 p-4 rounded-full transition-colors duration-300"
                   style={{
                     backgroundColor: 'var(--bg-primary)',
+                    color: 'var(--accent)',
                   }}
                 >
-                  <Icon
-                    className="w-12 h-12 transition-colors duration-300"
-                    style={{ color: 'var(--accent)' }}
-                  />
+                  <Icon className="w-12 h-12 transition-colors duration-300" />
                 </div>
                 <h2
                   className="text-2xl font-bold mb-2"
