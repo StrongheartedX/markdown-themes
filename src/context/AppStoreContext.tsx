@@ -11,6 +11,7 @@ export interface AppState {
   recentFolders: string[];
   lastWorkspace?: string;
   fontSize: number;
+  sidebarWidth: number;
 }
 
 const DEFAULT_STATE: AppState = {
@@ -19,6 +20,7 @@ const DEFAULT_STATE: AppState = {
   recentFolders: [],
   lastWorkspace: undefined,
   fontSize: 100,
+  sidebarWidth: 250,
 };
 
 interface AppStoreContextValue {
@@ -29,6 +31,7 @@ interface AppStoreContextValue {
   addRecentFolder: (folderPath: string) => void;
   saveLastWorkspace: (workspacePath: string | null) => void;
   saveFontSize: (fontSize: number) => void;
+  saveSidebarWidth: (width: number) => void;
   clearRecentFiles: () => void;
 }
 
@@ -46,6 +49,7 @@ function loadFromStorage(): AppState {
       recentFolders: parsed.recentFolders ?? DEFAULT_STATE.recentFolders,
       lastWorkspace: parsed.lastWorkspace ?? DEFAULT_STATE.lastWorkspace,
       fontSize: parsed.fontSize ?? DEFAULT_STATE.fontSize,
+      sidebarWidth: parsed.sidebarWidth ?? DEFAULT_STATE.sidebarWidth,
     };
   } catch {
     return DEFAULT_STATE;
@@ -123,6 +127,14 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const saveSidebarWidth = useCallback((width: number) => {
+    setState((prev) => {
+      const next = { ...prev, sidebarWidth: width };
+      saveToStorage(next);
+      return next;
+    });
+  }, []);
+
   return (
     <AppStoreContext.Provider
       value={{
@@ -133,6 +145,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         addRecentFolder,
         saveLastWorkspace,
         saveFontSize,
+        saveSidebarWidth,
         clearRecentFiles,
       }}
     >

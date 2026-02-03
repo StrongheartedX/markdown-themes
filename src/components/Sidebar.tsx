@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import type { FileTreeNode } from '../context/WorkspaceContext';
 import { useFileFilter, type ScopedFileTreeNode } from '../hooks/useFileFilter';
 import { FILTERS, type FilterId } from '../lib/filters';
@@ -11,6 +11,12 @@ interface SidebarProps {
   /** User's home directory path for fetching user-level config files */
   homePath?: string;
   isSplit?: boolean;
+  /** Width of the sidebar in pixels (default: 250) */
+  width?: number;
+  /** Callback when sidebar width changes during drag */
+  onWidthChange?: (width: number) => void;
+  /** Callback when drag ends - use for persisting the final width */
+  onWidthChangeEnd?: (width: number) => void;
   onFileSelect: (path: string) => void;
   onFileDoubleClick?: (path: string) => void;
   onRightFileSelect?: (path: string) => void;
@@ -199,11 +205,52 @@ function getAllDirectoryPaths(nodes: FileTreeNode[]): string[] {
   return paths;
 }
 
-export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSplit, onFileSelect, onFileDoubleClick, onRightFileSelect }: SidebarProps) {
+// Sidebar width constraints
+const MIN_SIDEBAR_WIDTH = 150;
+const MAX_SIDEBAR_WIDTH = 400;
+
+export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSplit, width = 250, onWidthChange, onWidthChangeEnd, onFileSelect, onFileDoubleClick, onRightFileSelect }: SidebarProps) {
   const workspaceName = workspacePath?.split('/').pop() ?? workspacePath?.split('\\').pop() ?? 'Workspace';
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+  const currentWidthRef = useRef(width);
+
+  // Keep ref in sync with prop
+  useEffect(() => {
+    currentWidthRef.current = width;
+  }, [width]);
+
+  // Handle drag resize
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!isDraggingRef.current) return;
+
+      // Calculate new width based on mouse position
+      const newWidth = Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, moveEvent.clientX));
+      currentWidthRef.current = newWidth;
+      onWidthChange?.(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      // Persist the final width
+      onWidthChangeEnd?.(currentWidthRef.current);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [onWidthChange, onWidthChangeEnd]);
 
   const {
     activeFilter,
@@ -286,8 +333,11 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
 
   return (
     <aside
-      className="w-[250px] min-w-[250px] flex flex-col h-full relative"
+      className="flex flex-col h-full relative flex-shrink-0"
       style={{
+        width: `${width}px`,
+        minWidth: `${MIN_SIDEBAR_WIDTH}px`,
+        maxWidth: `${MAX_SIDEBAR_WIDTH}px`,
         backgroundColor: 'var(--bg-secondary)',
         borderRight: '1px solid var(--border)',
       }}
@@ -493,6 +543,21 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
             />
           ))
         )}
+      </div>
+
+      {/* Drag handle for resizing */}
+      <div
+        className="absolute top-0 right-0 w-1 h-full group"
+        style={{ cursor: 'col-resize' }}
+        onMouseDown={handleDragStart}
+      >
+        {/* Wider invisible hit area */}
+        <div className="absolute inset-y-0 -left-1 -right-1" />
+        {/* Visual indicator on hover */}
+        <div
+          className="absolute inset-y-0 left-0 right-0 transition-colors group-hover:bg-[var(--accent)]"
+          style={{ backgroundColor: 'transparent' }}
+        />
       </div>
     </aside>
   );

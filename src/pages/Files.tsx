@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useFileWatcher } from '../hooks/useFileWatcher';
 import { useWorkspaceContext } from '../context/WorkspaceContext';
 import { useAppStore } from '../hooks/useAppStore';
@@ -34,7 +34,11 @@ export function Files() {
     state: appState,
     addRecentFile,
     saveFontSize,
+    saveSidebarWidth,
   } = useAppStore();
+
+  // Local state for sidebar width during drag (for smooth updates)
+  const [sidebarWidth, setSidebarWidth] = useState(appState.sidebarWidth);
 
   // Get workspace from global context
   const { workspacePath, fileTree } = useWorkspaceContext();
@@ -149,6 +153,16 @@ export function Files() {
     setRightFile(null);
   }, [setRightFile]);
 
+  // Handle sidebar width change during drag (real-time updates)
+  const handleSidebarWidthChange = useCallback((width: number) => {
+    setSidebarWidth(width);
+  }, []);
+
+  // Handle sidebar width change end (persist to localStorage)
+  const handleSidebarWidthChangeEnd = useCallback((width: number) => {
+    saveSidebarWidth(width);
+  }, [saveSidebarWidth]);
+
   return (
     <>
       <Toolbar
@@ -173,6 +187,9 @@ export function Files() {
             workspacePath={workspacePath}
             homePath={DEFAULT_HOME_PATH}
             isSplit={isSplit}
+            width={sidebarWidth}
+            onWidthChange={handleSidebarWidthChange}
+            onWidthChangeEnd={handleSidebarWidthChangeEnd}
             onFileSelect={handleFileSelect}
             onFileDoubleClick={handleFileDoubleClick}
             onRightFileSelect={handleRightFileSelect}
