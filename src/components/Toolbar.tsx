@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { Columns, Copy, AtSign, Terminal, Check } from 'lucide-react';
+import { Columns, Copy, AtSign, MessageSquare, Check } from 'lucide-react';
+import { queueToChat } from '../lib/api';
 
 interface ToolbarProps {
   currentFile: string | null;
@@ -111,17 +112,13 @@ export function Toolbar({
     }
   };
 
-  // Send to terminal via TabzChrome API
-  const handleSendToTerminal = async () => {
-    if (!currentFile) return;
+  // Send content to TabzChrome sidepanel chat
+  const handleSendToChat = async () => {
+    if (!content) return;
     try {
-      await fetch('http://localhost:8129/api/terminal/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: `cat "${currentFile}"` }),
-      });
+      await queueToChat(content);
     } catch (err) {
-      console.error('Failed to send to terminal:', err);
+      console.error('Failed to send to chat:', err);
     }
   };
 
@@ -287,20 +284,21 @@ export function Toolbar({
                 {copiedState === 'path' ? <Check className="w-4 h-4" /> : <AtSign className="w-4 h-4" />}
               </button>
 
-              {/* Send to terminal button */}
+              {/* Send to chat button */}
               <button
                 type="button"
-                onClick={handleSendToTerminal}
-                className="w-8 h-8 flex items-center justify-center transition-colors"
+                onClick={handleSendToChat}
+                disabled={!content}
+                className="w-8 h-8 flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{
                   borderRadius: 'var(--radius)',
                   backgroundColor: 'var(--bg-primary)',
                   color: 'var(--text-primary)',
                   border: '1px solid var(--border)',
                 }}
-                title="Send cat command to terminal"
+                title="Send content to TabzChrome chat"
               >
-                <Terminal className="w-4 h-4" />
+                <MessageSquare className="w-4 h-4" />
               </button>
             </div>
           )}

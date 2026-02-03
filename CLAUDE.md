@@ -30,7 +30,7 @@ src/
 ├── App.tsx                    # Main app, routing, theme state
 ├── index.css                  # Tailwind + CSS variables + modal styles
 ├── lib/
-│   ├── api.ts                 # TabzChrome API client + WebSocket
+│   ├── api.ts                 # TabzChrome API client, WebSocket, queueToChat()
 │   └── filters.ts             # File tree filter presets
 ├── pages/
 │   ├── Files.tsx              # Main markdown viewer with sidebar
@@ -43,7 +43,7 @@ src/
 │   ├── PromptNotebook.tsx     # Prompty renderer with inline fields
 │   ├── PromptLibrary.tsx      # Prompty file browser sidebar
 │   ├── InlineField.tsx        # Editable {{variable}} fields
-│   ├── viewers/               # File type viewers (JSON, PDF, video, etc.)
+│   ├── viewers/               # File type viewers (see Supported File Types)
 │   └── git/                   # Git components (RepoCard, CommitForm, etc.)
 ├── hooks/
 │   ├── useFileWatcher.ts      # WebSocket file watching + streaming detection
@@ -98,6 +98,33 @@ Reusable modal for browsing and selecting files/folders. Used in:
 - Prompts page header "Open .prompty" button
 - Inline fields for file/folder path variables
 - Supports modes: `file`, `folder`, or `both`
+
+### Supported File Types
+The app auto-detects file types and renders with appropriate viewers:
+
+| Type | Extensions | Viewer |
+|------|------------|--------|
+| Markdown | `.md`, `.mdx` | Streamdown with themes |
+| Prompty | `.prompty` | PromptNotebook with inline fields |
+| Code | `.ts`, `.js`, `.py`, `.css`, etc. | Shiki syntax highlighting |
+| JSON | `.json`, `.jsonc` | Collapsible tree with syntax highlighting |
+| CSV | `.csv`, `.tsv` | Table view |
+| Images | `.png`, `.jpg`, `.gif`, `.webp` | ImageViewer with zoom |
+| SVG | `.svg` | SvgViewer (rendered + source toggle) |
+| Video | `.mp4`, `.webm`, `.mov` | VideoViewer with controls |
+| Audio | `.mp3`, `.wav`, `.ogg` | AudioViewer with waveform |
+| PDF | `.pdf` | PdfViewer (page navigation) |
+
+### TabzChrome Integration
+The app integrates with TabzChrome for terminal/chat actions via WebSocket:
+
+**Send to Chat** - Queue content to the TabzChrome sidepanel chat input:
+- Files page: toolbar button sends current file content
+- Prompts page: "Send to Chat" button sends prompt with variables filled in
+
+Uses `queueToChat()` in `lib/api.ts` which sends `{ type: 'QUEUE_COMMAND', command }` via WebSocket.
+
+**Future**: Spawn terminals via `POST /api/spawn` (see `.claude/skills/tabz-integration/`)
 
 ## Commands
 

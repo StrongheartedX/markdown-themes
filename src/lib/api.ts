@@ -186,3 +186,22 @@ export type FileWatcherMessage =
   | FileChangeMessage
   | FileDeletedMessage
   | FileWatchErrorMessage;
+
+/**
+ * Queue a command/prompt to the TabzChrome sidepanel chat input.
+ * Creates a one-shot WebSocket connection to send the message.
+ */
+export async function queueToChat(command: string): Promise<void> {
+  const ws = await createWebSocket();
+
+  return new Promise((resolve, reject) => {
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'QUEUE_COMMAND', command }));
+      ws.close();
+      resolve();
+    };
+    ws.onerror = (err) => {
+      reject(err);
+    };
+  });
+}

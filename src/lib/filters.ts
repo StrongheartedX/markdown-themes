@@ -56,7 +56,19 @@ export const FILTERS: FilterDefinition[] = [
     name: 'Claude Code',
     patterns: CLAUDE_CODE_PATTERNS,
     homePaths: {
-      relativePaths: ['.claude', '.claude.json'],  // ~/.claude, ~/.claude.json
+      // Specific subdirectories to include (excludes heavy dirs like debug, paste-cache, shell-snapshots, session-env, todos, tasks, projects)
+      relativePaths: [
+        '.claude/commands',
+        '.claude/hooks',
+        '.claude/ide',
+        '.claude/mcp',
+        '.claude/plugins',
+        '.claude/skills',
+        '.claude/settings.json',
+        '.claude/settings.local.json',
+        '.claude/keybindings.json',
+        '.claude.json',
+      ],
     },
   },
   {

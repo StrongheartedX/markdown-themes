@@ -55,60 +55,61 @@
   overflow: hidden;
 }
 
-/* Floating orbs container - uses ::before and ::after for two orbs, third via box-shadow trick */
+/* Floating orbs container - viewport-relative sizing for large monitors */
 .theme-glassmorphism::before,
 .theme-glassmorphism::after {
   content: '';
   position: fixed;
   border-radius: 50%;
-  filter: blur(80px);
+  filter: blur(min(80px, 8vw));
   pointer-events: none;
   z-index: 0;
-  animation: glassmorphism-float 20s ease-in-out infinite;
+  animation: glassmorphism-float 25s ease-in-out infinite;
 }
 
-/* Orb 1 - Blue/purple (top-left) */
+/* Orb 1 - Blue/purple (upper-left quadrant, but not corner) */
 .theme-glassmorphism::before {
-  width: 600px;
-  height: 600px;
+  width: max(600px, 40vw);
+  height: max(600px, 40vw);
   background: var(--orb-1);
-  top: -200px;
-  left: -100px;
+  top: 5%;
+  left: 10%;
   animation-delay: 0s;
 }
 
-/* Orb 2 - Pink (right side) */
+/* Orb 2 - Pink (center-right, covers more of the viewport) */
 .theme-glassmorphism::after {
-  width: 500px;
-  height: 500px;
+  width: max(500px, 35vw);
+  height: max(500px, 35vw);
   background: var(--orb-2);
-  top: 40%;
-  right: -150px;
-  animation-delay: -5s;
+  top: 30%;
+  right: 5%;
+  animation-delay: -8s;
 }
 
 /* Third orb via box-shadow on a pseudo-element from content wrapper */
 .theme-glassmorphism .streamdown-content::before {
   content: '';
   position: fixed;
-  width: 400px;
-  height: 400px;
+  width: max(450px, 30vw);
+  height: max(450px, 30vw);
   background: var(--orb-3);
   border-radius: 50%;
-  filter: blur(80px);
+  filter: blur(min(80px, 8vw));
   pointer-events: none;
   z-index: 0;
-  bottom: -100px;
-  left: 30%;
-  animation: glassmorphism-float 20s ease-in-out infinite;
-  animation-delay: -10s;
+  bottom: 10%;
+  left: 25%;
+  animation: glassmorphism-float 25s ease-in-out infinite;
+  animation-delay: -15s;
 }
 
+/* Viewport-relative animation movement */
 @keyframes glassmorphism-float {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  25% { transform: translate(50px, -30px) scale(1.05); }
-  50% { transform: translate(-30px, 50px) scale(0.95); }
-  75% { transform: translate(-50px, -20px) scale(1.02); }
+  25% { transform: translate(5vw, -3vh) scale(1.08); }
+  50% { transform: translate(-3vw, 5vh) scale(0.92); }
+  75% { transform: translate(-5vw, -2vh) scale(1.05); }
 }
 
 /* Content container with glass effect */

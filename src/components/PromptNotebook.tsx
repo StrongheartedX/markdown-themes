@@ -10,7 +10,9 @@ import {
   CheckCircle2,
   AlertCircle,
   ExternalLink,
+  MessageSquare,
 } from 'lucide-react';
+import { queueToChat } from '../lib/api';
 import {
   parsePrompty,
   getFieldProgress,
@@ -49,6 +51,7 @@ export function PromptNotebook({
   const [variableValues, setVariableValues] = useState<Record<string, string>>({});
   const [activeFieldIndex, setActiveFieldIndex] = useState<number | null>(null);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle');
+  const [sendStatus, setSendStatus] = useState<'idle' | 'sent' | 'error'>('idle');
   const [showFrontmatter, setShowFrontmatter] = useState(true);
 
   // File picker modal state
@@ -137,6 +140,20 @@ export function PromptNotebook({
     await navigator.clipboard.writeText(processed);
     setCopyStatus('copied');
     setTimeout(() => setCopyStatus('idle'), 2000);
+  };
+
+  // Send processed content to TabzChrome chat
+  const handleSendToChat = async () => {
+    const processed = getPromptForSending(content, variableValues);
+    try {
+      await queueToChat(processed);
+      setSendStatus('sent');
+      setTimeout(() => setSendStatus('idle'), 2000);
+    } catch (err) {
+      console.error('Failed to send to chat:', err);
+      setSendStatus('error');
+      setTimeout(() => setSendStatus('idle'), 2000);
+    }
   };
 
   // Helper to render text with inline fields
@@ -269,6 +286,30 @@ export function PromptNotebook({
         >
           {copyStatus === 'copied' ? <Check size={16} /> : <Copy size={16} />}
           {copyStatus === 'copied' ? 'Copied!' : 'Copy'}
+        </button>
+
+        <button
+          onClick={handleSendToChat}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded transition-colors"
+          style={{
+            backgroundColor:
+              sendStatus === 'sent'
+                ? 'color-mix(in srgb, #22c55e 20%, transparent)'
+                : sendStatus === 'error'
+                ? 'color-mix(in srgb, #ef4444 20%, transparent)'
+                : 'color-mix(in srgb, var(--accent) 10%, transparent)',
+            color:
+              sendStatus === 'sent'
+                ? '#22c55e'
+                : sendStatus === 'error'
+                ? '#ef4444'
+                : 'var(--text-primary)',
+            border: '1px solid var(--border)',
+          }}
+          title="Send prompt to TabzChrome chat"
+        >
+          {sendStatus === 'sent' ? <Check size={16} /> : <MessageSquare size={16} />}
+          {sendStatus === 'sent' ? 'Sent!' : sendStatus === 'error' ? 'Failed' : 'Send to Chat'}
         </button>
 
         {/* Progress indicator */}
