@@ -9,9 +9,11 @@ interface ToolbarProps {
   connected?: boolean;
   hasWorkspace?: boolean;
   recentFiles?: string[];
+  fontSize?: number;
   onThemeChange: (theme: ThemeId) => void;
   onFileSelect: (path: string) => void;
   onFolderSelect?: (path: string) => void;
+  onFontSizeChange?: (size: number) => void;
 }
 
 export function Toolbar({
@@ -21,9 +23,11 @@ export function Toolbar({
   connected = false,
   hasWorkspace,
   recentFiles = [],
+  fontSize = 100,
   onThemeChange,
   onFileSelect,
   onFolderSelect,
+  onFontSizeChange,
 }: ToolbarProps) {
   const [showRecentFiles, setShowRecentFiles] = useState(false);
   const [showPathInput, setShowPathInput] = useState(false);
@@ -218,7 +222,55 @@ export function Toolbar({
           )}
         </div>
 
-        <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
+        <div className="flex items-center gap-4">
+          {/* Font size controls */}
+          <div className="flex items-center gap-1">
+            <span className="text-sm mr-1" style={{ color: 'var(--text-secondary)' }}>
+              Size:
+            </span>
+            <button
+              type="button"
+              onClick={() => onFontSizeChange?.(Math.max(50, fontSize - 10))}
+              className="w-7 h-7 flex items-center justify-center text-sm font-medium transition-colors"
+              style={{
+                borderRadius: 'var(--radius) 0 0 var(--radius)',
+                backgroundColor: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border)',
+              }}
+              title="Decrease font size"
+            >
+              −
+            </button>
+            <span
+              className="w-12 h-7 flex items-center justify-center text-xs"
+              style={{
+                backgroundColor: 'var(--bg-primary)',
+                color: 'var(--text-secondary)',
+                borderTop: '1px solid var(--border)',
+                borderBottom: '1px solid var(--border)',
+              }}
+            >
+              {fontSize}%
+            </span>
+            <button
+              type="button"
+              onClick={() => onFontSizeChange?.(Math.min(200, fontSize + 10))}
+              className="w-7 h-7 flex items-center justify-center text-sm font-medium transition-colors"
+              style={{
+                borderRadius: '0 var(--radius) var(--radius) 0',
+                backgroundColor: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border)',
+              }}
+              title="Increase font size"
+            >
+              +
+            </button>
+          </div>
+
+          <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
+        </div>
       </header>
 
       {/* Path Input Modal */}

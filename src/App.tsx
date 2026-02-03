@@ -20,6 +20,7 @@ function App() {
     saveTheme,
     addRecentFile,
     saveLastWorkspace,
+    saveFontSize,
   } = useAppStore();
 
   // Use file watcher to get content and streaming state
@@ -63,6 +64,14 @@ function App() {
     [saveTheme]
   );
 
+  // Handle font size change with persistence
+  const handleFontSizeChange = useCallback(
+    (size: number) => {
+      saveFontSize(size);
+    },
+    [saveFontSize]
+  );
+
   // Handle file selection with recent files tracking
   const handleFileSelect = useCallback(
     (path: string) => {
@@ -99,9 +108,11 @@ function App() {
         connected={connected}
         hasWorkspace={!!workspacePath}
         recentFiles={appState.recentFiles}
+        fontSize={appState.fontSize}
         onThemeChange={handleThemeChange}
         onFileSelect={handleFileSelect}
         onFolderSelect={handleFolderSelect}
+        onFontSizeChange={handleFontSizeChange}
       />
 
       <div className="flex-1 flex overflow-hidden">
@@ -159,6 +170,7 @@ function App() {
                   isStreaming={isStreaming}
                   themeClassName={themeClass}
                   themeId={appState.theme}
+                  fontSize={appState.fontSize}
                 />
               </div>
             </>

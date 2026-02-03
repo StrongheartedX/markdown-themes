@@ -8,12 +8,14 @@ export interface AppState {
   theme: ThemeId;
   recentFiles: string[];
   lastWorkspace?: string;
+  fontSize: number;
 }
 
 const DEFAULT_STATE: AppState = {
   theme: 'dark-academia',
   recentFiles: [],
   lastWorkspace: undefined,
+  fontSize: 100,
 };
 
 interface UseAppStoreResult {
@@ -22,6 +24,7 @@ interface UseAppStoreResult {
   saveTheme: (theme: ThemeId) => void;
   addRecentFile: (filePath: string) => void;
   saveLastWorkspace: (workspacePath: string | null) => void;
+  saveFontSize: (fontSize: number) => void;
   clearRecentFiles: () => void;
 }
 
@@ -35,6 +38,7 @@ function loadFromStorage(): AppState {
       theme: parsed.theme ?? DEFAULT_STATE.theme,
       recentFiles: parsed.recentFiles ?? DEFAULT_STATE.recentFiles,
       lastWorkspace: parsed.lastWorkspace ?? DEFAULT_STATE.lastWorkspace,
+      fontSize: parsed.fontSize ?? DEFAULT_STATE.fontSize,
     };
   } catch {
     return DEFAULT_STATE;
@@ -88,6 +92,14 @@ export function useAppStore(): UseAppStoreResult {
     });
   }, []);
 
+  const saveFontSize = useCallback((fontSize: number) => {
+    setState((prev) => {
+      const next = { ...prev, fontSize };
+      saveToStorage(next);
+      return next;
+    });
+  }, []);
+
   const clearRecentFiles = useCallback(() => {
     setState((prev) => {
       const next = { ...prev, recentFiles: [] };
@@ -102,6 +114,7 @@ export function useAppStore(): UseAppStoreResult {
     saveTheme,
     addRecentFile,
     saveLastWorkspace,
+    saveFontSize,
     clearRecentFiles,
   };
 }

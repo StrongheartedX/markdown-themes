@@ -8,13 +8,14 @@ interface MarkdownViewerProps {
   isStreaming?: boolean;
   themeClassName?: string;
   themeId?: ThemeId;
+  fontSize?: number;
 }
 
 export interface MarkdownViewerHandle {
   getHtml: () => string;
 }
 
-export const MarkdownViewer = forwardRef<MarkdownViewerHandle, MarkdownViewerProps>(function MarkdownViewer({ content, isStreaming = false, themeId = 'default' }, ref) {
+export const MarkdownViewer = forwardRef<MarkdownViewerHandle, MarkdownViewerProps>(function MarkdownViewer({ content, isStreaming = false, themeId = 'default', fontSize = 100 }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Create code plugin with theme-specific Shiki configuration
@@ -44,7 +45,7 @@ export const MarkdownViewer = forwardRef<MarkdownViewerHandle, MarkdownViewerPro
   }
 
   return (
-    <article ref={containerRef} className="prose prose-lg max-w-none p-8">
+    <article ref={containerRef} className="prose prose-lg max-w-none p-8" style={{ fontSize: `${fontSize}%` }}>
       <Streamdown
         isAnimating={isStreaming}
         caret={isStreaming ? 'block' : undefined}
