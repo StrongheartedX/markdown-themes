@@ -7,6 +7,10 @@ import './nordic.css';
 import './glassmorphism.css';
 import './retro-futurism.css';
 import './art-deco.css';
+import './knolling.css';
+import './industrial.css';
+import './streamline-moderne.css';
+import './pixel-art.css';
 
 export const themes = [
   { id: 'default', name: 'Default', className: '' },
@@ -19,6 +23,10 @@ export const themes = [
   { id: 'glassmorphism', name: 'Glassmorphism', className: 'theme-glassmorphism' },
   { id: 'retro-futurism', name: 'Retro Futurism', className: 'theme-retro-futurism' },
   { id: 'art-deco', name: 'Art Deco', className: 'theme-art-deco' },
+  { id: 'knolling', name: 'Knolling', className: 'theme-knolling' },
+  { id: 'industrial', name: 'Industrial', className: 'theme-industrial' },
+  { id: 'streamline-moderne', name: 'Streamline Moderne', className: 'theme-streamline-moderne' },
+  { id: 'pixel-art', name: 'Pixel Art', className: 'theme-pixel-art' },
 ] as const;
 
 export type ThemeId = typeof themes[number]['id'];
