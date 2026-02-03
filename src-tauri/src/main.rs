@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    markdown_themes_temp_lib::run()
+    markdown_themes_lib::run()
 }
