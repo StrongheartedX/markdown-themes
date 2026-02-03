@@ -1,0 +1,42 @@
+/* Parchment Theme */
+.theme-parchment {
+  --bg-primary: #f4ecd8;
+  --bg-secondary: #ebe3cf;
+  --text-primary: #3d3424;
+  --text-secondary: #5c5243;
+  --accent: #8b4513;
+  --accent-hover: #a0522d;
+  --border: #d4c9b0;
+  --font-body: 'Crimson Text', 'Palatino', 'Georgia', serif;
+  --font-heading: 'Cinzel', 'Trajan Pro', serif;
+  --font-mono: 'Courier Prime', monospace;
+  --radius: 0;
+}
+
+.theme-parchment {
+  background-image:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+}
+
+.theme-parchment .prose h1 {
+  text-align: center;
+  border-bottom: 2px double var(--accent);
+  padding-bottom: 0.5rem;
+}
+
+.theme-parchment .prose blockquote {
+  border-left: 3px solid var(--accent);
+  font-style: italic;
+  background: rgba(139, 69, 19, 0.05);
+}
+
+.theme-parchment .prose hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+
+.theme-parchment .prose ::first-letter {
+  font-size: 1.5em;
+  font-weight: bold;
+}

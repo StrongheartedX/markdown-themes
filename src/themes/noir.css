@@ -1,0 +1,61 @@
+/* Noir Theme */
+/* Film noir aesthetic - high contrast black/white, dramatic shadows, blood red accents */
+.theme-noir {
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #141414;
+  --text-primary: #e8e8e8;
+  --text-secondary: #b0b0b0;
+  --accent: #8b0000;
+  --accent-hover: #b22222;
+  --border: #333333;
+  --font-body: 'Courier Prime', 'Courier New', monospace;
+  --font-heading: 'Playfair Display', 'Georgia', serif;
+  --font-mono: 'Courier Prime', 'Courier New', monospace;
+  --radius: 0;
+}
+
+.theme-noir .prose h1,
+.theme-noir .prose h2,
+.theme-noir .prose h3 {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-shadow: 4px 4px 0 #222222;
+}
+
+.theme-noir .prose blockquote {
+  border-left: 4px solid var(--accent);
+  background: linear-gradient(90deg, rgba(139, 0, 0, 0.1), transparent);
+  padding: 1rem;
+  font-style: italic;
+}
+
+.theme-noir .prose hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+}
+
+.theme-noir .prose code {
+  background: rgba(139, 0, 0, 0.1);
+  border: 1px solid rgba(139, 0, 0, 0.3);
+}
+
+.theme-noir .prose pre {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+}
+
+.theme-noir .prose a {
+  color: var(--accent-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.theme-noir .prose a:hover {
+  color: var(--text-primary);
+}
+
+.theme-noir .prose strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}

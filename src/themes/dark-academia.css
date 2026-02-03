@@ -1,0 +1,31 @@
+/* Dark Academia Theme */
+.theme-dark-academia {
+  --bg-primary: #1a1915;
+  --bg-secondary: #252320;
+  --text-primary: #d4c5a9;
+  --text-secondary: #a89f8a;
+  --accent: #8b7355;
+  --accent-hover: #a08567;
+  --border: #3d3830;
+  --font-body: 'Cormorant Garamond', 'Palatino Linotype', 'Book Antiqua', serif;
+  --font-heading: 'Playfair Display', 'Didot', 'Georgia', serif;
+  --font-mono: 'Courier Prime', 'Courier New', monospace;
+  --radius: 0.25rem;
+}
+
+.theme-dark-academia .prose blockquote {
+  border-left-color: var(--accent);
+  background: linear-gradient(90deg, rgba(139, 115, 85, 0.1), transparent);
+  padding: 1rem;
+  font-style: italic;
+}
+
+.theme-dark-academia .prose hr {
+  border-top: 1px solid var(--accent);
+  opacity: 0.4;
+}
+
+.theme-dark-academia .prose a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

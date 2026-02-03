@@ -1,0 +1,118 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/* Base theme variables */
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --text-primary: #1a1a2e;
+  --text-secondary: #4a4a68;
+  --accent: #6366f1;
+  --accent-hover: #4f46e5;
+  --border: #e5e7eb;
+  --font-body: system-ui, -apple-system, sans-serif;
+  --font-heading: system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+  --radius: 0.5rem;
+}
+
+/* Dark mode base */
+.dark {
+  --bg-primary: #0f0f1a;
+  --bg-secondary: #1a1a2e;
+  --text-primary: #e5e5e5;
+  --text-secondary: #a0a0b0;
+  --border: #2a2a3e;
+}
+
+/* Custom theme layer */
+@theme {
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-border: var(--border);
+  --font-family-body: var(--font-body);
+  --font-family-heading: var(--font-heading);
+  --font-family-mono: var(--font-mono);
+  --radius-theme: var(--radius);
+}
+
+/* Base styles */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Prose overrides for themed markdown */
+.prose {
+  --tw-prose-body: var(--text-primary);
+  --tw-prose-headings: var(--text-primary);
+  --tw-prose-links: var(--accent);
+  --tw-prose-bold: var(--text-primary);
+  --tw-prose-code: var(--accent);
+  --tw-prose-pre-bg: var(--bg-secondary);
+  --tw-prose-pre-code: var(--text-primary);
+  --tw-prose-quotes: var(--text-secondary);
+  --tw-prose-quote-borders: var(--accent);
+  --tw-prose-hr: var(--border);
+  font-family: var(--font-body);
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  font-family: var(--font-heading);
+}
+
+.prose code {
+  font-family: var(--font-mono);
+}
+
+/* Streamdown caret animation */
+.streamdown-content [data-caret] {
+  background-color: var(--accent);
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+/* Streamdown code blocks */
+.streamdown-content pre {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow-x: auto;
+  padding: 1rem;
+}
+
+.streamdown-content pre code {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+/* Shiki syntax highlighting integration */
+.streamdown-content pre.shiki {
+  background-color: var(--bg-secondary) !important;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.streamdown-content .shiki code {
+  font-family: var(--font-mono);
+  background: transparent;
+}
+
+/* Inline code (not in pre blocks) */
+.streamdown-content :not(pre) > code {
+  background-color: var(--bg-secondary);
+  padding: 0.2em 0.4em;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+  font-family: var(--font-mono);
+}

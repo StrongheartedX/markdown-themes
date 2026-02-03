@@ -1,0 +1,77 @@
+/* Glassmorphism Theme */
+/* Frosted glass effects, vibrant gradients, soft blur */
+.theme-glassmorphism {
+  --bg-primary: #0f0c29;
+  --bg-secondary: rgba(255, 255, 255, 0.08);
+  --text-primary: rgba(255, 255, 255, 0.95);
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --accent: #667eea;
+  --accent-hover: #764ba2;
+  --border: rgba(255, 255, 255, 0.18);
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'Fira Code', 'SF Mono', monospace;
+  --radius: 1rem;
+}
+
+.theme-glassmorphism {
+  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+}
+
+.theme-glassmorphism .prose h1,
+.theme-glassmorphism .prose h2 {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.theme-glassmorphism .prose h3 {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.theme-glassmorphism .prose blockquote {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 1rem 1.5rem;
+}
+
+.theme-glassmorphism .prose hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+}
+
+.theme-glassmorphism .prose code {
+  background: rgba(102, 126, 234, 0.2);
+  border-radius: 0.375rem;
+  padding: 0.125rem 0.375rem;
+}
+
+.theme-glassmorphism .prose pre {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.theme-glassmorphism .prose a {
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 500;
+}
+
+.theme-glassmorphism .prose a:hover {
+  text-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+}

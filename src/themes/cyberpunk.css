@@ -1,0 +1,49 @@
+/* Cyberpunk Theme */
+.theme-cyberpunk {
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #12121a;
+  --text-primary: #00ff9f;
+  --text-secondary: #00cc7f;
+  --accent: #ff00ff;
+  --accent-hover: #ff44ff;
+  --border: #1f1f2e;
+  --font-body: 'Share Tech Mono', 'Consolas', monospace;
+  --font-heading: 'Orbitron', 'Share Tech', sans-serif;
+  --font-mono: 'Fira Code', 'Source Code Pro', monospace;
+  --radius: 0;
+}
+
+.theme-cyberpunk .prose {
+  text-shadow: 0 0 10px rgba(0, 255, 159, 0.3);
+}
+
+.theme-cyberpunk .prose h1,
+.theme-cyberpunk .prose h2,
+.theme-cyberpunk .prose h3 {
+  text-shadow: 0 0 20px var(--accent), 0 0 40px var(--accent);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.theme-cyberpunk .prose code {
+  background: rgba(255, 0, 255, 0.1);
+  border: 1px solid rgba(255, 0, 255, 0.3);
+  text-shadow: 0 0 5px var(--accent);
+}
+
+.theme-cyberpunk .prose pre {
+  border: 1px solid rgba(0, 255, 159, 0.3);
+  box-shadow: 0 0 20px rgba(0, 255, 159, 0.1);
+}
+
+.theme-cyberpunk .prose a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.theme-cyberpunk .prose a:hover {
+  border-bottom-color: var(--accent);
+  text-shadow: 0 0 10px var(--accent);
+}

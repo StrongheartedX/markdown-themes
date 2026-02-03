@@ -1,0 +1,75 @@
+/* Retro Futurism Theme */
+/* 1950s-60s Space Age aesthetic - atomic starbursts, Googie curves, optimistic pastels */
+.theme-retro-futurism {
+  --bg-primary: #fff8e7;
+  --bg-secondary: #fff5dc;
+  --text-primary: #1a1a3e;
+  --text-secondary: #4a4a6a;
+  --accent: #40e0d0;
+  --accent-hover: #ff6b6b;
+  --border: rgba(26, 26, 62, 0.15);
+  --font-body: 'Questrial', -apple-system, sans-serif;
+  --font-heading: 'Audiowide', 'Orbitron', cursive;
+  --font-mono: 'Space Mono', 'Courier New', monospace;
+  --radius: 100px;
+}
+
+.theme-retro-futurism .prose h1,
+.theme-retro-futurism .prose h2 {
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #ff6b6b, #f4d03f);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.theme-retro-futurism .prose h3 {
+  font-family: var(--font-heading);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.theme-retro-futurism .prose blockquote {
+  background: linear-gradient(135deg, rgba(64, 224, 208, 0.1), rgba(152, 216, 170, 0.1));
+  border-left: 4px solid var(--accent);
+  border-radius: 0 1rem 1rem 0;
+  padding: 1rem 1.5rem;
+}
+
+.theme-retro-futurism .prose hr {
+  border: none;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover), #f4d03f, var(--accent));
+  border-radius: var(--radius);
+}
+
+.theme-retro-futurism .prose code {
+  background: linear-gradient(135deg, rgba(64, 224, 208, 0.15), rgba(152, 216, 170, 0.15));
+  border-radius: var(--radius);
+  padding: 0.125rem 0.5rem;
+}
+
+.theme-retro-futurism .prose pre {
+  background: var(--bg-secondary);
+  border: 2px solid var(--border);
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px rgba(26, 26, 62, 0.08);
+}
+
+.theme-retro-futurism .prose a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.theme-retro-futurism .prose a:hover {
+  color: var(--accent-hover);
+}
+
+.theme-retro-futurism .prose strong {
+  color: var(--accent-hover);
+}

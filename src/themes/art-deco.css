@@ -1,0 +1,96 @@
+/* Art Deco Theme */
+/* 1920s glamour - gold on black, geometric patterns, luxury typography */
+.theme-art-deco {
+  --bg-primary: #0d0d0d;
+  --bg-secondary: #1a1a1a;
+  --text-primary: #f5f0e1;
+  --text-secondary: rgba(245, 240, 225, 0.7);
+  --accent: #d4af37;
+  --accent-hover: #f4d03f;
+  --border: rgba(212, 175, 55, 0.3);
+  --font-body: 'Josefin Sans', 'Helvetica Neue', sans-serif;
+  --font-heading: 'Poiret One', 'Didot', cursive;
+  --font-mono: 'Courier New', monospace;
+  --radius: 0;
+}
+
+.theme-art-deco .prose h1,
+.theme-art-deco .prose h2 {
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+}
+
+.theme-art-deco .prose h3 {
+  font-family: var(--font-heading);
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+.theme-art-deco .prose blockquote {
+  border: 1px solid var(--accent);
+  border-left: 4px solid var(--accent);
+  background: transparent;
+  padding: 1.5rem;
+  position: relative;
+}
+
+.theme-art-deco .prose blockquote::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  pointer-events: none;
+}
+
+.theme-art-deco .prose hr {
+  border: none;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+
+.theme-art-deco .prose code {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--accent);
+}
+
+.theme-art-deco .prose pre {
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent);
+  position: relative;
+}
+
+.theme-art-deco .prose pre::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  pointer-events: none;
+}
+
+.theme-art-deco .prose a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent);
+  transition: all 0.3s;
+}
+
+.theme-art-deco .prose a:hover {
+  color: var(--accent-hover);
+  border-bottom-color: var(--accent-hover);
+  text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+}
+
+.theme-art-deco .prose strong {
+  color: var(--accent);
+  font-weight: 600;
+}

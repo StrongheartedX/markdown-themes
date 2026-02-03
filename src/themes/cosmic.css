@@ -1,0 +1,47 @@
+/* Cosmic Theme */
+.theme-cosmic {
+  --bg-primary: #0d0d1a;
+  --bg-secondary: #151528;
+  --text-primary: #e0e6ff;
+  --text-secondary: #9ca3cf;
+  --accent: #7c3aed;
+  --accent-hover: #8b5cf6;
+  --border: #2d2d4a;
+  --font-body: 'Inter', 'SF Pro Text', system-ui, sans-serif;
+  --font-heading: 'Space Grotesk', 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --radius: 0.75rem;
+}
+
+.theme-cosmic {
+  background-image:
+    radial-gradient(ellipse at 20% 30%, rgba(124, 58, 237, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 70%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+}
+
+.theme-cosmic .prose h1,
+.theme-cosmic .prose h2 {
+  background: linear-gradient(135deg, var(--text-primary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.theme-cosmic .prose code {
+  background: rgba(124, 58, 237, 0.15);
+  border-radius: 0.25rem;
+}
+
+.theme-cosmic .prose pre {
+  background: linear-gradient(135deg, var(--bg-secondary), rgba(124, 58, 237, 0.1));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.theme-cosmic .prose a {
+  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 500;
+}
