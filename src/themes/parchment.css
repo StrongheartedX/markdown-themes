@@ -283,19 +283,9 @@
   position: relative;
   margin: 1.5rem 0;
   overflow-x: auto;
-}
-
-/* Inner border for pre blocks */
-.theme-parchment .prose pre::before {
-  content: '';
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  right: 6px;
-  bottom: 6px;
-  border: 1px solid var(--ink-light);
-  pointer-events: none;
-  opacity: 0.5;
+  /* Inner border effect using box-shadow instead of ::before */
+  box-shadow: inset 0 0 0 6px var(--parchment-light),
+              inset 0 0 0 7px color-mix(in srgb, var(--ink-light) 50%, transparent);
 }
 
 .theme-parchment .prose pre code {
@@ -365,19 +355,9 @@
   background: linear-gradient(135deg, var(--parchment-light) 0%, var(--parchment) 100%) !important;
   border: 2px solid var(--ink-light);
   filter: sepia(15%);
-}
-
-.theme-parchment .prose pre.shiki::before,
-.theme-parchment .streamdown-content pre.shiki::before {
-  content: '';
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  right: 6px;
-  bottom: 6px;
-  border: 1px solid var(--ink-light);
-  pointer-events: none;
-  opacity: 0.5;
+  /* Inner border effect using box-shadow instead of ::before */
+  box-shadow: inset 0 0 0 6px var(--parchment-light),
+              inset 0 0 0 7px color-mix(in srgb, var(--ink-light) 50%, transparent);
 }
 
 /* === Candlelight glow for focus states === */
