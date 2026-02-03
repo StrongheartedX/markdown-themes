@@ -23,17 +23,6 @@
       "csp": null
     }
   },
-  "plugins": {
-    "fs": {
-      "scope": {
-        "allow": ["**/*"],
-        "requireLiteralLeadingDot": false
-      }
-    },
-    "dialog": {
-      "all": true
-    }
-  },
   "bundle": {
     "active": true,
     "targets": "all",

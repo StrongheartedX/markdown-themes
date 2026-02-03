@@ -14,10 +14,6 @@
     "fs:allow-stat",
     "fs:allow-exists",
     "fs:allow-watch",
-    {
-      "identifier": "fs:scope",
-      "allow": ["**/*"]
-    },
     "store:default"
   ]
 }
