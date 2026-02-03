@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { themes, type ThemeId } from './themes';
 import { useFileWatcher } from './hooks/useFileWatcher';
 import { useWorkspace } from './hooks/useWorkspace';
 import { useAppStore } from './hooks/useAppStore';
 import { Toolbar } from './components/Toolbar';
 import { MarkdownViewer } from './components/MarkdownViewer';
+import { MetadataBar } from './components/MetadataBar';
 import { Sidebar } from './components/Sidebar';
+import { parseFrontmatter } from './utils/frontmatter';
 import './index.css';
 
 function App() {
@@ -23,6 +25,12 @@ function App() {
   const { workspacePath, fileTree, openWorkspace, closeWorkspace } = useWorkspace();
 
   const themeClass = themes.find(t => t.id === appState.theme)?.className ?? '';
+
+  // Parse frontmatter from content
+  const { frontmatter, content: markdownContent } = useMemo(
+    () => parseFrontmatter(content),
+    [content]
+  );
 
   // Restore last workspace on mount
   useEffect(() => {
@@ -78,7 +86,7 @@ function App() {
           />
         )}
 
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 flex flex-col overflow-hidden">
           {loading && (
             <div className="flex items-center justify-center h-full">
               <p className="text-text-secondary">Loading...</p>
@@ -92,7 +100,12 @@ function App() {
           )}
 
           {!loading && !error && (
-            <MarkdownViewer content={content} isStreaming={isStreaming} themeClassName={themeClass} />
+            <>
+              {frontmatter && <MetadataBar frontmatter={frontmatter} />}
+              <div className="flex-1 overflow-auto">
+                <MarkdownViewer content={markdownContent} isStreaming={isStreaming} themeClassName={themeClass} />
+              </div>
+            </>
           )}
         </main>
       </div>
