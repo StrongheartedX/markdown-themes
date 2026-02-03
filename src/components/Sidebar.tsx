@@ -6,6 +6,7 @@ interface SidebarProps {
   currentFile: string | null;
   workspacePath: string | null;
   onFileSelect: (path: string) => void;
+  onFileDoubleClick?: (path: string) => void;
   onClose: () => void;
 }
 
@@ -13,10 +14,11 @@ interface TreeItemProps {
   node: FileTreeNode;
   currentFile: string | null;
   onFileSelect: (path: string) => void;
+  onFileDoubleClick?: (path: string) => void;
   depth: number;
 }
 
-function TreeItem({ node, currentFile, onFileSelect, depth }: TreeItemProps) {
+function TreeItem({ node, currentFile, onFileSelect, onFileDoubleClick, depth }: TreeItemProps) {
   const [expanded, setExpanded] = useState(true);
   const isSelected = node.path === currentFile;
   const paddingLeft = 12 + depth * 16;
@@ -62,6 +64,7 @@ function TreeItem({ node, currentFile, onFileSelect, depth }: TreeItemProps) {
                 node={child}
                 currentFile={currentFile}
                 onFileSelect={onFileSelect}
+                onFileDoubleClick={onFileDoubleClick}
                 depth={depth + 1}
               />
             ))}
@@ -74,6 +77,7 @@ function TreeItem({ node, currentFile, onFileSelect, depth }: TreeItemProps) {
   return (
     <button
       onClick={() => onFileSelect(node.path)}
+      onDoubleClick={() => onFileDoubleClick?.(node.path)}
       className="w-full text-left py-1.5 pr-2 flex items-center gap-1.5 text-sm transition-colors"
       style={{
         paddingLeft: paddingLeft + 20,
@@ -100,7 +104,7 @@ function TreeItem({ node, currentFile, onFileSelect, depth }: TreeItemProps) {
   );
 }
 
-export function Sidebar({ fileTree, currentFile, workspacePath, onFileSelect, onClose }: SidebarProps) {
+export function Sidebar({ fileTree, currentFile, workspacePath, onFileSelect, onFileDoubleClick, onClose }: SidebarProps) {
   const workspaceName = workspacePath?.split('/').pop() ?? workspacePath?.split('\\').pop() ?? 'Workspace';
 
   return (
@@ -157,6 +161,7 @@ export function Sidebar({ fileTree, currentFile, workspacePath, onFileSelect, on
               node={node}
               currentFile={currentFile}
               onFileSelect={onFileSelect}
+              onFileDoubleClick={onFileDoubleClick}
               depth={0}
             />
           ))

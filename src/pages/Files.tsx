@@ -1,16 +1,29 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { useFileWatcher } from '../hooks/useFileWatcher';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { useAppStore } from '../hooks/useAppStore';
+import { useTabManager } from '../hooks/useTabManager';
 import { Toolbar } from '../components/Toolbar';
 import { ViewerContainer } from '../components/ViewerContainer';
 import { MetadataBar } from '../components/MetadataBar';
 import { Sidebar } from '../components/Sidebar';
+import { TabBar } from '../components/TabBar';
 import { parseFrontmatter } from '../utils/frontmatter';
 import { themes, type ThemeId } from '../themes';
 
 export function Files() {
-  const [currentFile, setCurrentFile] = useState<string | null>(null);
+  const {
+    tabs,
+    activeTabId,
+    activeTab,
+    openTab,
+    pinTab,
+    closeTab,
+    setActiveTab,
+  } = useTabManager();
+
+  // Current file is derived from the active tab
+  const currentFile = activeTab?.path ?? null;
 
   const {
     state: appState,
@@ -78,13 +91,22 @@ export function Files() {
     [saveFontSize]
   );
 
-  // Handle file selection with recent files tracking
+  // Handle file selection (single-click = preview)
   const handleFileSelect = useCallback(
     (path: string) => {
-      setCurrentFile(path);
+      openTab(path, true); // preview mode
       addRecentFile(path);
     },
-    [addRecentFile]
+    [openTab, addRecentFile]
+  );
+
+  // Handle file double-click (pin the tab)
+  const handleFileDoubleClick = useCallback(
+    (path: string) => {
+      openTab(path, false); // pinned mode
+      addRecentFile(path);
+    },
+    [openTab, addRecentFile]
   );
 
   // Handle folder selection with workspace persistence
@@ -99,9 +121,10 @@ export function Files() {
 
   const handleCloseWorkspace = useCallback(() => {
     closeWorkspace();
-    setCurrentFile(null);
+    // Close all tabs when closing workspace
+    tabs.forEach((tab) => closeTab(tab.id));
     saveLastWorkspace(null);
-  }, [closeWorkspace, saveLastWorkspace]);
+  }, [closeWorkspace, saveLastWorkspace, tabs, closeTab]);
 
   return (
     <>
@@ -127,11 +150,20 @@ export function Files() {
             currentFile={currentFile}
             workspacePath={workspacePath}
             onFileSelect={handleFileSelect}
+            onFileDoubleClick={handleFileDoubleClick}
             onClose={handleCloseWorkspace}
           />
         )}
 
         <main className="flex-1 flex flex-col overflow-hidden">
+          <TabBar
+            tabs={tabs}
+            activeTabId={activeTabId}
+            onTabSelect={setActiveTab}
+            onTabClose={closeTab}
+            onTabPin={pinTab}
+          />
+
           {loading && (
             <div className="flex items-center justify-center h-full">
               <p style={{ color: 'var(--text-secondary)' }}>Loading...</p>
