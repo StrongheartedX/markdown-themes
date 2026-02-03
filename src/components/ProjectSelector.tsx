@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Folder, FolderOpen, ChevronDown, X } from 'lucide-react';
+import { FilePickerModal } from './FilePickerModal';
 
 interface ProjectSelectorProps {
   currentPath: string | null;
@@ -15,10 +16,8 @@ export function ProjectSelector({
   onClose,
 }: ProjectSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [showPathInput, setShowPathInput] = useState(false);
-  const [pathInputValue, setPathInputValue] = useState('');
+  const [showFilePicker, setShowFilePicker] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const pathInputRef = useRef<HTMLInputElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -31,22 +30,6 @@ export function ProjectSelector({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Focus input when modal opens
-  useEffect(() => {
-    if (showPathInput && pathInputRef.current) {
-      pathInputRef.current.focus();
-    }
-  }, [showPathInput]);
-
-  const handlePathSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!pathInputValue.trim()) return;
-    onFolderSelect(pathInputValue.trim());
-    setShowPathInput(false);
-    setPathInputValue('');
-    setIsOpen(false);
-  };
-
   const handleRecentFolderClick = (path: string) => {
     onFolderSelect(path);
     setIsOpen(false);
@@ -54,8 +37,12 @@ export function ProjectSelector({
 
   const handleOpenFolderClick = () => {
     setIsOpen(false);
-    setPathInputValue('');
-    setShowPathInput(true);
+    setShowFilePicker(true);
+  };
+
+  const handleFilePickerSelect = (path: string) => {
+    onFolderSelect(path);
+    setShowFilePicker(false);
   };
 
   const handleCloseWorkspace = (e: React.MouseEvent) => {
@@ -194,71 +181,15 @@ export function ProjectSelector({
         )}
       </div>
 
-      {/* Path Input Modal */}
-      {showPathInput && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
-          onClick={() => setShowPathInput(false)}
-        >
-          <div
-            className="w-full max-w-lg p-6 shadow-xl"
-            style={{
-              backgroundColor: 'var(--bg-secondary)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2
-              className="text-lg font-medium mb-4"
-              style={{ color: 'var(--text-primary)' }}
-            >
-              Open Project Folder
-            </h2>
-            <form onSubmit={handlePathSubmit}>
-              <input
-                ref={pathInputRef}
-                type="text"
-                value={pathInputValue}
-                onChange={(e) => setPathInputValue(e.target.value)}
-                placeholder="/path/to/project"
-                className="w-full px-3 py-2 text-sm outline-none"
-                style={{
-                  backgroundColor: 'var(--bg-primary)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius)',
-                  color: 'var(--text-primary)',
-                }}
-              />
-              <div className="flex justify-end gap-2 mt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowPathInput(false)}
-                  className="btn-secondary px-4 py-1.5 text-sm"
-                  style={{ borderRadius: 'var(--radius)' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn-accent px-4 py-1.5 text-sm"
-                  style={{ borderRadius: 'var(--radius)' }}
-                >
-                  Open
-                </button>
-              </div>
-            </form>
-            <p
-              className="text-xs mt-3"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              Enter the full path to a project folder in WSL.
-              <br />
-              Example: /home/user/projects/my-project
-            </p>
-          </div>
-        </div>
+      {/* File Picker Modal */}
+      {showFilePicker && (
+        <FilePickerModal
+          mode="folder"
+          onSelect={handleFilePickerSelect}
+          onCancel={() => setShowFilePicker(false)}
+          initialPath={currentPath ?? '/home'}
+          title="Open Project Folder"
+        />
       )}
     </>
   );
