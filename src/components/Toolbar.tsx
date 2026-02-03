@@ -91,7 +91,7 @@ export function Toolbar({
   return (
     <>
       <header
-        className="flex items-center justify-between px-4 py-3 select-none"
+        className="flex items-center justify-between px-4 py-3 select-none relative z-20"
         style={{
           backgroundColor: 'var(--bg-secondary)',
           borderBottom: '1px solid var(--border)',
@@ -151,7 +151,7 @@ export function Toolbar({
 
             {showRecentFiles && recentFiles.length > 0 && (
               <div
-                className="absolute top-full left-0 mt-1 z-50 min-w-[280px] max-w-[400px] py-1 overflow-hidden shadow-lg"
+                className="absolute top-full left-0 mt-1 z-[100] min-w-[280px] max-w-[400px] py-1 overflow-hidden shadow-lg"
                 style={{
                   backgroundColor: 'var(--bg-secondary)',
                   border: '1px solid var(--border)',
