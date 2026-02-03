@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
+import { Clock, ChevronLeft } from 'lucide-react';
 import { useFileWatcher } from '../hooks/useFileWatcher';
 import { useWorkspaceContext } from '../context/WorkspaceContext';
 import { useAppStore } from '../hooks/useAppStore';
@@ -101,6 +102,11 @@ export function Files() {
     () => (isRightMarkdownFile ? parseFrontmatter(rightContent) : { frontmatter: null, content: rightContent }),
     [rightContent, isRightMarkdownFile]
   );
+
+  // Get recent files for empty state (limit to 6)
+  const recentFilesForEmptyState = useMemo(() => {
+    return appState.recentFiles.slice(0, 6);
+  }, [appState.recentFiles]);
 
   // Handle font size change with persistence
   const handleFontSizeChange = useCallback(
@@ -233,16 +239,58 @@ export function Files() {
 
               {!loading && !error && !currentFile && (
                 <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <h2
-                      className="text-xl font-medium mb-2"
-                      style={{ color: 'var(--text-primary)' }}
-                    >
-                      Welcome to Markdown Themes
-                    </h2>
-                    <p style={{ color: 'var(--text-secondary)' }}>
-                      Open a file or folder to get started
-                    </p>
+                  <div className="text-center max-w-md">
+                    {recentFilesForEmptyState.length > 0 ? (
+                      <>
+                        <div className="flex items-center justify-center gap-2 mb-4">
+                          <Clock size={18} style={{ color: 'var(--text-secondary)' }} />
+                          <h2 className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>
+                            Recent Files
+                          </h2>
+                        </div>
+                        <div className="space-y-1">
+                          {recentFilesForEmptyState.map((path) => (
+                            <button
+                              key={path}
+                              type="button"
+                              onClick={() => handleFileSelect(path)}
+                              className="w-full text-left px-3 py-2 text-sm transition-colors hover:opacity-80"
+                              style={{
+                                backgroundColor: 'var(--bg-secondary)',
+                                border: '1px solid var(--border)',
+                                borderRadius: 'var(--radius)',
+                                color: 'var(--text-primary)',
+                              }}
+                            >
+                              <span style={{ color: 'var(--accent)' }}>
+                                {path.split('/').pop()}
+                              </span>
+                              <span
+                                className="block text-xs truncate mt-0.5"
+                                style={{ color: 'var(--text-secondary)' }}
+                              >
+                                {path}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-xs mt-4" style={{ color: 'var(--text-secondary)' }}>
+                          Or select a file from the sidebar
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                          <ChevronLeft size={20} style={{ color: 'var(--text-secondary)' }} />
+                          <h2 className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>
+                            Select a file from the sidebar
+                          </h2>
+                        </div>
+                        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                          Browse and open markdown files to view them with beautiful themes
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
               )}

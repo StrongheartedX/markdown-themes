@@ -40,14 +40,8 @@ export function RepoCard({
   const hasChanges =
     repo.staged.length > 0 || repo.unstaged.length > 0 || repo.untracked.length > 0;
 
-  // Scroll into view when expanded
-  useEffect(() => {
-    if (isExpanded && cardRef.current) {
-      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }, [isExpanded]);
-
-  // Scroll into view when focused via keyboard
+  // Scroll into view when focused via keyboard navigation
+  // Note: We don't auto-scroll on expand as it can cause layout issues when multiple cards are expanded
   useEffect(() => {
     if (isFocused && cardRef.current) {
       cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

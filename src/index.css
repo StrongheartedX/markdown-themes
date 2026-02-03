@@ -224,27 +224,50 @@ body {
 .link-safety-modal,
 [data-streamdown*="link-safety"],
 [class*="link-safety"] {
+  position: relative !important;
+  z-index: 9999 !important;
   background-color: var(--bg-secondary) !important;
   color: var(--text-primary) !important;
   border: 1px solid var(--border) !important;
   border-radius: var(--radius) !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
+  /* Reset any gradient backgrounds that themes might apply */
+  background-image: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  -webkit-text-fill-color: unset !important;
+}
+
+/* Modal backdrop/overlay */
+.link-safety-modal-backdrop,
+[data-streamdown*="link-safety-backdrop"],
+[class*="link-safety-backdrop"] {
+  position: fixed !important;
+  z-index: 9998 !important;
+  background-color: rgba(0, 0, 0, 0.6) !important;
 }
 
 .link-safety-modal *,
 [data-streamdown*="link-safety"] *,
 [class*="link-safety"] * {
   color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+  background-clip: unset !important;
+  -webkit-background-clip: unset !important;
 }
 
 .link-safety-modal button,
 [data-streamdown*="link-safety"] button,
 [class*="link-safety"] button {
   background-color: var(--bg-primary) !important;
+  background-image: none !important;
   color: var(--text-primary) !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
   border: 1px solid var(--border) !important;
   border-radius: var(--radius) !important;
   padding: 0.5rem 1rem !important;
-  cursor: pointer;
+  cursor: pointer !important;
+  pointer-events: auto !important;
 }
 
 .link-safety-modal button:hover,

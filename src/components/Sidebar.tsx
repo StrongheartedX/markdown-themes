@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { FileTreeNode } from '../context/WorkspaceContext';
 import { useFileFilter, type ScopedFileTreeNode } from '../hooks/useFileFilter';
 import { FILTERS, type FilterId } from '../lib/filters';
@@ -205,6 +205,34 @@ function getAllDirectoryPaths(nodes: FileTreeNode[]): string[] {
   return paths;
 }
 
+// Filter tree nodes by search query (matches file/folder names)
+function filterTreeBySearch<T extends FileTreeNode>(nodes: T[], query: string): T[] {
+  if (!query.trim()) return nodes;
+
+  const lowerQuery = query.toLowerCase();
+
+  const filterNode = (node: T): T | null => {
+    const nameMatches = node.name.toLowerCase().includes(lowerQuery);
+
+    if (node.isDirectory && node.children) {
+      const filteredChildren = node.children
+        .map((child) => filterNode(child as T))
+        .filter((child): child is T => child !== null);
+
+      // Include directory if it has matching children or its name matches
+      if (filteredChildren.length > 0 || nameMatches) {
+        return { ...node, children: filteredChildren };
+      }
+      return null;
+    }
+
+    // For files, include if name matches
+    return nameMatches ? node : null;
+  };
+
+  return nodes.map(filterNode).filter((node): node is T => node !== null);
+}
+
 // Sidebar width constraints
 const MIN_SIDEBAR_WIDTH = 150;
 const MAX_SIDEBAR_WIDTH = 400;
@@ -212,6 +240,7 @@ const MAX_SIDEBAR_WIDTH = 400;
 export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSplit, width = 250, onWidthChange, onWidthChangeEnd, onFileSelect, onFileDoubleClick, onRightFileSelect }: SidebarProps) {
   const workspaceName = workspacePath?.split('/').pop() ?? workspacePath?.split('\\').pop() ?? 'Workspace';
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
@@ -261,6 +290,13 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
     isFiltered,
     homeLoading,
   } = useFileFilter({ files: fileTree, homePath });
+
+  // Apply search filter on top of the preset filter
+  const searchFilteredFiles = useMemo(() => {
+    return filterTreeBySearch(filteredFiles, searchQuery);
+  }, [filteredFiles, searchQuery]);
+
+  const isSearching = searchQuery.trim().length > 0;
 
   // Expanded state management - start with all directories expanded
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => {
@@ -519,14 +555,54 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
         </div>
       )}
 
+      {/* Search input */}
+      <div className="px-3 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
+        <div className="relative">
+          <span
+            className="absolute left-2.5 top-1/2 -translate-y-1/2"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            <SearchIcon />
+          </span>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search files..."
+            className="w-full pl-8 pr-8 py-1.5 text-sm outline-none"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)',
+              color: 'var(--text-primary)',
+            }}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded transition-colors"
+              style={{ color: 'var(--text-secondary)' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'var(--text-primary)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--text-secondary)';
+              }}
+            >
+              <CloseIcon />
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* File tree */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden py-2">
-        {filteredFiles.length === 0 ? (
+        {searchFilteredFiles.length === 0 ? (
           <p className="px-3 py-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-            {isFiltered ? 'No matching files' : 'No markdown files found'}
+            {isSearching ? 'No matching files' : isFiltered ? 'No matching files' : 'No markdown files found'}
           </p>
         ) : (
-          filteredFiles.map((node) => (
+          searchFilteredFiles.map((node) => (
             <TreeItem
               key={node.path}
               node={node}
@@ -646,6 +722,23 @@ function HomeIcon() {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
       <polyline points="9 22 9 12 15 12 15 22" />
+    </svg>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="11" cy="11" r="8" />
+      <path d="M21 21l-4.35-4.35" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <path d="M18 6L6 18M6 6l12 12" />
     </svg>
   );
 }

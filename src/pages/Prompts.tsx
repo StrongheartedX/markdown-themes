@@ -1,21 +1,20 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useFileWatcher } from '../hooks/useFileWatcher';
 import { useAppStore } from '../hooks/useAppStore';
 import { useWorkspaceContext } from '../context/WorkspaceContext';
 import { PromptLibrary } from '../components/PromptLibrary';
 import { PromptNotebook } from '../components/PromptNotebook';
+import { FilePickerModal } from '../components/FilePickerModal';
 import { isPromptyFile } from '../utils/promptyUtils';
-import { FolderOpen, FileText, X } from 'lucide-react';
+import { FolderOpen, FileText, X, Clock, ChevronLeft } from 'lucide-react';
 
 // Default home path for WSL - can be customized
 const DEFAULT_HOME_PATH = '/home/marci';
 
 export function Prompts() {
   const [currentFile, setCurrentFile] = useState<string | null>(null);
-  const [showPathInput, setShowPathInput] = useState(false);
-  const [pathInputValue, setPathInputValue] = useState('');
+  const [showFilePicker, setShowFilePicker] = useState(false);
   const [showLibrary, setShowLibrary] = useState(true);
-  const pathInputRef = useRef<HTMLInputElement>(null);
 
   const {
     state: appState,
@@ -31,12 +30,12 @@ export function Prompts() {
     path: currentFile,
   });
 
-  // Focus input when modal opens
-  useEffect(() => {
-    if (showPathInput && pathInputRef.current) {
-      pathInputRef.current.focus();
-    }
-  }, [showPathInput]);
+  // Filter recent files to only .prompty files
+  const recentPromptyFiles = useMemo(() => {
+    return appState.recentFiles
+      .filter(isPromptyFile)
+      .slice(0, 5);
+  }, [appState.recentFiles]);
 
   const handleFontSizeChange = useCallback(
     (size: number) => {
@@ -67,18 +66,18 @@ export function Prompts() {
     setShowLibrary(true);
   }, []);
 
-  const handleOpenFile = () => {
-    setPathInputValue('');
-    setShowPathInput(true);
-  };
+  const handleOpenFilePicker = useCallback(() => {
+    setShowFilePicker(true);
+  }, []);
 
-  const handlePathSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!pathInputValue.trim()) return;
-    handleFileSelect(pathInputValue.trim());
-    setShowPathInput(false);
-    setPathInputValue('');
-  };
+  const handleFilePickerSelect = useCallback((path: string) => {
+    setShowFilePicker(false);
+    handleFileSelect(path);
+  }, [handleFileSelect]);
+
+  const handleFilePickerCancel = useCallback(() => {
+    setShowFilePicker(false);
+  }, []);
 
   return (
     <>
@@ -127,10 +126,10 @@ export function Prompts() {
         </div>
 
         <div className="flex items-center gap-4">
-          {/* Open buttons */}
+          {/* Open button */}
           <button
             type="button"
-            onClick={handleOpenFile}
+            onClick={handleOpenFilePicker}
             className="btn-accent px-3 py-1.5 text-sm flex items-center gap-1.5"
             style={{ borderRadius: 'var(--radius)' }}
           >
@@ -242,28 +241,57 @@ export function Prompts() {
           {!loading && !error && !currentFile && (
             <div className="flex items-center justify-center h-full">
               <div className="text-center max-w-md">
-                <h2 className="text-xl font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
-                  Prompt Notebook
-                </h2>
-                <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>
-                  Open a .prompty file to get started. Prompty files are markdown documents with
-                  YAML frontmatter and fillable {'{{variable}}'} placeholders.
-                </p>
-                <div className="flex justify-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handleOpenFile}
-                    className="btn-accent px-4 py-2 text-sm flex items-center gap-2"
-                    style={{ borderRadius: 'var(--radius)' }}
-                  >
-                    <FileText size={18} />
-                    Open .prompty File
-                  </button>
-                </div>
-                <p className="text-xs mt-6" style={{ color: 'var(--text-secondary)' }}>
-                  Supports: {'{{variable}}'}, {'{{variable:hint}}'}, and{' '}
-                  {'{{variable:opt1|opt2|opt3}}'} for dropdowns
-                </p>
+                {recentPromptyFiles.length > 0 ? (
+                  <>
+                    <div className="flex items-center justify-center gap-2 mb-4">
+                      <Clock size={18} style={{ color: 'var(--text-secondary)' }} />
+                      <h2 className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>
+                        Recent Prompts
+                      </h2>
+                    </div>
+                    <div className="space-y-1">
+                      {recentPromptyFiles.map((path) => (
+                        <button
+                          key={path}
+                          type="button"
+                          onClick={() => handleFileSelect(path)}
+                          className="w-full text-left px-3 py-2 text-sm transition-colors hover:opacity-80"
+                          style={{
+                            backgroundColor: 'var(--bg-secondary)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 'var(--radius)',
+                            color: 'var(--text-primary)',
+                          }}
+                        >
+                          <span style={{ color: 'var(--accent)' }}>
+                            {path.split('/').pop()}
+                          </span>
+                          <span
+                            className="block text-xs truncate mt-0.5"
+                            style={{ color: 'var(--text-secondary)' }}
+                          >
+                            {path}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs mt-4" style={{ color: 'var(--text-secondary)' }}>
+                      Or select a file from the library
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <ChevronLeft size={20} style={{ color: 'var(--text-secondary)' }} />
+                      <h2 className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>
+                        Select a prompt from the library
+                      </h2>
+                    </div>
+                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                      Prompty files support {'{{variable}}'} placeholders
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -279,65 +307,16 @@ export function Prompts() {
         </main>
       </div>
 
-      {/* Path Input Modal */}
-      {showPathInput && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
-          onClick={() => setShowPathInput(false)}
-        >
-          <div
-            className="w-full max-w-lg p-6 shadow-xl"
-            style={{
-              backgroundColor: 'var(--bg-secondary)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-lg font-medium mb-4" style={{ color: 'var(--text-primary)' }}>
-              Open Prompty File
-            </h2>
-            <form onSubmit={handlePathSubmit}>
-              <input
-                ref={pathInputRef}
-                type="text"
-                value={pathInputValue}
-                onChange={(e) => setPathInputValue(e.target.value)}
-                placeholder="/path/to/prompt.prompty"
-                className="w-full px-3 py-2 text-sm outline-none"
-                style={{
-                  backgroundColor: 'var(--bg-primary)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius)',
-                  color: 'var(--text-primary)',
-                }}
-              />
-              <div className="flex justify-end gap-2 mt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowPathInput(false)}
-                  className="btn-secondary px-4 py-1.5 text-sm"
-                  style={{ borderRadius: 'var(--radius)' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn-accent px-4 py-1.5 text-sm"
-                  style={{ borderRadius: 'var(--radius)' }}
-                >
-                  Open
-                </button>
-              </div>
-            </form>
-            <p className="text-xs mt-3" style={{ color: 'var(--text-secondary)' }}>
-              Enter the full path to a .prompty file in WSL.
-              <br />
-              Example: /home/user/prompts/my-prompt.prompty
-            </p>
-          </div>
-        </div>
+      {/* File Picker Modal */}
+      {showFilePicker && (
+        <FilePickerModal
+          mode="file"
+          onSelect={handleFilePickerSelect}
+          onCancel={handleFilePickerCancel}
+          initialPath={workspacePath ?? DEFAULT_HOME_PATH}
+          filter={['.prompty']}
+          title="Open Prompty File"
+        />
       )}
     </>
   );
