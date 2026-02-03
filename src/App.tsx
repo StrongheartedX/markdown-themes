@@ -13,13 +13,16 @@ function App() {
   const themeClass = themes.find((t) => t.id === appState.theme)?.className ?? '';
 
   // Enable mouse-following spotlight for themes that use it (noir)
-  useMouseSpotlight(appState.theme === 'noir');
+  const isNoirTheme = appState.theme === 'noir';
+  useMouseSpotlight(isNoirTheme);
 
   return (
     <div
       className={`h-screen flex flex-col overflow-hidden ${themeClass}`}
       style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
     >
+      {/* Mouse-following spotlight overlay for Noir theme */}
+      {isNoirTheme && <div className="noir-spotlight" />}
       <NavHeader
         currentTheme={appState.theme}
         onThemeChange={saveTheme}
