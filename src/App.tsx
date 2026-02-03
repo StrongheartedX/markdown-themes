@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import { themes } from './themes';
 import { useAppStore } from './hooks/useAppStore';
+import { useMouseSpotlight } from './hooks/useMouseSpotlight';
 import { useWorkspaceContext } from './context/WorkspaceContext';
 import { NavHeader } from './components/NavHeader';
 import { Landing, Files, SourceControl, Prompts } from './pages';
@@ -10,6 +11,9 @@ function App() {
   const { state: appState, saveTheme } = useAppStore();
   const { workspacePath, openWorkspace, closeWorkspace } = useWorkspaceContext();
   const themeClass = themes.find((t) => t.id === appState.theme)?.className ?? '';
+
+  // Enable mouse-following spotlight for themes that use it (noir)
+  useMouseSpotlight(appState.theme === 'noir');
 
   return (
     <div
