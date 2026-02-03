@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import { GitBranch, RefreshCw, AlertCircle, Search, ArrowLeft } from 'lucide-react';
+import { GitBranch, RefreshCw, AlertCircle, Search } from 'lucide-react';
 import { useGitRepos } from '../hooks/useGitRepos';
 import { useBulkGitOperations } from '../hooks/useBulkGitOperations';
 import { RepoCard, BulkActionsBar } from '../components/git';
@@ -237,37 +236,20 @@ export function SourceControl() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div
-        className="flex items-center gap-4 px-4 py-3"
+        className="flex items-center gap-4 px-4 py-2"
         style={{
           borderBottom: '1px solid var(--border)',
           backgroundColor: 'var(--bg-secondary)',
         }}
       >
-        <Link
-          to="/"
-          className="p-2 rounded-lg transition-colors"
-          style={{ color: 'var(--text-secondary)' }}
-          title="Back to Home"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-
-        <h2
-          className="text-lg font-semibold font-mono flex items-center gap-2"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          <GitBranch className="w-5 h-5" />
-          Source Control
-        </h2>
-
-        <span className="text-sm font-mono ml-auto" style={{ color: 'var(--text-secondary)' }}>
+        <span className="text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>
           {data?.projectsDir || projectsDir}
         </span>
 
         <button
           onClick={refetch}
           disabled={loading}
-          className="p-2 rounded-lg transition-colors disabled:opacity-50"
+          className="p-2 rounded-lg transition-colors disabled:opacity-50 ml-auto"
           style={{ color: 'var(--text-secondary)' }}
           title="Refresh (r)"
         >

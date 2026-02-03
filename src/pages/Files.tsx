@@ -11,7 +11,7 @@ import { Sidebar } from '../components/Sidebar';
 import { TabBar } from '../components/TabBar';
 import { SplitView } from '../components/SplitView';
 import { parseFrontmatter } from '../utils/frontmatter';
-import { themes, type ThemeId } from '../themes';
+import { themes } from '../themes';
 
 export function Files() {
   const {
@@ -30,7 +30,6 @@ export function Files() {
   const {
     state: appState,
     isLoading: storeLoading,
-    saveTheme,
     addRecentFile,
     addRecentFolder,
     saveLastWorkspace,
@@ -110,14 +109,6 @@ export function Files() {
     }
   }, [storeLoading, appState.lastWorkspace, workspacePath, openWorkspace, saveLastWorkspace]);
 
-  // Handle theme change with persistence
-  const handleThemeChange = useCallback(
-    (theme: ThemeId) => {
-      saveTheme(theme);
-    },
-    [saveTheme]
-  );
-
   // Handle font size change with persistence
   const handleFontSizeChange = useCallback(
     (size: number) => {
@@ -174,7 +165,6 @@ export function Files() {
     <>
       <Toolbar
         currentFile={currentFile}
-        currentTheme={appState.theme}
         isStreaming={isStreaming}
         connected={connected}
         hasWorkspace={!!workspacePath}
@@ -184,7 +174,6 @@ export function Files() {
         isSplit={isSplit}
         content={content}
         workspacePath={workspacePath}
-        onThemeChange={handleThemeChange}
         onFileSelect={handleFileSelect}
         onFolderSelect={handleFolderSelect}
         onFontSizeChange={handleFontSizeChange}

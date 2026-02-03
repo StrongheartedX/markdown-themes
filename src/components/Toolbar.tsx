@@ -1,11 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Columns, Copy, AtSign, Terminal, Check } from 'lucide-react';
-import { ThemeSelector } from './ThemeSelector';
-import type { ThemeId } from '../themes';
 
 interface ToolbarProps {
   currentFile: string | null;
-  currentTheme: ThemeId;
   isStreaming?: boolean;
   connected?: boolean;
   hasWorkspace?: boolean;
@@ -15,7 +12,6 @@ interface ToolbarProps {
   isSplit?: boolean;
   content?: string;
   workspacePath?: string | null;
-  onThemeChange: (theme: ThemeId) => void;
   onFileSelect: (path: string) => void;
   onFolderSelect?: (path: string) => void;
   onFontSizeChange?: (size: number) => void;
@@ -24,7 +20,6 @@ interface ToolbarProps {
 
 export function Toolbar({
   currentFile,
-  currentTheme,
   isStreaming,
   connected = false,
   hasWorkspace,
@@ -34,7 +29,6 @@ export function Toolbar({
   isSplit = false,
   content,
   workspacePath,
-  onThemeChange,
   onFileSelect,
   onFolderSelect,
   onFontSizeChange,
@@ -476,8 +470,6 @@ export function Toolbar({
               +
             </button>
           </div>
-
-          <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
         </div>
       </header>
 

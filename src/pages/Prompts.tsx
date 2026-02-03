@@ -1,13 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
 import { useFileWatcher } from '../hooks/useFileWatcher';
 import { useAppStore } from '../hooks/useAppStore';
 import { PromptLibrary } from '../components/PromptLibrary';
-import { ThemeSelector } from '../components/ThemeSelector';
 import { PromptNotebook } from '../components/PromptNotebook';
 import { isPromptyFile } from '../utils/promptyUtils';
-import { type ThemeId } from '../themes';
-import { ArrowLeft, FolderOpen, FileText, X } from 'lucide-react';
+import { FolderOpen, FileText, X } from 'lucide-react';
 
 // Default home path for WSL - can be customized
 const DEFAULT_HOME_PATH = '/home/marci';
@@ -24,7 +21,6 @@ export function Prompts() {
   const {
     state: appState,
     isLoading: storeLoading,
-    saveTheme,
     addRecentFile,
     addRecentFolder,
     saveLastWorkspace,
@@ -49,13 +45,6 @@ export function Prompts() {
       pathInputRef.current.focus();
     }
   }, [showPathInput]);
-
-  const handleThemeChange = useCallback(
-    (theme: ThemeId) => {
-      saveTheme(theme);
-    },
-    [saveTheme]
-  );
 
   const handleFontSizeChange = useCallback(
     (size: number) => {
@@ -124,26 +113,13 @@ export function Prompts() {
     <>
       {/* Header */}
       <header
-        className="flex items-center justify-between px-4 py-3 select-none relative z-20"
+        className="flex items-center justify-between px-4 py-2 select-none relative z-20"
         style={{
           backgroundColor: 'var(--bg-secondary)',
           borderBottom: '1px solid var(--border)',
         }}
       >
         <div className="flex items-center gap-4">
-          <Link
-            to="/"
-            className="flex items-center gap-1.5 text-sm transition-colors"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            <ArrowLeft size={16} />
-            Back
-          </Link>
-
-          <h1 className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>
-            Prompt Notebook
-          </h1>
-
           {/* Connection indicator */}
           {!connected && currentFile && (
             <div
@@ -271,8 +247,6 @@ export function Prompts() {
               +
             </button>
           </div>
-
-          <ThemeSelector currentTheme={appState.theme} onThemeChange={handleThemeChange} />
         </div>
       </header>
 
