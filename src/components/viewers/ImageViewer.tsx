@@ -17,12 +17,32 @@ export function ImageViewer({ filePath }: ImageViewerProps) {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const [error, setError] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
-  // Build the image URL from TabzChrome API
-  const imageUrl = `${API_BASE}/api/files/content?path=${encodeURIComponent(filePath)}&raw=true`;
+  // Fetch image data URI from TabzChrome API
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    setImageUrl(null);
+
+    fetch(`${API_BASE}/api/files/image?path=${encodeURIComponent(filePath)}`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to load image');
+        return res.json();
+      })
+      .then((data) => {
+        setImageUrl(data.dataUri);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message || 'Failed to load image');
+        setLoading(false);
+      });
+  }, [filePath]);
 
   // Calculate fit zoom level
   const calculateFitZoom = useCallback(() => {
@@ -55,12 +75,6 @@ export function ImageViewer({ filePath }: ImageViewerProps) {
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
     setImageSize({ width: img.naturalWidth, height: img.naturalHeight });
-    setError(null);
-  };
-
-  // Handle image error
-  const handleImageError = () => {
-    setError('Failed to load image');
   };
 
   // Zoom controls
@@ -112,10 +126,18 @@ export function ImageViewer({ filePath }: ImageViewerProps) {
     setZoom((prev) => Math.min(Math.max(prev * delta, 10), 500));
   };
 
-  if (error) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-full" style={{ color: 'var(--text-secondary)' }}>
-        <p>{error}</p>
+        <p>Loading image...</p>
+      </div>
+    );
+  }
+
+  if (error || !imageUrl) {
+    return (
+      <div className="flex items-center justify-center h-full" style={{ color: 'var(--text-secondary)' }}>
+        <p>{error || 'Failed to load image'}</p>
       </div>
     );
   }
@@ -217,7 +239,6 @@ export function ImageViewer({ filePath }: ImageViewerProps) {
           src={imageUrl}
           alt={filePath.split('/').pop() || 'Image'}
           onLoad={handleImageLoad}
-          onError={handleImageError}
           draggable={false}
           style={{
             transform: `translate(${position.x}px, ${position.y}px) scale(${zoom / 100})`,

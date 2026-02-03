@@ -9,26 +9,50 @@ const API_BASE = 'http://localhost:8129';
 
 export function VideoViewer({ filePath, fontSize = 100 }: VideoViewerProps) {
   const [error, setError] = useState<string | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const videoUrl = `${API_BASE}/api/files/content?path=${encodeURIComponent(filePath)}&raw=true`;
   const fileName = filePath.split('/').pop() || 'Video file';
 
   useEffect(() => {
-    // Reset state when file changes
+    // Reset state and fetch video when file changes
+    setLoading(true);
     setError(null);
+    setVideoUrl(null);
+
+    fetch(`${API_BASE}/api/files/video?path=${encodeURIComponent(filePath)}`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to load video');
+        return res.json();
+      })
+      .then((data) => {
+        setVideoUrl(data.dataUri);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message || 'Failed to load video file');
+        setLoading(false);
+      });
   }, [filePath]);
 
-  const handleError = () => {
-    setError('Failed to load video file');
-  };
-
-  if (error) {
+  if (loading) {
     return (
       <div
         className="flex items-center justify-center h-full"
         style={{ color: 'var(--text-secondary)' }}
       >
-        <p>{error}</p>
+        <p>Loading video...</p>
+      </div>
+    );
+  }
+
+  if (error || !videoUrl) {
+    return (
+      <div
+        className="flex items-center justify-center h-full"
+        style={{ color: 'var(--text-secondary)' }}
+      >
+        <p>{error || 'Failed to load video file'}</p>
       </div>
     );
   }
@@ -72,7 +96,6 @@ export function VideoViewer({ filePath, fontSize = 100 }: VideoViewerProps) {
             borderRadius: 'var(--radius)',
             backgroundColor: 'var(--bg-secondary)',
           }}
-          onError={handleError}
         />
       </div>
     </div>
