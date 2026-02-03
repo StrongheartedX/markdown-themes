@@ -4,6 +4,8 @@ import { CodeViewer } from './viewers/CodeViewer';
 import { ImageViewer } from './viewers/ImageViewer';
 import { CsvViewer } from './viewers/CsvViewer';
 import { JsonViewer } from './viewers/JsonViewer';
+import { PromptNotebook } from './PromptNotebook';
+import { isPromptyFile } from '../utils/promptyUtils';
 
 interface ViewerContainerProps {
   filePath: string;
@@ -13,7 +15,7 @@ interface ViewerContainerProps {
   fontSize?: number;
 }
 
-type ViewerType = 'markdown' | 'code' | 'image' | 'csv' | 'json';
+type ViewerType = 'markdown' | 'code' | 'image' | 'csv' | 'json' | 'prompty';
 
 // Extensions for each viewer type
 const markdownExtensions = new Set(['md', 'markdown', 'mdx']);
@@ -39,6 +41,10 @@ function getViewerType(filePath: string): ViewerType {
 
   if (jsonExtensions.has(ext)) {
     return 'json';
+  }
+
+  if (isPromptyFile(filePath)) {
+    return 'prompty';
   }
 
   // Default to code viewer for any text file
@@ -73,6 +79,16 @@ export function ViewerContainer({
 
     case 'json':
       return <JsonViewer content={content} fontSize={fontSize} />;
+
+    case 'prompty':
+      return (
+        <PromptNotebook
+          content={content}
+          path={filePath}
+          fontSize={fontSize}
+          isStreaming={isStreaming}
+        />
+      );
 
     case 'code':
     default:
