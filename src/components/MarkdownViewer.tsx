@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, forwardRef, useImperativeHandle, useRef } from 'react';
 import { Streamdown } from 'streamdown';
 import { createCodePlugin } from '@streamdown/code';
 import type { BundledTheme } from 'shiki';
@@ -27,7 +27,25 @@ interface MarkdownViewerProps {
   themeClassName?: string;
 }
 
-export function MarkdownViewer({ content, isStreaming = false, themeClassName = '' }: MarkdownViewerProps) {
+export interface MarkdownViewerHandle {
+  /** Get the rendered HTML content */
+  getHtml: () => string;
+}
+
+export const MarkdownViewer = forwardRef<MarkdownViewerHandle, MarkdownViewerProps>(function MarkdownViewer({ content, isStreaming = false, themeClassName = '' }, ref) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Expose getHtml method via ref
+  useImperativeHandle(ref, () => ({
+    getHtml: () => {
+      if (containerRef.current) {
+        // Get the inner content of the streamdown wrapper
+        const streamdownContent = containerRef.current.querySelector('.streamdown-content');
+        return streamdownContent?.innerHTML ?? containerRef.current.innerHTML;
+      }
+      return '';
+    },
+  }), []);
   // Get the appropriate Shiki themes based on current app theme
   const shikiThemes = themeToShikiThemes[themeClassName] || themeToShikiThemes['default'];
 
@@ -45,7 +63,7 @@ export function MarkdownViewer({ content, isStreaming = false, themeClassName = 
   }
 
   return (
-    <article className="prose prose-lg max-w-none p-8">
+    <article ref={containerRef} className="prose prose-lg max-w-none p-8">
       <Streamdown
         plugins={{ code: codePlugin }}
         isAnimating={isStreaming}
@@ -58,4 +76,4 @@ export function MarkdownViewer({ content, isStreaming = false, themeClassName = 
       </Streamdown>
     </article>
   );
-}
+});

@@ -1,0 +1,832 @@
+/**
+ * Export markdown viewer content as standalone HTML
+ */
+
+import type { ThemeId } from '../themes';
+
+// Map of theme IDs to their CSS variable definitions and extra styles
+const themeStyles: Record<ThemeId | 'default', string> = {
+  default: `
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --text-primary: #1a1a2e;
+  --text-secondary: #4a4a68;
+  --accent: #6366f1;
+  --accent-hover: #4f46e5;
+  --border: #e5e7eb;
+  --font-body: system-ui, -apple-system, sans-serif;
+  --font-heading: system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+  --radius: 0.5rem;
+}
+`,
+  'dark-academia': `
+:root {
+  --bg-primary: #1a1915;
+  --bg-secondary: #252320;
+  --text-primary: #d4c5a9;
+  --text-secondary: #a89f8a;
+  --accent: #8b7355;
+  --accent-hover: #a08567;
+  --border: #3d3830;
+  --font-body: 'Cormorant Garamond', 'Palatino Linotype', 'Book Antiqua', serif;
+  --font-heading: 'Playfair Display', 'Didot', 'Georgia', serif;
+  --font-mono: 'Courier Prime', 'Courier New', monospace;
+  --radius: 0.25rem;
+}
+
+.prose blockquote {
+  border-left-color: var(--accent);
+  background: linear-gradient(90deg, rgba(139, 115, 85, 0.1), transparent);
+  padding: 1rem;
+  font-style: italic;
+}
+
+.prose hr {
+  border-top: 1px solid var(--accent);
+  opacity: 0.4;
+}
+
+.prose a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+`,
+  cyberpunk: `
+:root {
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #12121a;
+  --text-primary: #00ff9f;
+  --text-secondary: #00cc7f;
+  --accent: #ff00ff;
+  --accent-hover: #ff44ff;
+  --border: #1f1f2e;
+  --font-body: 'Share Tech Mono', 'Consolas', monospace;
+  --font-heading: 'Orbitron', 'Share Tech', sans-serif;
+  --font-mono: 'Fira Code', 'Source Code Pro', monospace;
+  --radius: 0;
+}
+
+.prose {
+  text-shadow: 0 0 10px rgba(0, 255, 159, 0.3);
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  text-shadow: 0 0 20px var(--accent), 0 0 40px var(--accent);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.prose code {
+  background: rgba(255, 0, 255, 0.1);
+  border: 1px solid rgba(255, 0, 255, 0.3);
+  text-shadow: 0 0 5px var(--accent);
+}
+
+.prose pre {
+  border: 1px solid rgba(0, 255, 159, 0.3);
+  box-shadow: 0 0 20px rgba(0, 255, 159, 0.1);
+}
+
+.prose a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.prose a:hover {
+  border-bottom-color: var(--accent);
+  text-shadow: 0 0 10px var(--accent);
+}
+`,
+  parchment: `
+:root {
+  --bg-primary: #f4ecd8;
+  --bg-secondary: #ebe3cf;
+  --text-primary: #3d3424;
+  --text-secondary: #5c5243;
+  --accent: #8b4513;
+  --accent-hover: #a0522d;
+  --border: #d4c9b0;
+  --font-body: 'Crimson Text', 'Palatino', 'Georgia', serif;
+  --font-heading: 'Cinzel', 'Trajan Pro', serif;
+  --font-mono: 'Courier Prime', monospace;
+  --radius: 0;
+}
+
+body {
+  background-image:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+}
+
+.prose h1 {
+  text-align: center;
+  border-bottom: 2px double var(--accent);
+  padding-bottom: 0.5rem;
+}
+
+.prose blockquote {
+  border-left: 3px solid var(--accent);
+  font-style: italic;
+  background: rgba(139, 69, 19, 0.05);
+}
+
+.prose hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+
+.prose ::first-letter {
+  font-size: 1.5em;
+  font-weight: bold;
+}
+`,
+  cosmic: `
+:root {
+  --bg-primary: #0d0d1a;
+  --bg-secondary: #151528;
+  --text-primary: #e0e6ff;
+  --text-secondary: #9ca3cf;
+  --accent: #7c3aed;
+  --accent-hover: #8b5cf6;
+  --border: #2d2d4a;
+  --font-body: 'Inter', 'SF Pro Text', system-ui, sans-serif;
+  --font-heading: 'Space Grotesk', 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --radius: 0.75rem;
+}
+
+body {
+  background-image:
+    radial-gradient(ellipse at 20% 30%, rgba(124, 58, 237, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 70%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+}
+
+.prose h1,
+.prose h2 {
+  background: linear-gradient(135deg, var(--text-primary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.prose code {
+  background: rgba(124, 58, 237, 0.15);
+  border-radius: 0.25rem;
+}
+
+.prose pre {
+  background: linear-gradient(135deg, var(--bg-secondary), rgba(124, 58, 237, 0.1));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.prose a {
+  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 500;
+}
+`,
+  noir: `
+:root {
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #141414;
+  --text-primary: #e8e8e8;
+  --text-secondary: #b0b0b0;
+  --accent: #8b0000;
+  --accent-hover: #b22222;
+  --border: #333333;
+  --font-body: 'Courier Prime', 'Courier New', monospace;
+  --font-heading: 'Playfair Display', 'Georgia', serif;
+  --font-mono: 'Courier Prime', 'Courier New', monospace;
+  --radius: 0;
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-shadow: 4px 4px 0 #222222;
+}
+
+.prose blockquote {
+  border-left: 4px solid var(--accent);
+  background: linear-gradient(90deg, rgba(139, 0, 0, 0.1), transparent);
+  padding: 1rem;
+  font-style: italic;
+}
+
+.prose hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+}
+
+.prose code {
+  background: rgba(139, 0, 0, 0.1);
+  border: 1px solid rgba(139, 0, 0, 0.3);
+}
+
+.prose pre {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+}
+
+.prose a {
+  color: var(--accent-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.prose a:hover {
+  color: var(--text-primary);
+}
+
+.prose strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+`,
+  nordic: `
+:root {
+  --bg-primary: #fafbfc;
+  --bg-secondary: #f5f7f8;
+  --text-primary: #1a202c;
+  --text-secondary: #4a5568;
+  --accent: #c67b5c;
+  --accent-hover: #b86d4e;
+  --border: #e2e7eb;
+  --font-body: 'Nunito Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: 'Playfair Display', 'Georgia', serif;
+  --font-mono: 'SF Mono', 'Monaco', monospace;
+  --radius: 0.625rem;
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.prose blockquote {
+  border-left: 3px solid var(--accent);
+  background: linear-gradient(90deg, rgba(198, 123, 92, 0.08), transparent);
+  padding: 1rem 1.5rem;
+  border-radius: var(--radius);
+}
+
+.prose hr {
+  border: none;
+  height: 1px;
+  background: var(--border);
+}
+
+.prose code {
+  background: rgba(198, 123, 92, 0.1);
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.375rem;
+}
+
+.prose pre {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px rgba(45, 55, 72, 0.06);
+}
+
+.prose a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: rgba(198, 123, 92, 0.4);
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.2s;
+}
+
+.prose a:hover {
+  text-decoration-color: var(--accent);
+}
+`,
+  glassmorphism: `
+:root {
+  --bg-primary: #0f0c29;
+  --bg-secondary: rgba(255, 255, 255, 0.08);
+  --text-primary: rgba(255, 255, 255, 0.95);
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --accent: #667eea;
+  --accent-hover: #764ba2;
+  --border: rgba(255, 255, 255, 0.18);
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'Fira Code', 'SF Mono', monospace;
+  --radius: 1rem;
+}
+
+body {
+  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+}
+
+.prose h1,
+.prose h2 {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.prose h3 {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.prose blockquote {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 1rem 1.5rem;
+}
+
+.prose hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+}
+
+.prose code {
+  background: rgba(102, 126, 234, 0.2);
+  border-radius: 0.375rem;
+  padding: 0.125rem 0.375rem;
+}
+
+.prose pre {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.prose a {
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 500;
+}
+
+.prose a:hover {
+  text-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+}
+`,
+  'retro-futurism': `
+:root {
+  --bg-primary: #fff8e7;
+  --bg-secondary: #fff5dc;
+  --text-primary: #1a1a3e;
+  --text-secondary: #4a4a6a;
+  --accent: #40e0d0;
+  --accent-hover: #ff6b6b;
+  --border: rgba(26, 26, 62, 0.15);
+  --font-body: 'Questrial', -apple-system, sans-serif;
+  --font-heading: 'Audiowide', 'Orbitron', cursive;
+  --font-mono: 'Space Mono', 'Courier New', monospace;
+  --radius: 100px;
+}
+
+.prose h1,
+.prose h2 {
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #ff6b6b, #f4d03f);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.prose h3 {
+  font-family: var(--font-heading);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.prose blockquote {
+  background: linear-gradient(135deg, rgba(64, 224, 208, 0.1), rgba(152, 216, 170, 0.1));
+  border-left: 4px solid var(--accent);
+  border-radius: 0 1rem 1rem 0;
+  padding: 1rem 1.5rem;
+}
+
+.prose hr {
+  border: none;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover), #f4d03f, var(--accent));
+  border-radius: var(--radius);
+}
+
+.prose code {
+  background: linear-gradient(135deg, rgba(64, 224, 208, 0.15), rgba(152, 216, 170, 0.15));
+  border-radius: var(--radius);
+  padding: 0.125rem 0.5rem;
+}
+
+.prose pre {
+  background: var(--bg-secondary);
+  border: 2px solid var(--border);
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px rgba(26, 26, 62, 0.08);
+}
+
+.prose a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.prose a:hover {
+  color: var(--accent-hover);
+}
+
+.prose strong {
+  color: var(--accent-hover);
+}
+`,
+  'art-deco': `
+:root {
+  --bg-primary: #0d0d0d;
+  --bg-secondary: #1a1a1a;
+  --text-primary: #f5f0e1;
+  --text-secondary: rgba(245, 240, 225, 0.7);
+  --accent: #d4af37;
+  --accent-hover: #f4d03f;
+  --border: rgba(212, 175, 55, 0.3);
+  --font-body: 'Josefin Sans', 'Helvetica Neue', sans-serif;
+  --font-heading: 'Poiret One', 'Didot', cursive;
+  --font-mono: 'Courier New', monospace;
+  --radius: 0;
+}
+
+.prose h1,
+.prose h2 {
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+}
+
+.prose h3 {
+  font-family: var(--font-heading);
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+.prose blockquote {
+  border: 1px solid var(--accent);
+  border-left: 4px solid var(--accent);
+  background: transparent;
+  padding: 1.5rem;
+  position: relative;
+}
+
+.prose blockquote::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  pointer-events: none;
+}
+
+.prose hr {
+  border: none;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+
+.prose code {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--accent);
+}
+
+.prose pre {
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent);
+  position: relative;
+}
+
+.prose pre::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  pointer-events: none;
+}
+
+.prose a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent);
+  transition: all 0.3s;
+}
+
+.prose a:hover {
+  color: var(--accent-hover);
+  border-bottom-color: var(--accent-hover);
+  text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+}
+
+.prose strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+`,
+};
+
+// Google Fonts URLs for each theme
+const themeFonts: Record<ThemeId | 'default', string[]> = {
+  default: [],
+  'dark-academia': [
+    'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Playfair+Display:wght@400;600;700&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap',
+  ],
+  cyberpunk: [
+    'https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&family=Fira+Code:wght@400;500&display=swap',
+  ],
+  parchment: [
+    'https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Cinzel:wght@400;600;700&family=Courier+Prime:wght@400;700&display=swap',
+  ],
+  cosmic: [
+    'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap',
+  ],
+  noir: [
+    'https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Playfair+Display:wght@400;500;600&display=swap',
+  ],
+  nordic: [
+    'https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,wght@0,400;0,600;1,400&family=Playfair+Display:wght@400;500;600&display=swap',
+  ],
+  glassmorphism: [
+    'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap',
+  ],
+  'retro-futurism': [
+    'https://fonts.googleapis.com/css2?family=Questrial&family=Audiowide&family=Space+Mono:wght@400;700&display=swap',
+  ],
+  'art-deco': [
+    'https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@400;600;700&family=Poiret+One&display=swap',
+  ],
+};
+
+// Base prose styles that work across all themes
+const baseProseStyles = `
+/* Base prose styles */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  margin: 0;
+  padding: 0;
+}
+
+article.prose {
+  max-width: 65ch;
+  margin: 0 auto;
+  padding: 2rem;
+  line-height: 1.75;
+}
+
+.prose h1 {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  line-height: 1.2;
+  font-family: var(--font-heading);
+  color: var(--text-primary);
+}
+
+.prose h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.3;
+  font-family: var(--font-heading);
+  color: var(--text-primary);
+}
+
+.prose h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+  font-family: var(--font-heading);
+  color: var(--text-primary);
+}
+
+.prose h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  font-family: var(--font-heading);
+  color: var(--text-primary);
+}
+
+.prose p {
+  margin-top: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.prose p:first-child {
+  margin-top: 0;
+}
+
+.prose a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.prose strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.prose em {
+  font-style: italic;
+}
+
+.prose ul, .prose ol {
+  margin-top: 1.25rem;
+  margin-bottom: 1.25rem;
+  padding-left: 1.5rem;
+}
+
+.prose li {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.prose li::marker {
+  color: var(--text-secondary);
+}
+
+.prose ol > li::marker {
+  color: var(--text-secondary);
+}
+
+.prose blockquote {
+  font-style: italic;
+  border-left: 4px solid var(--accent);
+  margin: 1.5rem 0;
+  padding: 0.5rem 1rem;
+  color: var(--text-secondary);
+}
+
+.prose hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2rem 0;
+}
+
+.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  color: var(--accent);
+  background-color: var(--bg-secondary);
+  padding: 0.2em 0.4em;
+  border-radius: 0.25rem;
+}
+
+.prose pre {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.7;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+}
+
+.prose pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  margin: 1.5rem 0;
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+}
+
+.prose th, .prose td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.prose th {
+  background-color: var(--bg-secondary);
+  font-weight: 600;
+}
+
+.prose tr:nth-child(even) {
+  background-color: var(--bg-secondary);
+}
+
+/* Shiki code block overrides */
+.prose pre.shiki {
+  background-color: var(--bg-secondary) !important;
+}
+
+.prose .shiki code {
+  font-family: var(--font-mono);
+  background: transparent;
+}
+`;
+
+export interface ExportOptions {
+  /** The rendered HTML content from the markdown viewer */
+  renderedHtml: string;
+  /** Current theme ID */
+  themeId: ThemeId;
+  /** Document title (usually the filename) */
+  title: string;
+}
+
+/**
+ * Generate a complete standalone HTML document with embedded styles
+ */
+export function generateHtml({ renderedHtml, themeId, title }: ExportOptions): string {
+  const themeStyle = themeStyles[themeId] || themeStyles.default;
+  const fonts = themeFonts[themeId] || themeFonts.default;
+
+  const fontLinks = fonts
+    .map((url) => `<link rel="stylesheet" href="${url}">`)
+    .join('\n    ');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${escapeHtml(title)}</title>
+    ${fontLinks}
+    <style>
+${themeStyle}
+${baseProseStyles}
+    </style>
+</head>
+<body>
+    <article class="prose">
+${renderedHtml}
+    </article>
+</body>
+</html>`;
+}
+
+/**
+ * Escape HTML special characters
+ */
+function escapeHtml(text: string): string {
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;',
+  };
+  return text.replace(/[&<>"']/g, (char) => map[char]);
+}
