@@ -182,6 +182,8 @@ export function Files() {
         recentFolders={appState.recentFolders}
         fontSize={appState.fontSize}
         isSplit={isSplit}
+        content={content}
+        workspacePath={workspacePath}
         onThemeChange={handleThemeChange}
         onFileSelect={handleFileSelect}
         onFolderSelect={handleFolderSelect}

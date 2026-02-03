@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Columns } from 'lucide-react';
+import { Columns, Copy, AtSign, Terminal, Check } from 'lucide-react';
 import { ThemeSelector } from './ThemeSelector';
 import type { ThemeId } from '../themes';
 
@@ -13,6 +13,8 @@ interface ToolbarProps {
   recentFolders?: string[];
   fontSize?: number;
   isSplit?: boolean;
+  content?: string;
+  workspacePath?: string | null;
   onThemeChange: (theme: ThemeId) => void;
   onFileSelect: (path: string) => void;
   onFolderSelect?: (path: string) => void;
@@ -30,6 +32,8 @@ export function Toolbar({
   recentFolders = [],
   fontSize = 100,
   isSplit = false,
+  content,
+  workspacePath,
   onThemeChange,
   onFileSelect,
   onFolderSelect,
@@ -41,6 +45,7 @@ export function Toolbar({
   const [showPathInput, setShowPathInput] = useState(false);
   const [pathInputValue, setPathInputValue] = useState('');
   const [pathInputMode, setPathInputMode] = useState<'file' | 'folder'>('file');
+  const [copiedState, setCopiedState] = useState<'content' | 'path' | null>(null);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const folderDropdownRef = useRef<HTMLDivElement>(null);
@@ -105,6 +110,56 @@ export function Toolbar({
   const getFileName = (path: string) => path.split('/').pop() ?? path.split('\\').pop() ?? path;
   const getFolderName = (path: string) => path.split('/').pop() ?? path.split('\\').pop() ?? path;
   const fileName = currentFile ? getFileName(currentFile) : null;
+
+  // Get relative path for @path format
+  const getRelativePath = (filePath: string) => {
+    if (workspacePath && filePath.startsWith(workspacePath)) {
+      const relative = filePath.slice(workspacePath.length);
+      return relative.startsWith('/') ? relative.slice(1) : relative;
+    }
+    // Fallback: use filename only
+    return getFileName(filePath);
+  };
+
+  // Copy content to clipboard
+  const handleCopyContent = async () => {
+    if (!content) return;
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedState('content');
+      setTimeout(() => setCopiedState(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy content:', err);
+    }
+  };
+
+  // Copy @path format to clipboard
+  const handleCopyPath = async () => {
+    if (!currentFile) return;
+    const relativePath = getRelativePath(currentFile);
+    const atPath = `@${relativePath}`;
+    try {
+      await navigator.clipboard.writeText(atPath);
+      setCopiedState('path');
+      setTimeout(() => setCopiedState(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy path:', err);
+    }
+  };
+
+  // Send to terminal via TabzChrome API
+  const handleSendToTerminal = async () => {
+    if (!currentFile) return;
+    try {
+      await fetch('http://localhost:8129/api/terminal/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: `cat "${currentFile}"` }),
+      });
+    } catch (err) {
+      console.error('Failed to send to terminal:', err);
+    }
+  };
 
   return (
     <>
@@ -302,6 +357,60 @@ export function Toolbar({
               </span>
               AI writing...
             </span>
+          )}
+
+          {/* Action buttons */}
+          {currentFile && (
+            <div className="flex items-center gap-1">
+              {/* Copy content button */}
+              <button
+                type="button"
+                onClick={handleCopyContent}
+                disabled={!content}
+                className="w-8 h-8 flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{
+                  borderRadius: 'var(--radius)',
+                  backgroundColor: 'var(--bg-primary)',
+                  color: copiedState === 'content' ? 'var(--accent)' : 'var(--text-primary)',
+                  border: '1px solid var(--border)',
+                }}
+                title="Copy file content"
+              >
+                {copiedState === 'content' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              </button>
+
+              {/* Copy @path button */}
+              <button
+                type="button"
+                onClick={handleCopyPath}
+                className="w-8 h-8 flex items-center justify-center transition-colors"
+                style={{
+                  borderRadius: 'var(--radius)',
+                  backgroundColor: 'var(--bg-primary)',
+                  color: copiedState === 'path' ? 'var(--accent)' : 'var(--text-primary)',
+                  border: '1px solid var(--border)',
+                }}
+                title={`Copy @path for Claude (e.g., @${currentFile ? getRelativePath(currentFile) : 'file.md'})`}
+              >
+                {copiedState === 'path' ? <Check className="w-4 h-4" /> : <AtSign className="w-4 h-4" />}
+              </button>
+
+              {/* Send to terminal button */}
+              <button
+                type="button"
+                onClick={handleSendToTerminal}
+                className="w-8 h-8 flex items-center justify-center transition-colors"
+                style={{
+                  borderRadius: 'var(--radius)',
+                  backgroundColor: 'var(--bg-primary)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border)',
+                }}
+                title="Send cat command to terminal"
+              >
+                <Terminal className="w-4 h-4" />
+              </button>
+            </div>
           )}
         </div>
 
