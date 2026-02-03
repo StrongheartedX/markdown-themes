@@ -16,12 +16,37 @@ export const CLAUDE_CODE_PATTERNS = [
   '.claudeignore',    // Ignore patterns
 ];
 
-export type FilterId = 'claude-code';
+/**
+ * Patterns to match prompt files.
+ */
+export const PROMPTS_PATTERNS = [
+  '.prompts/',        // Prompts directory
+  '.prompty',         // Prompty file extension (suffix match)
+];
+
+export type FilterId = 'claude-code' | 'prompts';
+
+/**
+ * Scope for merged file tree display
+ */
+export type FileScope = 'project' | 'user';
+
+/**
+ * Home directory paths to include for each filter.
+ * These paths are relative to the user's home directory.
+ */
+export interface FilterHomePaths {
+  /** Paths relative to home directory (e.g., '.claude' for ~/.claude) */
+  relativePaths: string[];
+}
 
 export interface FilterDefinition {
   id: FilterId;
   name: string;
+  /** Patterns to match in project directory */
   patterns: string[];
+  /** Optional home directory paths to include */
+  homePaths?: FilterHomePaths;
 }
 
 export const FILTERS: FilterDefinition[] = [
@@ -29,11 +54,39 @@ export const FILTERS: FilterDefinition[] = [
     id: 'claude-code',
     name: 'Claude Code',
     patterns: CLAUDE_CODE_PATTERNS,
+    homePaths: {
+      relativePaths: ['.claude'],  // ~/.claude
+    },
+  },
+  {
+    id: 'prompts',
+    name: 'Prompts',
+    patterns: PROMPTS_PATTERNS,
+    homePaths: {
+      relativePaths: ['.prompts'],  // ~/.prompts
+    },
   },
 ];
 
 /**
+ * Check if a pattern is a simple extension (e.g., ".prompty") vs an exact hidden filename (e.g., ".mcp.json").
+ * Extension patterns have only one dot at the beginning.
+ */
+function isExtensionPattern(pattern: string): boolean {
+  if (!pattern.startsWith('.')) return false;
+  // Count dots in the pattern
+  const dotCount = (pattern.match(/\./g) || []).length;
+  // If only one dot at the start, it's an extension pattern
+  return dotCount === 1;
+}
+
+/**
  * Check if a file or directory path matches any of the given patterns.
+ *
+ * Pattern types:
+ * - Ends with "/" - Directory pattern (e.g., ".claude/" matches any .claude directory)
+ * - Starts with "." and has only one dot - Extension/suffix pattern (e.g., ".prompty" matches files ending with .prompty)
+ * - Other - Exact filename match (e.g., "CLAUDE.md", ".mcp.json" matches files named exactly)
  *
  * @param path - The full path to check
  * @param patterns - Array of patterns to match against
@@ -50,6 +103,11 @@ export function matchesFilter(path: string, patterns: string[]): boolean {
       // Directory pattern - check if any segment matches
       const dirName = pattern.slice(0, -1);
       if (segments.some((seg) => seg === dirName)) {
+        return true;
+      }
+    } else if (isExtensionPattern(pattern)) {
+      // Extension/suffix pattern (e.g., ".prompty") - check if filename ends with pattern
+      if (fileName.endsWith(pattern)) {
         return true;
       }
     } else {

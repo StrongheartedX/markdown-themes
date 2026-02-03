@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { matchesFilter, filterFiles, countMatches, CLAUDE_CODE_PATTERNS } from './filters';
+import { matchesFilter, filterFiles, countMatches, CLAUDE_CODE_PATTERNS, PROMPTS_PATTERNS } from './filters';
 import type { FileTreeNode } from '../context/WorkspaceContext';
 
 // Helper to create file nodes
@@ -67,6 +67,24 @@ describe('matchesFilter', () => {
     it('handles Windows-style paths', () => {
       expect(matchesFilter('C:\\project\\CLAUDE.md', ['CLAUDE.md'])).toBe(true);
       expect(matchesFilter('C:\\project\\.claude\\hooks', ['.claude/'])).toBe(true);
+    });
+  });
+
+  describe('extension/suffix patterns', () => {
+    it('matches files ending with extension pattern', () => {
+      expect(matchesFilter('/project/my-prompt.prompty', ['.prompty'])).toBe(true);
+      expect(matchesFilter('/project/prompts/test.prompty', ['.prompty'])).toBe(true);
+    });
+
+    it('does not match files without the extension', () => {
+      expect(matchesFilter('/project/prompty.txt', ['.prompty'])).toBe(false);
+      expect(matchesFilter('/project/readme.md', ['.prompty'])).toBe(false);
+    });
+
+    it('still matches exact file names starting with dot', () => {
+      // .mcp.json should match exactly, not as a suffix
+      expect(matchesFilter('/project/.mcp.json', ['.mcp.json'])).toBe(true);
+      expect(matchesFilter('/project/my.mcp.json', ['.mcp.json'])).toBe(false);
     });
   });
 });
@@ -217,5 +235,28 @@ describe('CLAUDE_CODE_PATTERNS', () => {
     for (const { path, expected } of testCases) {
       expect(matchesFilter(path, CLAUDE_CODE_PATTERNS)).toBe(expected);
     }
+  });
+});
+
+describe('PROMPTS_PATTERNS', () => {
+  it('matches expected prompt files', () => {
+    const testCases = [
+      { path: '/project/.prompts/test.prompty', expected: true },
+      { path: '/project/.prompts/subdir/prompt.prompty', expected: true },
+      { path: '/project/prompts/my-prompt.prompty', expected: true },
+      { path: '/home/user/.prompts/global.prompty', expected: true },
+      { path: '/project/src/index.ts', expected: false },
+      { path: '/project/readme.md', expected: false },
+      { path: '/project/prompty.txt', expected: false },
+    ];
+
+    for (const { path, expected } of testCases) {
+      expect(matchesFilter(path, PROMPTS_PATTERNS)).toBe(expected);
+    }
+  });
+
+  it('matches .prompts directory and its contents', () => {
+    expect(matchesFilter('/project/.prompts', PROMPTS_PATTERNS)).toBe(true);
+    expect(matchesFilter('/project/.prompts/readme.md', PROMPTS_PATTERNS)).toBe(true);
   });
 });

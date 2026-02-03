@@ -13,6 +13,9 @@ import { SplitView } from '../components/SplitView';
 import { parseFrontmatter } from '../utils/frontmatter';
 import { themes } from '../themes';
 
+// Default home path for WSL - used for fetching user-level config files
+const DEFAULT_HOME_PATH = '/home/marci';
+
 export function Files() {
   const {
     tabs,
@@ -168,6 +171,7 @@ export function Files() {
             fileTree={fileTree}
             currentFile={currentFile}
             workspacePath={workspacePath}
+            homePath={DEFAULT_HOME_PATH}
             isSplit={isSplit}
             onFileSelect={handleFileSelect}
             onFileDoubleClick={handleFileDoubleClick}
