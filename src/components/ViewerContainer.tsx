@@ -5,7 +5,9 @@ import { ImageViewer } from './viewers/ImageViewer';
 import { CsvViewer } from './viewers/CsvViewer';
 import { JsonViewer } from './viewers/JsonViewer';
 import { AudioViewer } from './viewers/AudioViewer';
+import { VideoViewer } from './viewers/VideoViewer';
 import { SvgViewer } from './viewers/SvgViewer';
+import { PdfViewer } from './viewers/PdfViewer';
 import { PromptNotebook } from './PromptNotebook';
 import { isPromptyFile } from '../utils/promptyUtils';
 
@@ -17,14 +19,15 @@ interface ViewerContainerProps {
   fontSize?: number;
 }
 
-type ViewerType = 'markdown' | 'code' | 'image' | 'csv' | 'json' | 'audio' | 'svg' | 'prompty';
+type ViewerType = 'markdown' | 'code' | 'image' | 'csv' | 'json' | 'audio' | 'video' | 'svg' | 'pdf' | 'prompty';
 
 // Extensions for each viewer type
 const markdownExtensions = new Set(['md', 'markdown', 'mdx']);
 const imageExtensions = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp', 'avif']);
 const csvExtensions = new Set(['csv', 'tsv']);
 const jsonExtensions = new Set(['json', 'jsonc', 'json5']);
-const audioExtensions = new Set(['mp3', 'wav', 'ogg', 'flac', 'm4a', 'webm', 'aac', 'wma']);
+const audioExtensions = new Set(['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac', 'wma']);
+const videoExtensions = new Set(['mp4', 'webm', 'mov', 'ogg', 'mkv', 'm4v', 'avi']);
 const svgExtensions = new Set(['svg']);
 
 function getViewerType(filePath: string): ViewerType {
@@ -54,6 +57,10 @@ function getViewerType(filePath: string): ViewerType {
 
   if (audioExtensions.has(ext)) {
     return 'audio';
+  }
+
+  if (videoExtensions.has(ext)) {
+    return 'video';
   }
 
   if (isPromptyFile(filePath)) {
@@ -95,6 +102,9 @@ export function ViewerContainer({
 
     case 'audio':
       return <AudioViewer filePath={filePath} fontSize={fontSize} />;
+
+    case 'video':
+      return <VideoViewer filePath={filePath} fontSize={fontSize} />;
 
     case 'svg':
       return <SvgViewer filePath={filePath} content={content} fontSize={fontSize} />;
