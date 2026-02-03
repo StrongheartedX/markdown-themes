@@ -27,24 +27,34 @@ WSL (TabzChrome backend @ 8129)     Browser (Chrome)
 
 ```
 src/
-├── App.tsx                    # Main app, theme state
-├── index.css                  # Tailwind + CSS variables
+├── App.tsx                    # Main app, routing, theme state
+├── index.css                  # Tailwind + CSS variables + modal styles
 ├── lib/
-│   └── api.ts                 # TabzChrome API client + WebSocket
+│   ├── api.ts                 # TabzChrome API client + WebSocket
+│   └── filters.ts             # File tree filter presets
+├── pages/
+│   ├── Files.tsx              # Main markdown viewer with sidebar
+│   ├── Prompts.tsx            # Prompty file viewer with library
+│   └── SourceControl.tsx      # Git repo management dashboard
 ├── components/
 │   ├── MarkdownViewer.tsx     # Streamdown renderer
-│   ├── ThemeSelector.tsx      # Theme dropdown
-│   ├── Toolbar.tsx            # Path input, streaming indicator
-│   ├── Sidebar.tsx            # File tree navigation
-│   └── MetadataBar.tsx        # Frontmatter display
+│   ├── Sidebar.tsx            # File tree with search + filters
+│   ├── FilePickerModal.tsx    # File/folder browser modal
+│   ├── PromptNotebook.tsx     # Prompty renderer with inline fields
+│   ├── PromptLibrary.tsx      # Prompty file browser sidebar
+│   ├── InlineField.tsx        # Editable {{variable}} fields
+│   ├── viewers/               # File type viewers (JSON, PDF, video, etc.)
+│   └── git/                   # Git components (RepoCard, CommitForm, etc.)
 ├── hooks/
 │   ├── useFileWatcher.ts      # WebSocket file watching + streaming detection
 │   ├── useWorkspace.ts        # File tree via TabzChrome API
-│   └── useAppStore.ts         # localStorage persistence
+│   ├── useAppStore.ts         # localStorage persistence
+│   └── useGitRepos.ts         # Git repository scanning
 ├── utils/
-│   └── frontmatter.ts         # YAML frontmatter parser
+│   ├── frontmatter.ts         # YAML frontmatter parser
+│   └── promptyUtils.ts        # Prompty parsing + variable handling
 └── themes/
-    ├── index.ts               # Theme registry (9 themes)
+    ├── index.ts               # Theme registry (10 themes)
     └── *.css                  # Theme CSS files
 ```
 
@@ -74,6 +84,20 @@ Themes use CSS custom properties. Each theme file sets variables like:
 ```
 
 Tailwind's `@theme` directive maps these to utility classes.
+
+### Prompty Files
+`.prompty` files are markdown documents with YAML frontmatter and fillable `{{variable}}` placeholders:
+- `{{variable}}` - text input field
+- `{{variable:hint text}}` - text input with placeholder hint
+- `{{variable:opt1|opt2|opt3}}` - dropdown select
+
+The `PromptNotebook` component renders these with inline editable fields. Fields named `file`, `path`, `project`, `folder`, etc. automatically show a file picker button.
+
+### FilePickerModal
+Reusable modal for browsing and selecting files/folders. Used in:
+- Prompts page header "Open .prompty" button
+- Inline fields for file/folder path variables
+- Supports modes: `file`, `folder`, or `both`
 
 ## Commands
 
@@ -117,7 +141,7 @@ Tests use Vitest + React Testing Library. Run `npm run test:run` before committi
 
 Available themes (from htmlstyleguides):
 - dark-academia, cyberpunk, parchment, cosmic
-- noir, nordic, glassmorphism
+- noir, nordic, glassmorphism, pixel-art
 - art-deco, retro-futurism
 
 ### Adding a New Theme
