@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Streamdown } from 'streamdown';
 import { createCodePlugin } from '@streamdown/code';
 import { createCssVariablesTheme } from 'shiki';
@@ -155,89 +155,62 @@ export function PromptNotebook({
     [fieldOrder, variableValues, handleFieldChange, handleNavigate, activeFieldIndex, variableMap]
   );
 
+  // Recursively process children to find and replace template fields
+  const processChildren = useCallback(
+    (children: React.ReactNode, keyPrefix = ''): React.ReactNode => {
+      if (typeof children === 'string') {
+        return renderTextWithFields(children);
+      }
+
+      if (Array.isArray(children)) {
+        return children.map((child, idx) => processChildren(child, `${keyPrefix}-${idx}`));
+      }
+
+      // If it's a React element, clone it with processed children
+      if (React.isValidElement(children)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const elementProps = children.props as any;
+        if (elementProps?.children) {
+          return React.cloneElement(children, {
+            ...elementProps,
+            children: processChildren(elementProps.children, keyPrefix),
+          });
+        }
+      }
+
+      return children;
+    },
+    [renderTextWithFields]
+  );
+
   // Custom Streamdown components to handle {{variable}} replacement
   // Using 'any' for props to work around strict typing in react-markdown/Streamdown
   const streamdownComponents = useMemo(
     () => ({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      p: ({ children, ...props }: any) => {
-        if (typeof children === 'string') {
-          return <p {...props}>{renderTextWithFields(children)}</p>;
-        }
-        return <p {...props}>{children}</p>;
-      },
+      p: ({ children, ...props }: any) => <p {...props}>{processChildren(children)}</p>,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      li: ({ children, ...props }: any) => {
-        if (typeof children === 'string') {
-          return <li {...props}>{renderTextWithFields(children)}</li>;
-        }
-        return <li {...props}>{children}</li>;
-      },
+      li: ({ children, ...props }: any) => <li {...props}>{processChildren(children)}</li>,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      h1: ({ children, ...props }: any) => {
-        if (typeof children === 'string') {
-          return <h1 {...props}>{renderTextWithFields(children)}</h1>;
-        }
-        return <h1 {...props}>{children}</h1>;
-      },
+      h1: ({ children, ...props }: any) => <h1 {...props}>{processChildren(children)}</h1>,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      h2: ({ children, ...props }: any) => {
-        if (typeof children === 'string') {
-          return <h2 {...props}>{renderTextWithFields(children)}</h2>;
-        }
-        return <h2 {...props}>{children}</h2>;
-      },
+      h2: ({ children, ...props }: any) => <h2 {...props}>{processChildren(children)}</h2>,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      h3: ({ children, ...props }: any) => {
-        if (typeof children === 'string') {
-          return <h3 {...props}>{renderTextWithFields(children)}</h3>;
-        }
-        return <h3 {...props}>{children}</h3>;
-      },
+      h3: ({ children, ...props }: any) => <h3 {...props}>{processChildren(children)}</h3>,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      h4: ({ children, ...props }: any) => {
-        if (typeof children === 'string') {
-          return <h4 {...props}>{renderTextWithFields(children)}</h4>;
-        }
-        return <h4 {...props}>{children}</h4>;
-      },
+      h4: ({ children, ...props }: any) => <h4 {...props}>{processChildren(children)}</h4>,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      blockquote: ({ children, ...props }: any) => {
-        if (typeof children === 'string') {
-          return <blockquote {...props}>{renderTextWithFields(children)}</blockquote>;
-        }
-        return <blockquote {...props}>{children}</blockquote>;
-      },
+      blockquote: ({ children, ...props }: any) => <blockquote {...props}>{processChildren(children)}</blockquote>,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      strong: ({ children, ...props }: any) => {
-        if (typeof children === 'string') {
-          return <strong {...props}>{renderTextWithFields(children)}</strong>;
-        }
-        return <strong {...props}>{children}</strong>;
-      },
+      strong: ({ children, ...props }: any) => <strong {...props}>{processChildren(children)}</strong>,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      em: ({ children, ...props }: any) => {
-        if (typeof children === 'string') {
-          return <em {...props}>{renderTextWithFields(children)}</em>;
-        }
-        return <em {...props}>{children}</em>;
-      },
+      em: ({ children, ...props }: any) => <em {...props}>{processChildren(children)}</em>,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      td: ({ children, ...props }: any) => {
-        if (typeof children === 'string') {
-          return <td {...props}>{renderTextWithFields(children)}</td>;
-        }
-        return <td {...props}>{children}</td>;
-      },
+      td: ({ children, ...props }: any) => <td {...props}>{processChildren(children)}</td>,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      th: ({ children, ...props }: any) => {
-        if (typeof children === 'string') {
-          return <th {...props}>{renderTextWithFields(children)}</th>;
-        }
-        return <th {...props}>{children}</th>;
-      },
+      th: ({ children, ...props }: any) => <th {...props}>{processChildren(children)}</th>,
     }),
-    [renderTextWithFields]
+    [processChildren]
   );
 
   const hasFrontmatterContent =
