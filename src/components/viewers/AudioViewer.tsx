@@ -7,6 +7,21 @@ interface AudioViewerProps {
 
 const API_BASE = 'http://localhost:8129';
 
+// Map file extensions to MIME types
+function getAudioMimeType(filePath: string): string {
+  const ext = filePath.split('.').pop()?.toLowerCase();
+  const mimeTypes: Record<string, string> = {
+    mp3: 'audio/mpeg',
+    wav: 'audio/wav',
+    ogg: 'audio/ogg',
+    m4a: 'audio/mp4',
+    aac: 'audio/aac',
+    flac: 'audio/flac',
+    webm: 'audio/webm',
+  };
+  return mimeTypes[ext || ''] || 'audio/mpeg';
+}
+
 function formatDuration(seconds: number): string {
   if (!isFinite(seconds) || isNaN(seconds)) return '--:--';
 
@@ -42,8 +57,12 @@ export function AudioViewer({ filePath, fontSize = 100 }: AudioViewerProps) {
         if (!res.ok) throw new Error('Failed to load audio');
         return res.blob();
       })
-      .then((blob) => {
-        objectUrl = URL.createObjectURL(blob);
+      .then(async (blob) => {
+        // Re-create blob with correct MIME type (server may return wrong type)
+        const mimeType = getAudioMimeType(filePath);
+        const arrayBuffer = await blob.arrayBuffer();
+        const typedBlob = new Blob([arrayBuffer], { type: mimeType });
+        objectUrl = URL.createObjectURL(typedBlob);
         setAudioUrl(objectUrl);
         setLoading(false);
       })
@@ -80,8 +99,20 @@ export function AudioViewer({ filePath, fontSize = 100 }: AudioViewerProps) {
     setCurrentTime(0);
   };
 
-  const handleError = () => {
-    setError('Failed to load audio file');
+  const handleError = (e: React.SyntheticEvent<HTMLAudioElement>) => {
+    const audio = e.currentTarget;
+    const mediaError = audio.error;
+    let errorMsg = 'Failed to load audio file';
+    if (mediaError) {
+      const codes: Record<number, string> = {
+        1: 'Audio loading aborted',
+        2: 'Network error while loading audio',
+        3: 'Audio decoding failed',
+        4: 'Audio format not supported',
+      };
+      errorMsg = codes[mediaError.code] || `Audio error: ${mediaError.message}`;
+    }
+    setError(errorMsg);
   };
 
   if (loading) {
