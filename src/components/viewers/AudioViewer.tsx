@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 
 interface AudioViewerProps {
   filePath: string;
@@ -6,6 +6,11 @@ interface AudioViewerProps {
 }
 
 const API_BASE = 'http://localhost:8129';
+
+// Pre-generate random heights for waveform bars (stable across renders)
+const WAVEFORM_BARS = 20;
+const generateWaveformHeights = () =>
+  Array.from({ length: WAVEFORM_BARS }, () => Math.random() * 40 + 10);
 
 function formatDuration(seconds: number): string {
   if (!isFinite(seconds) || isNaN(seconds)) return '--:--';
@@ -25,6 +30,9 @@ export function AudioViewer({ filePath, fontSize = 100 }: AudioViewerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const fileName = filePath.split('/').pop() || 'Audio file';
+
+  // Stable random heights - only regenerate when filePath changes
+  const waveformHeights = useMemo(() => generateWaveformHeights(), [filePath]);
 
   // Fetch audio as base64 data URI from TabzChrome API
   useEffect(() => {
@@ -148,17 +156,19 @@ export function AudioViewer({ filePath, fontSize = 100 }: AudioViewerProps) {
             className="flex items-center gap-1"
             style={{ color: 'var(--accent)' }}
           >
-            {/* Simple audio wave visualization */}
-            {[...Array(20)].map((_, i) => (
+            {/* Simple audio wave visualization with CSS animations */}
+            {waveformHeights.map((height, i) => (
               <div
                 key={i}
-                className="w-1 rounded-full transition-all duration-150"
+                className="w-1 rounded-full"
                 style={{
                   backgroundColor: 'var(--accent)',
-                  height: isPlaying
-                    ? `${Math.random() * 40 + 10}px`
-                    : '8px',
+                  height: isPlaying ? `${height}px` : '8px',
                   opacity: isPlaying ? 0.8 : 0.4,
+                  transition: 'height 0.15s ease-out, opacity 0.15s ease-out',
+                  animation: isPlaying
+                    ? `waveform-pulse 0.8s ease-in-out infinite ${i * 0.05}s`
+                    : 'none',
                 }}
               />
             ))}

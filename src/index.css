@@ -152,6 +152,11 @@ body {
   50% { opacity: 0; }
 }
 
+@keyframes waveform-pulse {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.6); }
+}
+
 /* Streamdown code blocks - target data-streamdown attributes */
 .streamdown-content [data-streamdown="code-block"] {
   border: none !important;
