@@ -228,6 +228,17 @@ interface JsonlLineProps {
 function JsonlLine({ line, lineNumber, onCopyPath }: JsonlLineProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Must call all hooks before any early returns
+  const preview = useMemo(() => {
+    if (line.error) return '';
+    if (line.data === null) return 'null';
+    if (typeof line.data !== 'object') return String(line.data);
+    if (Array.isArray(line.data)) return `Array (${line.data.length} items)`;
+    const keys = Object.keys(line.data);
+    if (keys.length <= 3) return keys.join(', ');
+    return `${keys.slice(0, 3).join(', ')}... (${keys.length} keys)`;
+  }, [line.data, line.error]);
+
   if (line.error) {
     return (
       <div
@@ -252,16 +263,6 @@ function JsonlLine({ line, lineNumber, onCopyPath }: JsonlLineProps) {
       </div>
     );
   }
-
-  // Get a preview of the JSON object
-  const preview = useMemo(() => {
-    if (line.data === null) return 'null';
-    if (typeof line.data !== 'object') return String(line.data);
-    if (Array.isArray(line.data)) return `Array (${line.data.length} items)`;
-    const keys = Object.keys(line.data);
-    if (keys.length <= 3) return keys.join(', ');
-    return `${keys.slice(0, 3).join(', ')}... (${keys.length} keys)`;
-  }, [line.data]);
 
   return (
     <div
