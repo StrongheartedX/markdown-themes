@@ -41,13 +41,17 @@ export function useTabManager(options: UseTabManagerOptions = {}): UseTabManager
   tabsRef.current = tabs;
 
   // Notify parent of state changes (skip initial mount)
+  // Use refs to avoid re-running effect when callback changes
+  const onStateChangeRef = useRef(onStateChange);
+  onStateChangeRef.current = onStateChange;
+
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
       return;
     }
-    onStateChange?.(tabs, activeTabId);
-  }, [tabs, activeTabId, onStateChange]);
+    onStateChangeRef.current?.(tabs, activeTabId);
+  }, [tabs, activeTabId]);
 
   const activeTab = useMemo(
     () => tabs.find((t) => t.id === activeTabId) ?? null,

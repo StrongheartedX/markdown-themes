@@ -51,14 +51,18 @@ export function useSplitView(options: UseSplitViewOptions = {}): UseSplitViewRes
   // Track if this is the initial mount to avoid triggering onStateChange
   const isInitialMount = useRef(true);
 
+  // Use ref to avoid re-running effect when callback changes
+  const onStateChangeRef = useRef(onStateChange);
+  onStateChangeRef.current = onStateChange;
+
   // Notify parent of state changes (skip initial mount)
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
       return;
     }
-    onStateChange?.({ isSplit, splitRatio, rightPaneContent });
-  }, [isSplit, splitRatio, rightPaneContent, onStateChange]);
+    onStateChangeRef.current?.({ isSplit, splitRatio, rightPaneContent });
+  }, [isSplit, splitRatio, rightPaneContent]);
 
   const toggleSplit = useCallback(() => {
     setIsSplit((prev) => !prev);
