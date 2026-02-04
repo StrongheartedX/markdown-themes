@@ -195,7 +195,13 @@ export function Files() {
     onStateChange: handleSplitStateChange,
   });
 
+  // Check if current file is audio (AudioViewer fetches its own content)
+  const AUDIO_EXTENSIONS = ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'webm'];
+  const currentFileExt = currentFile?.split('.').pop()?.toLowerCase();
+  const isCurrentFileAudio = currentFileExt ? AUDIO_EXTENSIONS.includes(currentFileExt) : false;
+
   // Use file watcher to get content and streaming state (left/main pane)
+  // Skip for audio files - AudioViewer fetches its own data URI
   const {
     content,
     error,
@@ -203,7 +209,7 @@ export function Files() {
     isStreaming,
     connected,
   } = useFileWatcher({
-    path: currentFile,
+    path: isCurrentFileAudio ? null : currentFile,
   });
 
   // File watcher for right pane (only active when split view is enabled)
