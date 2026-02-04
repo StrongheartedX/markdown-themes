@@ -14,10 +14,24 @@ export function SvgViewer({ filePath, content, fontSize = 100 }: SvgViewerProps)
 
   const fileName = filePath.split('/').pop() || 'SVG file';
 
+  // Guard against empty content (loading state)
+  if (!content || !content.trim()) {
+    return null;
+  }
+
   // Create a data URL from the SVG content for inline rendering
+  // Use base64 encoding for better browser compatibility with UTF-8 content
   const svgDataUrl = useMemo(() => {
-    const encoded = encodeURIComponent(content);
-    return `data:image/svg+xml,${encoded}`;
+    try {
+      // Convert UTF-8 string to base64 properly
+      const bytes = new TextEncoder().encode(content);
+      const binary = Array.from(bytes, byte => String.fromCharCode(byte)).join('');
+      const base64 = btoa(binary);
+      return `data:image/svg+xml;base64,${base64}`;
+    } catch {
+      // Fallback to URL encoding if base64 fails
+      return `data:image/svg+xml,${encodeURIComponent(content)}`;
+    }
   }, [content]);
 
   // Extract SVG dimensions from content if available
