@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
-import { Clock, ChevronLeft, GitCommit, FileDiff } from 'lucide-react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
+import { Clock, ChevronLeft, GitCommit, FileDiff, Loader2 } from 'lucide-react';
 import { useFileWatcher } from '../hooks/useFileWatcher';
 import { useWorkspaceContext } from '../context/WorkspaceContext';
 import { usePageState } from '../context/PageStateContext';
@@ -13,8 +13,100 @@ import { Sidebar } from '../components/Sidebar';
 import { TabBar } from '../components/TabBar';
 import { SplitView } from '../components/SplitView';
 import { GitGraph } from '../components/git';
+import { DiffViewer } from '../components/viewers/DiffViewer';
 import { parseFrontmatter } from '../utils/frontmatter';
 import { themes } from '../themes';
+
+const API_BASE = 'http://localhost:8129';
+
+/**
+ * DiffPane - Fetches and displays a diff for a commit
+ */
+interface DiffPaneProps {
+  repoPath: string;
+  base: string;
+  head?: string;
+  file?: string;
+}
+
+function DiffPane({ repoPath, base, head, file }: DiffPaneProps) {
+  const [diff, setDiff] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchDiff() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const params = new URLSearchParams({ path: repoPath, base });
+        if (head) params.set('head', head);
+        if (file) params.set('file', file);
+
+        const response = await fetch(`${API_BASE}/api/git/diff?${params}`);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(errorData.error || `Failed to fetch diff: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (!cancelled) {
+          setDiff(data.data?.diff || '');
+          setLoading(false);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to fetch diff');
+          setLoading(false);
+        }
+      }
+    }
+
+    fetchDiff();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [repoPath, base, head, file]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span>Loading diff...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <FileDiff size={48} style={{ color: '#f87171', margin: '0 auto 16px' }} />
+          <p style={{ color: '#f87171' }}>{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!diff) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center" style={{ color: 'var(--text-secondary)' }}>
+          <FileDiff size={48} style={{ margin: '0 auto 16px' }} />
+          <p>No changes to display</p>
+        </div>
+      </div>
+    );
+  }
+
+  return <DiffViewer diff={diff} />;
+}
 
 /**
  * Derive home path from workspace path.
@@ -87,6 +179,7 @@ export function Files() {
     setSplitRatio,
     setRightFile,
     setRightPaneGitGraph,
+    setRightPaneDiff,
   } = useSplitView({
     initialState: {
       isSplit: filesState.isSplit,
@@ -424,26 +517,20 @@ export function Files() {
                 <GitGraph
                   repoPath={workspacePath}
                   onCommitSelect={(hash) => console.log('Selected commit:', hash)}
+                  onFileClick={(commitHash, filePath) => {
+                    setRightPaneDiff(commitHash, undefined, filePath);
+                  }}
                 />
               )}
 
-              {/* Diff content type - placeholder */}
-              {rightPaneContent?.type === 'diff' && (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <FileDiff size={48} style={{ color: 'var(--text-secondary)', margin: '0 auto 16px' }} />
-                    <h3 className="text-lg font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
-                      Diff View
-                    </h3>
-                    <p style={{ color: 'var(--text-secondary)' }}>
-                      Comparing: {rightPaneContent.base}
-                      {rightPaneContent.head && ` ... ${rightPaneContent.head}`}
-                    </p>
-                    <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
-                      Coming soon
-                    </p>
-                  </div>
-                </div>
+              {/* Diff content type */}
+              {rightPaneContent?.type === 'diff' && workspacePath && (
+                <DiffPane
+                  repoPath={workspacePath}
+                  base={rightPaneContent.base}
+                  head={rightPaneContent.head}
+                  file={rightPaneContent.file}
+                />
               )}
 
               {/* Commit content type - placeholder */}
