@@ -132,12 +132,11 @@ export function ThemeSelector({ currentTheme, onThemeChange }: ThemeSelectorProp
           <ul
             role="listbox"
             aria-activedescendant={focusedIndex >= 0 ? `theme-option-${themes[focusedIndex].id}` : undefined}
-            className="absolute top-full left-0 mt-1 w-full max-h-[320px] overflow-y-auto z-50"
+            className="absolute top-full left-0 mt-1 w-full max-h-[320px] overflow-y-auto overflow-x-hidden z-50"
             style={{
               borderRadius: 'var(--radius)',
-              backgroundColor: 'var(--bg-secondary)',
               border: '1px solid var(--border)',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
             }}
           >
             {themes.map((theme, index) => {
@@ -152,9 +151,11 @@ export function ThemeSelector({ currentTheme, onThemeChange }: ThemeSelectorProp
                   aria-selected={isSelected}
                   onClick={() => handleThemeSelect(theme.id)}
                   onMouseEnter={() => setFocusedIndex(index)}
-                  className="px-3 py-2 cursor-pointer flex items-center justify-between transition-colors"
+                  className="px-3 py-2 cursor-pointer flex items-center justify-between transition-all"
                   style={{
-                    backgroundColor: isFocused ? 'var(--bg-primary)' : 'transparent',
+                    backgroundColor: theme.bg,
+                    opacity: isFocused ? 1 : 0.85,
+                    transform: isFocused ? 'scale(1.02)' : 'scale(1)',
                   }}
                 >
                   <span
