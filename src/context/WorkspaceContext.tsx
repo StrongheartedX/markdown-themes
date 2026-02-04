@@ -260,7 +260,23 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           const converted = convertTree(apiTree);
           const children = converted?.children || [];
           const sorted = sortTree(children);
-          setFileTree(sorted);
+
+          // For projects directories, preserve lazy-loaded children during refresh
+          if (isProjectsDirectory(workspacePath)) {
+            setFileTree(prevTree => {
+              // Merge: keep existing children for folders that were lazy-loaded
+              return sorted.map(newNode => {
+                const existingNode = prevTree.find(n => n.path === newNode.path);
+                if (existingNode?.children && newNode.isDirectory) {
+                  // Preserve the lazy-loaded children
+                  return { ...newNode, children: existingNode.children };
+                }
+                return newNode;
+              });
+            });
+          } else {
+            setFileTree(sorted);
+          }
         })
         .catch(() => {
           // Silently ignore refresh errors
