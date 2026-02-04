@@ -36,6 +36,10 @@ export function useTabManager(options: UseTabManagerOptions = {}): UseTabManager
   // Track if this is the initial mount to avoid triggering onStateChange
   const isInitialMount = useRef(true);
 
+  // Use ref for tabs to avoid stale closures in callbacks
+  const tabsRef = useRef(tabs);
+  tabsRef.current = tabs;
+
   // Notify parent of state changes (skip initial mount)
   useEffect(() => {
     if (isInitialMount.current) {
@@ -51,15 +55,18 @@ export function useTabManager(options: UseTabManagerOptions = {}): UseTabManager
   );
 
   const openTab = useCallback((path: string, preview = true) => {
+    // Use ref to get current tabs without dependency
+    const currentTabs = tabsRef.current;
+
     // Check if file is already open in a pinned tab
-    const existingPinnedTab = tabs.find((t) => t.path === path && t.isPinned);
+    const existingPinnedTab = currentTabs.find((t) => t.path === path && t.isPinned);
     if (existingPinnedTab) {
       setActiveTabId(existingPinnedTab.id);
       return;
     }
 
     // Check if file is already open in a preview tab
-    const existingPreviewTab = tabs.find((t) => t.path === path && t.isPreview);
+    const existingPreviewTab = currentTabs.find((t) => t.path === path && t.isPreview);
     if (existingPreviewTab) {
       setActiveTabId(existingPreviewTab.id);
       return;
@@ -67,7 +74,6 @@ export function useTabManager(options: UseTabManagerOptions = {}): UseTabManager
 
     if (preview) {
       // Replace existing preview tab or create new one
-      const existingPreviewIndex = tabs.findIndex((t) => t.isPreview);
       const newTab: Tab = {
         id: generateTabId(),
         path,
@@ -75,49 +81,47 @@ export function useTabManager(options: UseTabManagerOptions = {}): UseTabManager
         isPinned: false,
       };
 
-      if (existingPreviewIndex >= 0) {
-        // Replace existing preview tab
-        setTabs((prevTabs) => {
+      setTabs((prevTabs) => {
+        const existingPreviewIndex = prevTabs.findIndex((t) => t.isPreview);
+        if (existingPreviewIndex >= 0) {
+          // Replace existing preview tab
           const newTabs = [...prevTabs];
           newTabs[existingPreviewIndex] = newTab;
           return newTabs;
-        });
-      } else {
-        // Add new preview tab at the end
-        setTabs((prevTabs) => [...prevTabs, newTab]);
-      }
+        } else {
+          // Add new preview tab at the end
+          return [...prevTabs, newTab];
+        }
+      });
       setActiveTabId(newTab.id);
     } else {
       // Opening as pinned (double-click behavior)
-      // First check if there's a preview tab for this file - convert it to pinned
-      const previewTabIndex = tabs.findIndex((t) => t.path === path && t.isPreview);
-      if (previewTabIndex >= 0) {
-        const tabId = tabs[previewTabIndex].id;
-        setTabs((prevTabs) => {
+      setTabs((prevTabs) => {
+        // First check if there's a preview tab for this file - convert it to pinned
+        const previewTabIndex = prevTabs.findIndex((t) => t.path === path && t.isPreview);
+        if (previewTabIndex >= 0) {
           const newTabs = [...prevTabs];
           newTabs[previewTabIndex] = {
             ...newTabs[previewTabIndex],
             isPreview: false,
             isPinned: true,
           };
+          setActiveTabId(prevTabs[previewTabIndex].id);
           return newTabs;
-        });
-        setActiveTabId(tabId);
-        return;
-      }
+        }
 
-      // Create new pinned tab
-      const newTab: Tab = {
-        id: generateTabId(),
-        path,
-        isPreview: false,
-        isPinned: true,
-      };
-      setTabs((prevTabs) => [...prevTabs, newTab]);
-      setActiveTabId(newTab.id);
+        // Create new pinned tab
+        const newTab: Tab = {
+          id: generateTabId(),
+          path,
+          isPreview: false,
+          isPinned: true,
+        };
+        setActiveTabId(newTab.id);
+        return [...prevTabs, newTab];
+      });
     }
-    // TODO: Consider using ref for tabs to avoid stale closure
-  }, [tabs]);
+  }, []);
 
   const pinTab = useCallback((id: string) => {
     setTabs((prevTabs) =>
