@@ -35,8 +35,8 @@
   --text-primary: var(--noir-white);
   --text-secondary: var(--noir-silver);
   --text-muted: var(--noir-pale);
-  --accent: var(--blood-red);
-  --accent-hover: var(--blood-bright);
+  --accent: var(--cigarette-glow);
+  --accent-hover: var(--cigarette-ember);
   --border: var(--noir-gray);
   --border-subtle: var(--noir-shadow);
 
@@ -105,16 +105,10 @@
 }
 
 /* ============================================
-   NAVIGATION - Brighter accents for readability
+   NAVIGATION
 ============================================ */
-.theme-noir header {
-  /* Override accent to brighter orange in header */
-  --accent: var(--cigarette-glow);
-  --text-secondary: var(--noir-silver);
-}
-
 .theme-noir header nav a:hover {
-  --accent: var(--noir-pure-white);
+  color: var(--noir-pure-white);
   text-shadow: 0 0 8px rgba(255, 107, 53, 0.4);
 }
 
@@ -562,14 +556,14 @@
   --shiki-foreground: var(--noir-white);
   --shiki-background: var(--bg-secondary);
 
-  /* Shiki token colors - film noir palette */
+  /* Shiki token colors - readable noir palette (no dark reds) */
   --shiki-token-constant: var(--gold-badge);      /* Gold for constants */
   --shiki-token-string: var(--cigarette-glow);    /* Warm orange for strings */
-  --shiki-token-comment: var(--noir-pale);        /* Visible gray for comments */
-  --shiki-token-keyword: var(--blood-bright);     /* Blood red for keywords */
+  --shiki-token-comment: var(--noir-silver);      /* Brighter silver for comments */
+  --shiki-token-keyword: var(--cigarette-ember);  /* Bright ember for keywords */
   --shiki-token-parameter: var(--noir-silver);    /* Silver for parameters */
   --shiki-token-function: var(--whiskey-amber);   /* Amber for functions */
   --shiki-token-string-expression: var(--cigarette-glow);
-  --shiki-token-punctuation: var(--noir-light);   /* Light gray for punctuation */
-  --shiki-token-link: var(--blood-bright);
+  --shiki-token-punctuation: var(--noir-pale);    /* Pale gray for punctuation */
+  --shiki-token-link: var(--cigarette-glow);      /* Warm orange for links */
 }

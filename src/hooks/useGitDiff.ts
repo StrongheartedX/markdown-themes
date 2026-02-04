@@ -5,6 +5,14 @@ const API_BASE = 'http://localhost:8129';
 
 export type GitDiffLineType = 'added' | 'modified' | 'deleted';
 
+/** A deleted line with its content and position in the new file */
+export interface DeletedLine {
+  /** Insert this deleted line after this line number in the new file (0 = at start) */
+  afterLine: number;
+  /** The content of the deleted line */
+  content: string;
+}
+
 interface UseGitDiffOptions {
   /** Full file path to get diff for */
   filePath: string | null;
@@ -21,6 +29,8 @@ interface UseGitDiffOptions {
 interface UseGitDiffResult {
   /** Map of line numbers (1-based) to change type */
   changedLines: Map<number, GitDiffLineType>;
+  /** Deleted lines with their content and position */
+  deletedLines: DeletedLine[];
   /** Whether diff is currently loading */
   loading: boolean;
   /** Error message if fetch failed */
@@ -29,81 +39,72 @@ interface UseGitDiffResult {
   refetch: () => void;
 }
 
+interface ExtractedChanges {
+  changedLines: Map<number, GitDiffLineType>;
+  deletedLines: DeletedLine[];
+}
+
 /**
  * Extract line changes from a git diff for a single file.
- * Returns a map of line numbers to their change type.
+ * Returns a map of line numbers to their change type, plus deleted lines with content.
  *
  * For added lines: marks newLineNumber as 'added'
- * For deleted lines: marks oldLineNumber as 'deleted' (shown in gutter only)
- * For modified lines (addition after deletion of same line): marks as 'modified'
+ * For modified lines (addition after deletion): marks as 'modified'
+ * For deleted lines: returns the content and position where they should appear
  */
-function extractLineChanges(diffText: string): Map<number, GitDiffLineType> {
+function extractLineChanges(diffText: string): ExtractedChanges {
   const changedLines = new Map<number, GitDiffLineType>();
+  const deletedLines: DeletedLine[] = [];
   const files = parseDiff(diffText);
 
   if (files.length === 0) {
-    return changedLines;
+    return { changedLines, deletedLines };
   }
 
   // We expect a single file diff
   const file = files[0];
 
-  // Track deletions so we can detect modifications (deletion + addition at same position)
-  const deletedOldLines = new Set<number>();
-
   for (const hunk of file.hunks) {
-    // First pass: collect deleted line numbers
-    for (const line of hunk.lines) {
-      if (line.type === 'deletion' && line.oldLineNumber !== null) {
-        deletedOldLines.add(line.oldLineNumber);
-      }
-    }
+    // Track position in new file for placing deleted lines
+    let newLinePos = hunk.newStart - 1; // 0-based position before the hunk starts
 
-    // Second pass: process additions and mark deletions
-    // Track which new line positions map to old positions
-    let oldLineOffset = hunk.oldStart;
-    let newLineOffset = hunk.newStart;
+    // Collect consecutive deletions to detect modifications
+    let pendingDeletions: { content: string; afterLine: number }[] = [];
 
     for (const line of hunk.lines) {
-      if (line.type === 'addition' && line.newLineNumber !== null) {
-        // Check if this could be a modification (replacing a deleted line)
-        // This is a heuristic: if the line number in new content corresponds
-        // to a deleted line in old content, it's likely a modification
-        const correspondingOldLine = oldLineOffset;
-        if (deletedOldLines.has(correspondingOldLine)) {
+      if (line.type === 'context') {
+        // Flush any pending deletions as actual deletions
+        for (const del of pendingDeletions) {
+          deletedLines.push(del);
+        }
+        pendingDeletions = [];
+        newLinePos++;
+      } else if (line.type === 'deletion') {
+        // Queue deletion - might be a modification if followed by addition
+        pendingDeletions.push({
+          content: line.content,
+          afterLine: newLinePos,
+        });
+      } else if (line.type === 'addition' && line.newLineNumber !== null) {
+        if (pendingDeletions.length > 0) {
+          // This addition replaces a deletion - it's a modification
           changedLines.set(line.newLineNumber, 'modified');
-          deletedOldLines.delete(correspondingOldLine);
+          pendingDeletions.shift(); // Consume one pending deletion
         } else {
+          // Pure addition
           changedLines.set(line.newLineNumber, 'added');
         }
-      } else if (line.type === 'deletion' && line.oldLineNumber !== null) {
-        // Mark deleted lines - these won't exist in new content
-        // so we use the old line number for gutter display
-        changedLines.set(line.oldLineNumber, 'deleted');
+        newLinePos++;
       }
+    }
 
-      // Update line offsets for tracking
-      if (line.type === 'context') {
-        oldLineOffset++;
-        newLineOffset++;
-      } else if (line.type === 'deletion') {
-        oldLineOffset++;
-      } else if (line.type === 'addition') {
-        newLineOffset++;
-      }
+    // Flush remaining deletions at end of hunk
+    for (const del of pendingDeletions) {
+      deletedLines.push(del);
     }
   }
 
-  // Remove 'deleted' entries since they reference old line numbers
-  // which don't exist in the new file. The CodeViewer only shows
-  // the new file content, so we can only highlight added/modified lines.
-  for (const [lineNum, type] of changedLines) {
-    if (type === 'deleted') {
-      changedLines.delete(lineNum);
-    }
-  }
-
-  return changedLines;
+  return { changedLines, deletedLines };
 }
 
 /**
@@ -121,13 +122,13 @@ export function useGitDiff({
   enabled = true,
 }: UseGitDiffOptions): UseGitDiffResult {
   const [changedLines, setChangedLines] = useState<Map<number, GitDiffLineType>>(new Map());
+  const [deletedLines, setDeletedLines] = useState<DeletedLine[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Stable empty Map reference to avoid unnecessary re-renders.
-  // Without this, every render creates a new Map object, triggering
-  // downstream useMemo recalculations in CodeViewer's lineHighlights.
+  // Stable empty references to avoid unnecessary re-renders.
   const emptyMap = useMemo(() => new Map<number, GitDiffLineType>(), []);
+  const emptyArray = useMemo(() => [] as DeletedLine[], []);
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -145,6 +146,7 @@ export function useGitDiff({
     const relativePath = getRelativePath();
     if (!relativePath || !repoPath) {
       setChangedLines(new Map());
+      setDeletedLines([]);
       setLoading(false);
       return;
     }
@@ -172,6 +174,7 @@ export function useGitDiff({
         if (response.status === 404) {
           // No diff available (file not in git, or no changes)
           setChangedLines(new Map());
+          setDeletedLines([]);
           setLoading(false);
           return;
         }
@@ -184,13 +187,15 @@ export function useGitDiff({
       if (!data.success) {
         // No diff or error - just clear highlights
         setChangedLines(new Map());
+        setDeletedLines([]);
         setError(data.error || null);
         setLoading(false);
         return;
       }
 
-      const lines = extractLineChanges(data.data?.diff || '');
-      setChangedLines(lines);
+      const result = extractLineChanges(data.data?.diff || '');
+      setChangedLines(result.changedLines);
+      setDeletedLines(result.deletedLines);
       setLoading(false);
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
@@ -200,6 +205,7 @@ export function useGitDiff({
       console.error('Failed to fetch git diff:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch diff');
       setChangedLines(new Map());
+      setDeletedLines([]);
       setLoading(false);
     }
   }, [getRelativePath, repoPath]);
@@ -218,6 +224,7 @@ export function useGitDiff({
 
     if (!filePath || !repoPath) {
       setChangedLines(new Map());
+      setDeletedLines([]);
       return;
     }
 
@@ -245,9 +252,10 @@ export function useGitDiff({
     };
   }, []);
 
-  // Return stable empty map when disabled to avoid re-renders
+  // Return stable empty values when disabled to avoid re-renders
   return {
     changedLines: enabled ? changedLines : emptyMap,
+    deletedLines: enabled ? deletedLines : emptyArray,
     loading: enabled ? loading : false,
     error: enabled ? error : null,
     refetch: fetchDiff,

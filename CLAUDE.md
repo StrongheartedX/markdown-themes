@@ -52,6 +52,7 @@ src/
 │   ├── useFileWatcher.ts      # WebSocket file watching + streaming detection
 │   ├── useWorkspaceStreaming.ts # Workspace-wide streaming detection (Follow AI Edits)
 │   ├── useDiffAutoScroll.ts   # Auto-scroll to changes during streaming
+│   ├── useGitDiff.ts          # Git diff highlighting (additions, modifications, deletions)
 │   ├── useWorkspace.ts        # File tree via TabzChrome API
 │   ├── useTabManager.ts       # Tab state management for Files page
 │   ├── useSplitView.ts        # Split view state for Files page
@@ -114,6 +115,33 @@ When streaming is detected, the viewer auto-scrolls to show where Claude is edit
 **User interruption:**
 - If user manually scrolls during streaming, auto-scroll pauses
 - Resumes when streaming stops or user resets
+
+### Git Diff Highlighting
+Code files show git diff highlighting after streaming stops, letting you see exactly what changed:
+
+**Visual indicators:**
+- 🟢 Green background: added lines
+- 🟡 Yellow background: modified lines
+- 🔴 Red background + strikethrough: deleted lines (shown as virtual lines)
+- Accent border: recent edit indicator (during streaming)
+
+**How it works:**
+1. `useGitDiff` hook fetches diff from `/api/git/diff` API
+2. Parses unified diff to extract additions, modifications, and deletions
+3. `CodeViewer` renders highlights on actual lines + inserts virtual deleted lines
+4. Gutter shows "−" for deleted lines
+
+**Performance:**
+- Disabled during streaming (`enabled: !isStreaming`) to avoid render thrashing
+- 1 second debounce after streaming stops before fetching diff
+- Stable empty references prevent unnecessary re-renders
+
+**CSS variables** (defined in `index.css`):
+```css
+--diff-added: rgba(34, 197, 94, 0.25);    /* green */
+--diff-modified: rgba(250, 204, 21, 0.25); /* yellow */
+--diff-deleted: rgba(239, 68, 68, 0.25);   /* red */
+```
 
 ### Theming
 Themes use CSS custom properties. Each theme file sets variables like:

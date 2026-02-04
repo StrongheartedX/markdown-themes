@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { codeToHtml, bundledLanguages } from 'shiki';
 import { createCssVariablesTheme } from 'shiki';
-import { useGitDiff, type GitDiffLineType } from '../../hooks/useGitDiff';
+import { useGitDiff, type GitDiffLineType, type DeletedLine } from '../../hooks/useGitDiff';
 import { findAllChangedLines } from '../../utils/markdownDiff';
 
 interface CodeViewerProps {
@@ -141,7 +141,7 @@ export function CodeViewer({ content, filePath, fontSize = 100, isStreaming = fa
   const recentEditTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Git diff highlighting - disabled during streaming to avoid render thrashing
-  const { changedLines: gitChangedLines } = useGitDiff({
+  const { changedLines: gitChangedLines, deletedLines: gitDeletedLines } = useGitDiff({
     filePath,
     repoPath,
     content, // Trigger refetch on content change
@@ -248,10 +248,36 @@ export function CodeViewer({ content, filePath, fontSize = 100, isStreaming = fa
     };
   }, [content, language]);
 
-  // Generate line numbers
-  const lineNumbers = useMemo(() => {
-    return Array.from({ length: lineCount }, (_, i) => i + 1);
-  }, [lineCount]);
+  // Generate display lines (actual line numbers + deleted line markers)
+  type DisplayLine = { type: 'actual'; lineNum: number } | { type: 'deleted' };
+
+  const displayLines = useMemo(() => {
+    const lines: DisplayLine[] = [];
+
+    // Group deleted lines by their afterLine position
+    const deletionsByPosition = new Map<number, number>(); // afterLine -> count
+    for (const del of gitDeletedLines) {
+      deletionsByPosition.set(del.afterLine, (deletionsByPosition.get(del.afterLine) || 0) + 1);
+    }
+
+    // Build display lines array
+    for (let i = 1; i <= lineCount; i++) {
+      // Check for deletions before this line (afterLine = i - 1)
+      const deletionsBeforeThis = deletionsByPosition.get(i - 1) || 0;
+      for (let d = 0; d < deletionsBeforeThis; d++) {
+        lines.push({ type: 'deleted' });
+      }
+      lines.push({ type: 'actual', lineNum: i });
+    }
+
+    // Add any deletions after the last line
+    const deletionsAtEnd = deletionsByPosition.get(lineCount) || 0;
+    for (let d = 0; d < deletionsAtEnd; d++) {
+      lines.push({ type: 'deleted' });
+    }
+
+    return lines;
+  }, [lineCount, gitDeletedLines]);
 
   // Get styles for a line based on its highlights
   const getLineStyles = useCallback((lineNum: number): { gutter: React.CSSProperties; content: React.CSSProperties } => {
@@ -305,7 +331,7 @@ export function CodeViewer({ content, filePath, fontSize = 100, isStreaming = fa
               borderRight: '1px solid var(--border)',
             }}
           >
-            {lineNumbers.map((num) => {
+            {Array.from({ length: lineCount }, (_, i) => i + 1).map((num) => {
               const styles = getLineStyles(num);
               return (
                 <div key={num} data-line={num} style={styles.gutter}>
@@ -346,11 +372,24 @@ export function CodeViewer({ content, filePath, fontSize = 100, isStreaming = fa
             borderRight: '1px solid var(--border)',
           }}
         >
-          {lineNumbers.map((num) => {
-            const styles = getLineStyles(num);
+          {displayLines.map((line, idx) => {
+            if (line.type === 'deleted') {
+              return (
+                <div
+                  key={`del-${idx}`}
+                  style={{
+                    backgroundColor: 'var(--diff-deleted, rgba(239, 68, 68, 0.25))',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  −
+                </div>
+              );
+            }
+            const styles = getLineStyles(line.lineNum);
             return (
-              <div key={num} data-line={num} style={styles.gutter}>
-                {num}
+              <div key={line.lineNum} data-line={line.lineNum} style={styles.gutter}>
+                {line.lineNum}
               </div>
             );
           })}
@@ -388,8 +427,16 @@ export function CodeViewer({ content, filePath, fontSize = 100, isStreaming = fa
               border-left: 3px solid var(--accent);
               margin-left: -3px;
             }
+            .code-content .deleted-line {
+              display: block;
+              min-height: 1.7em;
+              background-color: var(--diff-deleted, rgba(239, 68, 68, 0.25));
+              color: var(--text-secondary);
+              text-decoration: line-through;
+              opacity: 0.8;
+            }
           `}</style>
-          <HighlightedCode html={highlightedHtml} lineHighlights={lineHighlights} />
+          <HighlightedCode html={highlightedHtml} lineHighlights={lineHighlights} deletedLines={gitDeletedLines} />
         </div>
       </div>
     </div>
@@ -398,26 +445,26 @@ export function CodeViewer({ content, filePath, fontSize = 100, isStreaming = fa
 
 /**
  * Component that renders highlighted HTML and applies line-level highlights.
- * We need to post-process the Shiki output to add highlight attributes to lines.
+ * Also inserts deleted lines at their appropriate positions.
  */
 function HighlightedCode({
   html,
   lineHighlights,
+  deletedLines,
 }: {
   html: string;
   lineHighlights: Map<number, LineHighlight>;
+  deletedLines: DeletedLine[];
 }) {
   const processedHtml = useMemo(() => {
-    if (lineHighlights.size === 0) {
-      return html;
-    }
-
     // Shiki outputs <pre><code>...</code></pre> with .line spans
     // We need to add data attributes to each .line span based on line number
+    // and insert deleted lines at their positions
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
     const lines = doc.querySelectorAll('.line');
 
+    // Apply highlights to existing lines
     lines.forEach((line, index) => {
       const lineNum = index + 1;
       const highlight = lineHighlights.get(lineNum);
@@ -430,10 +477,49 @@ function HighlightedCode({
       }
     });
 
+    // Insert deleted lines at their positions (process in reverse to maintain positions)
+    if (deletedLines.length > 0) {
+      const code = doc.querySelector('code');
+      if (code) {
+        // Group deleted lines by their afterLine position
+        const deletionsByPosition = new Map<number, DeletedLine[]>();
+        for (const del of deletedLines) {
+          const existing = deletionsByPosition.get(del.afterLine) || [];
+          existing.push(del);
+          deletionsByPosition.set(del.afterLine, existing);
+        }
+
+        // Sort positions in descending order to insert from bottom up
+        const positions = Array.from(deletionsByPosition.keys()).sort((a, b) => b - a);
+
+        for (const afterLine of positions) {
+          const deletions = deletionsByPosition.get(afterLine) || [];
+          const linesArray = Array.from(code.querySelectorAll('.line'));
+
+          // Find the insertion point (after the line at index afterLine-1, or at start if 0)
+          const insertBeforeElement = afterLine < linesArray.length ? linesArray[afterLine] : null;
+
+          // Insert deleted lines (in reverse to maintain order)
+          for (let i = deletions.length - 1; i >= 0; i--) {
+            const del = deletions[i];
+            const deletedSpan = doc.createElement('span');
+            deletedSpan.className = 'deleted-line';
+            deletedSpan.textContent = del.content;
+
+            if (insertBeforeElement) {
+              code.insertBefore(deletedSpan, insertBeforeElement);
+            } else {
+              code.appendChild(deletedSpan);
+            }
+          }
+        }
+      }
+    }
+
     // Get the modified HTML from the pre element
     const pre = doc.querySelector('pre');
     return pre ? pre.outerHTML : html;
-  }, [html, lineHighlights]);
+  }, [html, lineHighlights, deletedLines]);
 
   return <div dangerouslySetInnerHTML={{ __html: processedHtml }} />;
 }
