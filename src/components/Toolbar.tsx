@@ -95,6 +95,7 @@ export function Toolbar({
       setTimeout(() => setCopiedState(null), 2000);
     } catch (err) {
       console.error('Failed to copy content:', err);
+      // TODO: Show user notification (toast) when clipboard copy fails
     }
   };
 
@@ -109,6 +110,7 @@ export function Toolbar({
       setTimeout(() => setCopiedState(null), 2000);
     } catch (err) {
       console.error('Failed to copy path:', err);
+      // TODO: Show user notification (toast) when clipboard copy fails
     }
   };
 
@@ -119,6 +121,7 @@ export function Toolbar({
       await queueToChat(content);
     } catch (err) {
       console.error('Failed to send to chat:', err);
+      // TODO: Show user notification (toast) when chat send fails
     }
   };
 

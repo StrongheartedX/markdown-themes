@@ -265,6 +265,7 @@ export function JsonViewer({ content, fontSize = 100 }: JsonViewerProps) {
       const stripped = stripJsonComments(content);
       return JSON.parse(stripped);
     } catch (err) {
+      // TODO: Include file path in error message for better context
       setParseError(err instanceof Error ? err.message : 'Invalid JSON');
       return null;
     }

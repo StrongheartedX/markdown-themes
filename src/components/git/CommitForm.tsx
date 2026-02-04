@@ -51,8 +51,9 @@ export function CommitForm({
     try {
       await onCommit(message.trim());
       setMessage('');
-    } catch {
-      // Error handled by parent
+    } catch (err) {
+      // Error handled by parent, but log for debugging
+      console.error('Commit failed:', err);
     }
   };
 
@@ -61,8 +62,9 @@ export function CommitForm({
     try {
       const generated = await onGenerateMessage();
       setMessage(generated);
-    } catch {
-      // Error handled by parent
+    } catch (err) {
+      // Error handled by parent, but log for debugging
+      console.error('Failed to generate commit message:', err);
     }
   };
 

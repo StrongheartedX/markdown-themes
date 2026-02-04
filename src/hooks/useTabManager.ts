@@ -116,6 +116,7 @@ export function useTabManager(options: UseTabManagerOptions = {}): UseTabManager
       setTabs((prevTabs) => [...prevTabs, newTab]);
       setActiveTabId(newTab.id);
     }
+    // TODO: Consider using ref for tabs to avoid stale closure
   }, [tabs]);
 
   const pinTab = useCallback((id: string) => {

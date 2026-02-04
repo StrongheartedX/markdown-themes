@@ -54,6 +54,7 @@ export function clearAuthToken(): void {
 
 /**
  * Create a WebSocket connection to TabzChrome with authentication
+ * TODO: Consider using WebSocket subprotocol for auth instead of URL query parameter
  */
 export async function createWebSocket(): Promise<WebSocket> {
   const token = await getAuthToken();

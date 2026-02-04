@@ -187,16 +187,19 @@ export function useFileFilter({ files, homePath }: UseFileFilterOptions): UseFil
         } else if (pattern.startsWith('.')) {
           // For extension patterns, we need to allow any file with that extension
           // This is handled by the filter function, not here
-        } else if (pattern.startsWith('.')) {
-          allowedHiddenNames.add(pattern);
         }
       }
       // Also add the home paths as allowed
-      for (const relPath of activeFilterDef.homePaths!.relativePaths) {
+      // Guard against race condition where activeFilterDef might change
+      if (!activeFilterDef.homePaths) {
+        setHomeLoading(false);
+        return;
+      }
+      for (const relPath of activeFilterDef.homePaths.relativePaths) {
         allowedHiddenNames.add(relPath);
       }
 
-      for (const relativePath of activeFilterDef.homePaths!.relativePaths) {
+      for (const relativePath of activeFilterDef.homePaths.relativePaths) {
         const fullPath = `${homePath}/${relativePath}`;
         try {
           const apiTree = await fetchFileTree(fullPath, 5, true);

@@ -20,6 +20,16 @@ interface FileContextMenuProps {
 const API_BASE = 'http://localhost:8129';
 
 /**
+ * Escape a string for safe use in a shell command.
+ * Uses single quotes and escapes any single quotes within the string.
+ */
+function escapeShellArg(arg: string): string {
+  // Single quotes prevent all shell expansion except for single quotes themselves
+  // Replace ' with '\'' (end quote, escaped quote, start quote)
+  return `'${arg.replace(/'/g, "'\\''")}'`;
+}
+
+/**
  * FileContextMenu - Right-click context menu for file tree items
  *
  * Provides file/folder operations when right-clicking in the file tree.
@@ -155,7 +165,7 @@ export function FileContextMenu({
         },
         body: JSON.stringify({
           name: `Edit: ${fileName}`,
-          command: `\${EDITOR:-nano} "${filePath}"`,
+          command: `\${EDITOR:-nano} ${escapeShellArg(filePath)}`,
         }),
       });
       onClose();
