@@ -150,8 +150,10 @@ export function useDiffAutoScroll({
         const lineDiff = findFirstChangedLine(prevContent, content);
         if (lineDiff.firstChangedLine < 0) return; // No change found
 
-        // For additions at the end, just scroll to bottom
-        if (lineDiff.isAddition) {
+        // Only scroll to bottom if change is in the last 10% of the file
+        // (i.e., actually adding content at the end, not just modifying a line)
+        const isNearEnd = lineDiff.firstChangedLine > lineDiff.totalLines * 0.9;
+        if (lineDiff.isAddition && isNearEnd) {
           lastScrollTimeRef.current = Date.now();
           container.scrollTo({
             top: container.scrollHeight,
@@ -160,7 +162,7 @@ export function useDiffAutoScroll({
           return;
         }
 
-        // For modifications, find the line element by data-line attribute
+        // For modifications or additions not at end, find the line element
         const targetLine = container.querySelector(`[data-line="${lineDiff.firstChangedLine}"]`);
 
         if (targetLine) {

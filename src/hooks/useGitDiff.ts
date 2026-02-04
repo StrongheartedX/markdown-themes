@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { parseDiff } from '../components/viewers/DiffViewer';
 
 const API_BASE = 'http://localhost:8129';
@@ -14,6 +14,8 @@ interface UseGitDiffOptions {
   content?: string;
   /** Debounce delay in ms (default 500) */
   debounceMs?: number;
+  /** Whether to enable git diff fetching (default true). Set to false during streaming. */
+  enabled?: boolean;
 }
 
 interface UseGitDiffResult {
@@ -107,16 +109,25 @@ function extractLineChanges(diffText: string): Map<number, GitDiffLineType> {
 /**
  * Hook to fetch and parse git diff for a file.
  * Automatically refetches when content changes (debounced).
+ *
+ * When `enabled` is false (e.g., during streaming), returns a stable
+ * empty Map to avoid render thrashing from rapid content updates.
  */
 export function useGitDiff({
   filePath,
   repoPath,
   content,
   debounceMs = 500,
+  enabled = true,
 }: UseGitDiffOptions): UseGitDiffResult {
   const [changedLines, setChangedLines] = useState<Map<number, GitDiffLineType>>(new Map());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Stable empty Map reference to avoid unnecessary re-renders.
+  // Without this, every render creates a new Map object, triggering
+  // downstream useMemo recalculations in CodeViewer's lineHighlights.
+  const emptyMap = useMemo(() => new Map<number, GitDiffLineType>(), []);
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -195,6 +206,11 @@ export function useGitDiff({
 
   // Refetch when content changes (debounced)
   useEffect(() => {
+    // Skip fetching when disabled (e.g., during streaming)
+    if (!enabled) {
+      return;
+    }
+
     // Clear any pending debounce
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
@@ -215,7 +231,7 @@ export function useGitDiff({
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [filePath, repoPath, content, debounceMs, fetchDiff]);
+  }, [filePath, repoPath, content, debounceMs, fetchDiff, enabled]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -229,10 +245,11 @@ export function useGitDiff({
     };
   }, []);
 
+  // Return stable empty map when disabled to avoid re-renders
   return {
-    changedLines,
-    loading,
-    error,
+    changedLines: enabled ? changedLines : emptyMap,
+    loading: enabled ? loading : false,
+    error: enabled ? error : null,
     refetch: fetchDiff,
   };
 }

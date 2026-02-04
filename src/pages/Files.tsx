@@ -772,7 +772,7 @@ export function Files() {
                         <ViewerContainer
                           filePath={rightFile!}
                           content={rightMarkdownContent}
-                          isStreaming={rightIsStreaming || appState.followStreamingMode}
+                          isStreaming={rightIsStreaming}
                           themeClassName={themeClass}
                           fontSize={appState.fontSize}
                           repoPath={workspacePath}
