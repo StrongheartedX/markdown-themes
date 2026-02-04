@@ -207,6 +207,56 @@ export async function queueToChat(command: string): Promise<void> {
 }
 
 /**
+ * Paste content directly to the active terminal in TabzChrome sidepanel.
+ * Creates a one-shot WebSocket connection to send the message.
+ */
+export async function pasteToTerminal(content: string): Promise<void> {
+  const ws = await createWebSocket();
+
+  return new Promise((resolve, reject) => {
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'PASTE_COMMAND', command: content }));
+      ws.close();
+      resolve();
+    };
+    ws.onerror = (err) => {
+      reject(err);
+    };
+  });
+}
+
+/**
+ * Read text aloud using TabzChrome's TTS system.
+ * Uses edge-tts to generate audio and broadcasts to the sidepanel for playback.
+ */
+export async function readAloud(
+  text: string,
+  options?: {
+    voice?: string;
+    rate?: string;
+    pitch?: string;
+    volume?: number;
+  }
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/audio/speak`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      text,
+      voice: options?.voice || 'en-US-AndrewNeural',
+      rate: options?.rate || '+0%',
+      pitch: options?.pitch || '+0Hz',
+      volume: options?.volume ?? 0.7,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(error.error || `Failed to read aloud: ${response.status}`);
+  }
+}
+
+/**
  * Write content to a file via TabzChrome API
  */
 export async function writeFile(path: string, content: string): Promise<void> {

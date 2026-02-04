@@ -5,7 +5,7 @@ import { FILTERS, type FilterId } from '../lib/filters';
 import { getFileIconInfo } from '../utils/fileIcons';
 import type { FavoriteItem } from '../context/AppStoreContext';
 import { FileContextMenu } from './FileContextMenu';
-import { queueToChat, fetchFileContent } from '../lib/api';
+import { queueToChat, fetchFileContent, pasteToTerminal, readAloud } from '../lib/api';
 
 // Context menu state interface
 interface ContextMenuState {
@@ -397,6 +397,7 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
     fileName: '',
     isDirectory: false,
   });
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
 
   // Context menu handlers
   const handleContextMenu = useCallback((e: React.MouseEvent, path: string, name: string, isDirectory: boolean) => {
@@ -426,6 +427,31 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
       console.error('Failed to send to chat:', err);
     }
   }, [contextMenu.filePath, contextMenu.fileName, contextMenu.isDirectory]);
+
+  const handlePasteToTerminal = useCallback(async () => {
+    if (contextMenu.isDirectory) return;
+    try {
+      const fileContent = await fetchFileContent(contextMenu.filePath);
+      await pasteToTerminal(fileContent.content);
+    } catch (err) {
+      console.error('Failed to paste to terminal:', err);
+    }
+  }, [contextMenu.filePath, contextMenu.isDirectory]);
+
+  const handleReadAloud = useCallback(async () => {
+    if (contextMenu.isDirectory) return;
+    setIsLoadingAudio(true);
+    try {
+      const fileContent = await fetchFileContent(contextMenu.filePath);
+      await readAloud(fileContent.content);
+      // Close menu after audio starts
+      closeContextMenu();
+    } catch (err) {
+      console.error('Failed to read aloud:', err);
+    } finally {
+      setIsLoadingAudio(false);
+    }
+  }, [contextMenu.filePath, contextMenu.isDirectory, closeContextMenu]);
 
   // Keep ref in sync with prop
   useEffect(() => {
@@ -883,6 +909,9 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
         onClose={closeContextMenu}
         onToggleFavorite={() => toggleFavorite(contextMenu.filePath, contextMenu.isDirectory)}
         onSendToChat={handleSendToChat}
+        onPasteToTerminal={handlePasteToTerminal}
+        onReadAloud={handleReadAloud}
+        isLoadingAudio={isLoadingAudio}
       />
     </aside>
   );
