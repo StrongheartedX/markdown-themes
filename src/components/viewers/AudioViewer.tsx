@@ -51,6 +51,14 @@ const VolumeLowIcon = () => (
   </svg>
 );
 
+const DownloadIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+    <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
+  </svg>
+);
+
+const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
 export function AudioViewer({ filePath, fontSize = 100 }: AudioViewerProps) {
   const [duration, setDuration] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
@@ -60,6 +68,7 @@ export function AudioViewer({ filePath, fontSize = 100 }: AudioViewerProps) {
   const [loading, setLoading] = useState(true);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
 
@@ -145,6 +154,26 @@ export function AudioViewer({ filePath, fontSize = 100 }: AudioViewerProps) {
     const newMuted = !isMuted;
     setIsMuted(newMuted);
     audioRef.current.muted = newMuted;
+  };
+
+  const cyclePlaybackSpeed = () => {
+    const currentIndex = PLAYBACK_SPEEDS.indexOf(playbackSpeed);
+    const nextIndex = (currentIndex + 1) % PLAYBACK_SPEEDS.length;
+    const newSpeed = PLAYBACK_SPEEDS[nextIndex];
+    setPlaybackSpeed(newSpeed);
+    if (audioRef.current) {
+      audioRef.current.playbackRate = newSpeed;
+    }
+  };
+
+  const handleDownload = () => {
+    if (!audioUrl) return;
+    const link = document.createElement('a');
+    link.href = audioUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const VolumeIcon = isMuted || volume === 0 ? VolumeMuteIcon : volume < 0.5 ? VolumeLowIcon : VolumeHighIcon;
@@ -323,6 +352,39 @@ export function AudioViewer({ filePath, fontSize = 100 }: AudioViewerProps) {
               aria-label="Volume"
             />
           </div>
+        </div>
+
+        {/* Secondary controls row */}
+        <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+          {/* Playback speed */}
+          <button
+            onClick={cyclePlaybackSpeed}
+            className="px-2 py-1 text-xs rounded transition-colors hover:opacity-80"
+            style={{
+              color: 'var(--text-secondary)',
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              fontFamily: 'var(--font-mono)',
+            }}
+            title="Playback speed (click to cycle)"
+          >
+            {playbackSpeed}x
+          </button>
+
+          {/* Download button */}
+          <button
+            onClick={handleDownload}
+            className="p-1.5 rounded transition-colors hover:opacity-80"
+            style={{
+              color: 'var(--text-secondary)',
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+            }}
+            aria-label="Download"
+            title="Download"
+          >
+            <DownloadIcon />
+          </button>
         </div>
 
         {/* Hidden audio element */}
