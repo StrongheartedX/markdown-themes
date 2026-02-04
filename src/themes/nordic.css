@@ -66,24 +66,6 @@
   --transition-base: 0.25s ease;
 }
 
-/* Wood Grain Texture Background */
-.theme-nordic {
-  background-image:
-    repeating-linear-gradient(
-      90deg,
-      transparent,
-      transparent 2px,
-      rgba(139, 105, 20, 0.02) 2px,
-      rgba(139, 105, 20, 0.02) 4px
-    ),
-    linear-gradient(
-      180deg,
-      #F5E6D3 0%,
-      #E8D5B7 50%,
-      #F5E6D3 100%
-    );
-  background-attachment: fixed;
-}
 
 /* Typography - Generous Breathing Whitespace */
 .theme-nordic .prose {
