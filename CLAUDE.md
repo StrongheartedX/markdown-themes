@@ -50,6 +50,7 @@ src/
 │   └── PageStateContext.tsx   # In-memory page state (tabs, split view, etc.)
 ├── hooks/
 │   ├── useFileWatcher.ts      # WebSocket file watching + streaming detection
+│   ├── useWorkspaceStreaming.ts # Workspace-wide streaming detection (Follow AI Edits)
 │   ├── useWorkspace.ts        # File tree via TabzChrome API
 │   ├── useTabManager.ts       # Tab state management for Files page
 │   ├── useSplitView.ts        # Split view state for Files page
@@ -76,6 +77,23 @@ When rapid file changes are detected (< 1.5s apart):
 - Streamdown's `caret="block"` shows typing cursor
 - "AI writing..." indicator in toolbar
 - `parseIncompleteMarkdown` for mid-stream rendering
+
+### Follow AI Edits
+The toolbar has a "Follow AI Edits" button that auto-opens files as Claude writes to them:
+
+**How it works:**
+1. `useWorkspaceStreaming` subscribes to `workspace-watch` via WebSocket
+2. TabzChrome monitors the entire workspace directory with chokidar
+3. On first file change or rapid changes (streaming), server broadcasts `workspace-file-change`
+4. Client receives the message and auto-opens the file
+5. Existing `useFileWatcher` then shows live content updates
+
+**WebSocket messages:**
+- `{ type: 'workspace-watch', path }` - Subscribe to workspace
+- `{ type: 'workspace-unwatch', path }` - Unsubscribe
+- `{ type: 'workspace-file-change', path, isStreaming }` - File being edited
+
+**Ignored directories:** `node_modules`, `.git`, `dist`, `build`, `.next`, etc.
 
 ### Theming
 Themes use CSS custom properties. Each theme file sets variables like:
