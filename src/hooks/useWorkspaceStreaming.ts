@@ -81,18 +81,16 @@ export function useWorkspaceStreaming({
         const message = JSON.parse(event.data) as WorkspaceMessage;
 
         if (message.type === 'workspace-file-change') {
-          // Detect streaming based on time between changes
-          if (message.timeSinceLastChange < streamingTimeout) {
-            setStreamingFile(message.path);
+          // Server only sends this for first change or streaming, so always open
+          setStreamingFile(message.path);
 
-            // Reset streaming state after timeout
-            clearStreamingTimer();
-            streamingTimerRef.current = setTimeout(() => {
-              if (mountedRef.current) {
-                setStreamingFile(null);
-              }
-            }, streamingTimeout);
-          }
+          // Reset streaming state after timeout
+          clearStreamingTimer();
+          streamingTimerRef.current = setTimeout(() => {
+            if (mountedRef.current) {
+              setStreamingFile(null);
+            }
+          }, streamingTimeout);
         }
       } catch (err) {
         // Ignore parse errors for non-workspace messages
