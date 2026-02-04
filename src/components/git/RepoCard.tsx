@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import {
   ChevronDown,
   ChevronRight,
@@ -9,7 +9,7 @@ import {
   ArrowUp,
   Download,
 } from 'lucide-react';
-import type { GitRepo } from '../../hooks/useGitRepos';
+import type { GitRepo, GitFile } from '../../hooks/useGitRepos';
 import { useGitOperations } from '../../hooks/useGitOperations';
 import { appendToFile } from '../../lib/api';
 import { StatusBadge } from './StatusBadge';
@@ -25,6 +25,8 @@ interface RepoCardProps {
   isFocused?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
+  /** Callback when a file is clicked (receives full path) */
+  onFileSelect?: (path: string) => void;
 }
 
 export function RepoCard({
@@ -36,6 +38,7 @@ export function RepoCard({
   isFocused = false,
   isSelected = false,
   onToggleSelect,
+  onFileSelect,
 }: RepoCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const hasChanges =
@@ -111,6 +114,16 @@ export function RepoCard({
       console.error('Failed to add to .gitignore:', err);
     }
   };
+
+  // Handle file click - emit full path
+  const handleFileClick = useCallback(
+    (file: GitFile) => {
+      if (onFileSelect) {
+        onFileSelect(`${repo.path}/${file.path}`);
+      }
+    },
+    [repo.path, onFileSelect]
+  );
 
   return (
     <div
@@ -290,6 +303,7 @@ export function RepoCard({
               onDiscard={handleDiscard}
               onDiscardAll={handleDiscardAll}
               onIgnore={handleIgnore}
+              onFileClick={handleFileClick}
               loading={loading}
             />
           </div>

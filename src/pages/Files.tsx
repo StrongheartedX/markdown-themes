@@ -13,7 +13,7 @@ import { MetadataBar } from '../components/MetadataBar';
 import { Sidebar } from '../components/Sidebar';
 import { TabBar } from '../components/TabBar';
 import { SplitView } from '../components/SplitView';
-import { GitGraph, WorkingTree } from '../components/git';
+import { GitGraph, WorkingTree, MultiRepoView } from '../components/git';
 import { DiffViewer } from '../components/viewers/DiffViewer';
 import { parseFrontmatter } from '../utils/frontmatter';
 import { themes } from '../themes';
@@ -166,6 +166,11 @@ export function Files() {
 
   // Get workspace from global context
   const { workspacePath, fileTree } = useWorkspaceContext();
+
+  // Check if workspace is a git repo by looking for .git directory at root
+  const isGitRepo = useMemo(() => {
+    return fileTree.some((f) => f.name === '.git' && f.isDirectory);
+  }, [fileTree]);
 
   // Split view state with initial state from context
   const handleSplitStateChange = useCallback(
@@ -661,13 +666,23 @@ export function Files() {
 
               {/* Working tree content type */}
               {rightPaneContent?.type === 'working-tree' && workspacePath && (
-                <WorkingTree
-                  repoPath={workspacePath}
-                  onFileSelect={(path) => {
-                    // Open the file in the left pane
-                    handleFileSelect(path);
-                  }}
-                />
+                isGitRepo ? (
+                  <WorkingTree
+                    repoPath={workspacePath}
+                    onFileSelect={(path) => {
+                      // Open the file in the left pane
+                      handleFileSelect(path);
+                    }}
+                  />
+                ) : (
+                  <MultiRepoView
+                    projectsDir={workspacePath}
+                    onFileSelect={(path) => {
+                      // Open the file in the left pane
+                      handleFileSelect(path);
+                    }}
+                  />
+                )
               )}
 
               {/* Diff content type */}

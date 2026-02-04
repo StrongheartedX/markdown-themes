@@ -6,3 +6,4 @@ export { GitGraph } from './GitGraph';
 export { GitGraphCanvas } from './GitGraphCanvas';
 export { GitGraphRow } from './GitGraphRow';
 export { WorkingTree } from './WorkingTree';
+export { MultiRepoView } from './MultiRepoView';
