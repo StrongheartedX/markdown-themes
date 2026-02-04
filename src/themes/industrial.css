@@ -115,7 +115,7 @@
 
 /* Header needs higher z-index for dropdowns */
 .theme-industrial > header {
-  z-index: 50;
+  z-index: 200;
 }
 
 /* Main content area above pseudo-elements */
