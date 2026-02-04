@@ -1,11 +1,13 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { codeToHtml, bundledLanguages } from 'shiki';
 import { createCssVariablesTheme } from 'shiki';
+import { findAllChangedLines, type LineChangeType } from '../../utils/markdownDiff';
 
 interface CodeViewerProps {
   content: string;
   filePath: string;
   fontSize?: number;
+  isStreaming?: boolean;
 }
 
 // Create a single CSS variables theme - colors defined in each theme's CSS
@@ -119,13 +121,61 @@ function getLanguageFromPath(filePath: string): string {
   return 'text';
 }
 
-export function CodeViewer({ content, filePath, fontSize = 100 }: CodeViewerProps) {
+export function CodeViewer({ content, filePath, fontSize = 100, isStreaming = false }: CodeViewerProps) {
   const [highlightedHtml, setHighlightedHtml] = useState<string>('');
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [changedLines, setChangedLines] = useState<Map<number, LineChangeType>>(new Map());
+
+  // Track previous content for diffing
+  const prevContentRef = useRef<string>('');
+  // Track if we were recently streaming (to keep highlights visible briefly after streaming stops)
+  const wasStreamingRef = useRef(false);
+  const clearHighlightsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const language = useMemo(() => getLanguageFromPath(filePath), [filePath]);
   const lineCount = useMemo(() => content.split('\n').length, [content]);
+
+  // Track changed lines during streaming
+  useEffect(() => {
+    // Clear any pending highlight clear
+    if (clearHighlightsTimeoutRef.current) {
+      clearTimeout(clearHighlightsTimeoutRef.current);
+      clearHighlightsTimeoutRef.current = null;
+    }
+
+    if (isStreaming) {
+      wasStreamingRef.current = true;
+
+      // Compare with previous content
+      if (prevContentRef.current && prevContentRef.current !== content) {
+        const result = findAllChangedLines(prevContentRef.current, content);
+        setChangedLines(result.changedLines);
+      }
+    } else if (wasStreamingRef.current) {
+      // Streaming just stopped - keep highlights for a moment then clear
+      clearHighlightsTimeoutRef.current = setTimeout(() => {
+        setChangedLines(new Map());
+        wasStreamingRef.current = false;
+      }, 2000); // Keep highlights visible for 2 seconds after streaming stops
+    }
+
+    // Always update previous content
+    prevContentRef.current = content;
+
+    return () => {
+      if (clearHighlightsTimeoutRef.current) {
+        clearTimeout(clearHighlightsTimeoutRef.current);
+      }
+    };
+  }, [content, isStreaming]);
+
+  // Reset changed lines when file changes
+  useEffect(() => {
+    setChangedLines(new Map());
+    prevContentRef.current = '';
+    wasStreamingRef.current = false;
+  }, [filePath]);
 
   useEffect(() => {
     let cancelled = false;
@@ -192,9 +242,24 @@ export function CodeViewer({ content, filePath, fontSize = 100 }: CodeViewerProp
               borderRight: '1px solid var(--border)',
             }}
           >
-            {lineNumbers.map((num) => (
-              <div key={num}>{num}</div>
-            ))}
+            {lineNumbers.map((num) => {
+              const changeType = changedLines.get(num);
+              const bgColor = changeType === 'added'
+                ? 'var(--diff-added)'
+                : changeType === 'modified'
+                  ? 'var(--diff-modified)'
+                  : undefined;
+              return (
+                <div
+                  key={num}
+                  data-line={num}
+                  data-change-type={changeType || undefined}
+                  style={bgColor ? { backgroundColor: bgColor } : undefined}
+                >
+                  {num}
+                </div>
+              );
+            })}
           </div>
           <pre
             className="flex-1 p-4 m-0 overflow-x-auto"
@@ -228,9 +293,24 @@ export function CodeViewer({ content, filePath, fontSize = 100 }: CodeViewerProp
             borderRight: '1px solid var(--border)',
           }}
         >
-          {lineNumbers.map((num) => (
-            <div key={num} data-line={num}>{num}</div>
-          ))}
+          {lineNumbers.map((num) => {
+            const changeType = changedLines.get(num);
+            const bgColor = changeType === 'added'
+              ? 'var(--diff-added)'
+              : changeType === 'modified'
+                ? 'var(--diff-modified)'
+                : undefined;
+            return (
+              <div
+                key={num}
+                data-line={num}
+                data-change-type={changeType || undefined}
+                style={bgColor ? { backgroundColor: bgColor } : undefined}
+              >
+                {num}
+              </div>
+            );
+          })}
         </div>
         <div
           className="code-content flex-1 overflow-x-auto"

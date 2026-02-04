@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findFirstChangedBlock, getScrollPercentage, findFirstChangedLine } from './markdownDiff';
+import { findFirstChangedBlock, getScrollPercentage, findFirstChangedLine, findAllChangedLines } from './markdownDiff';
 
 describe('findFirstChangedBlock', () => {
   it('returns -1 when content is identical', () => {
@@ -167,5 +167,86 @@ describe('findFirstChangedLine', () => {
     const newContent = 'line1\nline2\nline3\nline4';
     const result = findFirstChangedLine(old, newContent);
     expect(result.totalLines).toBe(4);
+  });
+});
+
+describe('findAllChangedLines', () => {
+  it('returns empty map when content is identical', () => {
+    const content = 'const x = 1;\nconst y = 2;';
+    const result = findAllChangedLines(content, content);
+    expect(result.changedLines.size).toBe(0);
+  });
+
+  it('marks modified line when content changes', () => {
+    const old = 'const x = 1;\nconst y = 2;';
+    const newContent = 'const x = 100;\nconst y = 2;';
+    const result = findAllChangedLines(old, newContent);
+    expect(result.changedLines.size).toBe(1);
+    expect(result.changedLines.get(1)).toBe('modified');
+  });
+
+  it('marks multiple modified lines', () => {
+    const old = 'line1\nline2\nline3';
+    const newContent = 'LINE1\nline2\nLINE3';
+    const result = findAllChangedLines(old, newContent);
+    expect(result.changedLines.size).toBe(2);
+    expect(result.changedLines.get(1)).toBe('modified');
+    expect(result.changedLines.get(3)).toBe('modified');
+  });
+
+  it('marks added lines at end', () => {
+    const old = 'line1\nline2';
+    const newContent = 'line1\nline2\nline3\nline4';
+    const result = findAllChangedLines(old, newContent);
+    expect(result.changedLines.size).toBe(2);
+    expect(result.changedLines.get(3)).toBe('added');
+    expect(result.changedLines.get(4)).toBe('added');
+  });
+
+  it('marks both modified and added lines', () => {
+    const old = 'line1\nline2';
+    const newContent = 'LINE1\nline2\nline3';
+    const result = findAllChangedLines(old, newContent);
+    expect(result.changedLines.size).toBe(2);
+    expect(result.changedLines.get(1)).toBe('modified');
+    expect(result.changedLines.get(3)).toBe('added');
+  });
+
+  it('returns empty map when lines are deleted', () => {
+    const old = 'line1\nline2\nline3';
+    const newContent = 'line1\nline2';
+    const result = findAllChangedLines(old, newContent);
+    // Deleted lines don't show in new content, so no highlights
+    expect(result.changedLines.size).toBe(0);
+  });
+
+  it('handles empty old content', () => {
+    const result = findAllChangedLines('', 'line1\nline2');
+    expect(result.changedLines.size).toBe(2);
+    expect(result.changedLines.get(1)).toBe('added');
+    expect(result.changedLines.get(2)).toBe('added');
+  });
+
+  it('handles empty new content', () => {
+    const result = findAllChangedLines('line1\nline2', '');
+    // Empty string splits to [''], so one line exists
+    expect(result.totalLines).toBe(1);
+    expect(result.changedLines.get(1)).toBe('modified');
+  });
+
+  it('handles Windows line endings', () => {
+    const old = 'line1\r\nline2';
+    const newContent = 'LINE1\r\nline2\r\nline3';
+    const result = findAllChangedLines(old, newContent);
+    expect(result.changedLines.size).toBe(2);
+    expect(result.changedLines.get(1)).toBe('modified');
+    expect(result.changedLines.get(3)).toBe('added');
+  });
+
+  it('returns correct total lines', () => {
+    const old = 'line1\nline2';
+    const newContent = 'line1\nline2\nline3\nline4\nline5';
+    const result = findAllChangedLines(old, newContent);
+    expect(result.totalLines).toBe(5);
   });
 });

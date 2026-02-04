@@ -138,6 +138,6 @@ export function ViewerContainer({
 
     case 'code':
     default:
-      return <CodeViewer content={content} filePath={filePath} fontSize={fontSize} />;
+      return <CodeViewer content={content} filePath={filePath} fontSize={fontSize} isStreaming={isStreaming} />;
   }
 }

@@ -149,6 +149,15 @@ export interface LineDiffResult {
   isAddition: boolean;
 }
 
+export type LineChangeType = 'added' | 'modified';
+
+export interface AllChangedLinesResult {
+  /** Map of line number (1-based) to change type */
+  changedLines: Map<number, LineChangeType>;
+  /** Total number of lines in new content */
+  totalLines: number;
+}
+
 /**
  * Find the first line that differs between old and new content.
  * Used for code files where line-level precision is needed.
@@ -197,5 +206,43 @@ export function findFirstChangedLine(oldContent: string, newContent: string): Li
     firstChangedLine: -1,
     totalLines: newLines.length,
     isAddition: false,
+  };
+}
+
+/**
+ * Find all lines that differ between old and new content.
+ * Returns a map of line numbers to their change type (added or modified).
+ * Used for highlighting changed lines during streaming.
+ */
+export function findAllChangedLines(oldContent: string, newContent: string): AllChangedLinesResult {
+  // Normalize line endings
+  const oldNormalized = oldContent.replace(/\r\n/g, '\n');
+  const newNormalized = newContent.replace(/\r\n/g, '\n');
+
+  const oldLines = oldNormalized.split('\n');
+  const newLines = newNormalized.split('\n');
+
+  const changedLines = new Map<number, LineChangeType>();
+
+  // Special case: empty old content means all new lines are additions
+  const oldIsEmpty = oldContent === '';
+
+  // Compare lines that exist in both
+  const minLength = Math.min(oldLines.length, newLines.length);
+  for (let i = 0; i < minLength; i++) {
+    if (oldLines[i] !== newLines[i]) {
+      // If old was empty, treat all lines as added, not modified
+      changedLines.set(i + 1, oldIsEmpty ? 'added' : 'modified'); // 1-based line numbers
+    }
+  }
+
+  // Any new lines beyond the old content are additions
+  for (let i = oldLines.length; i < newLines.length; i++) {
+    changedLines.set(i + 1, 'added'); // 1-based line numbers
+  }
+
+  return {
+    changedLines,
+    totalLines: newLines.length,
   };
 }
