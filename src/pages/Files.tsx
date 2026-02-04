@@ -430,7 +430,7 @@ export function Files() {
       <Toolbar
         currentFile={currentFile}
         isStreaming={isStreaming}
-        connected={connected}
+        connected={connected || isCurrentFileBinary}
         recentFiles={appState.recentFiles}
         fontSize={appState.fontSize}
         isSplit={isSplit}
