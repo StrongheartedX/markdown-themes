@@ -198,6 +198,7 @@ export function Files() {
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const leftScrollContainerRef = useRef<HTMLDivElement>(null);
+  const rightScrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Get workspace from global context
   const { workspacePath, fileTree } = useWorkspaceContext();
@@ -388,6 +389,16 @@ export function Files() {
     scrollContainerRef: leftScrollContainerRef,
     filePath: currentFile ?? undefined,
     enabled: isStreaming,
+  });
+
+  // Auto-scroll for right pane (used by Follow AI Edits)
+  // Always enabled when Follow AI mode is on, so we scroll even for slower edits
+  useDiffAutoScroll({
+    content: isRightMarkdownFile ? rightMarkdownContent : rightContent,
+    isStreaming: rightIsStreaming || appState.followStreamingMode,
+    scrollContainerRef: rightScrollContainerRef,
+    filePath: rightFile ?? undefined,
+    enabled: rightIsStreaming || appState.followStreamingMode,
   });
 
   // Get recent files for empty state (limit to 6)
@@ -756,7 +767,7 @@ export function Files() {
                   {!rightLoading && !rightError && (
                     <>
                       {isRightMarkdownFile && rightFrontmatter && <MetadataBar frontmatter={rightFrontmatter} />}
-                      <div className="flex-1 overflow-auto">
+                      <div className="flex-1 overflow-auto" ref={rightScrollContainerRef}>
                         <ViewerContainer
                           filePath={rightFile!}
                           content={rightMarkdownContent}

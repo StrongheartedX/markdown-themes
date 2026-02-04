@@ -198,7 +198,27 @@ export function useDiffAutoScroll({
         const diff = findFirstChangedBlock(prevContent, content);
         if (diff.firstChangedBlock < 0) return; // No change found
 
-        // Find block elements in the rendered DOM
+        // For additions (content added at end), scroll to the last block element
+        // This is more reliable than trying to match markdown blocks to DOM elements
+        if (diff.isAddition) {
+          const blocks = container.querySelectorAll(BLOCK_SELECTORS);
+          const lastBlock = blocks[blocks.length - 1];
+
+          if (lastBlock) {
+            lastScrollTimeRef.current = Date.now();
+            lastBlock.scrollIntoView({ behavior: 'smooth', block: 'end' });
+          } else {
+            // Fallback: scroll to bottom
+            lastScrollTimeRef.current = Date.now();
+            container.scrollTo({
+              top: container.scrollHeight,
+              behavior: 'smooth',
+            });
+          }
+          return;
+        }
+
+        // For modifications, try to find the changed block
         const blocks = container.querySelectorAll(BLOCK_SELECTORS);
         const targetBlock = blocks[diff.firstChangedBlock];
 
@@ -217,8 +237,7 @@ export function useDiffAutoScroll({
           const viewportBottom = currentScroll + viewportHeight;
           const isVisible = blockTop < viewportBottom && blockBottom > viewportTop;
 
-          // Always scroll to new additions, or scroll if block is not visible
-          if (diff.isAddition || !isVisible) {
+          if (!isVisible) {
             lastScrollTimeRef.current = Date.now();
 
             // Scroll to show the block in the lower third of the viewport
