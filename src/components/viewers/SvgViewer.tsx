@@ -14,13 +14,6 @@ export function SvgViewer({ filePath, content, fontSize = 100 }: SvgViewerProps)
 
   const fileName = filePath.split('/').pop() || 'SVG file';
 
-  // Create a data URL from the SVG content for inline rendering
-  const svgDataUrl = useMemo(() => {
-    if (!content) return '';
-    const encoded = encodeURIComponent(content);
-    return `data:image/svg+xml,${encoded}`;
-  }, [content]);
-
   // Extract SVG dimensions from content if available
   const svgInfo = useMemo(() => {
     if (!content) return { width: null, height: null, viewBox: null };
@@ -83,13 +76,15 @@ export function SvgViewer({ filePath, content, fontSize = 100 }: SvgViewerProps)
               borderRadius: 'var(--radius)',
             }}
           >
-            <img
-              src={svgDataUrl}
-              alt={fileName}
+            {/* Render SVG directly for better compatibility */}
+            <div
+              dangerouslySetInnerHTML={{ __html: content || '' }}
               style={{
                 maxWidth: '100%',
                 maxHeight: 'calc(100vh - 200px)',
-                display: 'block',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             />
           </div>
