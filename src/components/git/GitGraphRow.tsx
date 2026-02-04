@@ -1,10 +1,15 @@
+import { ChevronRight, ChevronDown } from 'lucide-react';
 import type { GraphNode } from '../../lib/graphLayout';
+import { CommitDetails } from './CommitDetails';
 
 interface GitGraphRowProps {
   node: GraphNode;
   rowHeight: number;
   isSelected?: boolean;
+  isExpanded?: boolean;
+  repoPath: string;
   onClick?: () => void;
+  onFileClick?: (path: string, status: string) => void;
 }
 
 /**
@@ -72,7 +77,10 @@ export function GitGraphRow({
   node,
   rowHeight,
   isSelected = false,
+  isExpanded = false,
+  repoPath,
   onClick,
+  onFileClick,
 }: GitGraphRowProps) {
   const { branches, tags, isHead } = parseRefs(node.refs);
   const isMerge = node.parents.length > 1;
@@ -86,25 +94,38 @@ export function GitGraphRow({
       : node.message;
 
   return (
-    <div
-      className="git-graph-row flex items-center gap-3 px-3 cursor-pointer transition-colors"
-      style={{
-        height: rowHeight,
-        backgroundColor: isSelected ? 'color-mix(in srgb, var(--accent) 15%, var(--bg-primary))' : 'transparent',
-        borderBottom: '1px solid var(--border)',
-      }}
-      onClick={onClick}
-      onMouseEnter={(e) => {
-        if (!isSelected) {
-          e.currentTarget.style.backgroundColor = 'var(--bg-secondary)';
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!isSelected) {
-          e.currentTarget.style.backgroundColor = 'transparent';
-        }
-      }}
-    >
+    <div className="git-graph-row-wrapper">
+      <div
+        className="git-graph-row flex items-center gap-3 px-3 cursor-pointer transition-colors"
+        style={{
+          height: rowHeight,
+          backgroundColor: isExpanded
+            ? 'color-mix(in srgb, var(--accent) 10%, var(--bg-primary))'
+            : isSelected
+              ? 'color-mix(in srgb, var(--accent) 15%, var(--bg-primary))'
+              : 'transparent',
+          borderBottom: isExpanded ? 'none' : '1px solid var(--border)',
+        }}
+        onClick={onClick}
+        onMouseEnter={(e) => {
+          if (!isSelected && !isExpanded) {
+            e.currentTarget.style.backgroundColor = 'var(--bg-secondary)';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isSelected && !isExpanded) {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }
+        }}
+      >
+        {/* Expand/collapse indicator */}
+        <span style={{ color: 'var(--text-secondary)' }}>
+          {isExpanded ? (
+            <ChevronDown className="w-4 h-4" />
+          ) : (
+            <ChevronRight className="w-4 h-4" />
+          )}
+        </span>
       {/* Short hash */}
       <span
         className="font-mono text-xs shrink-0"
@@ -200,6 +221,16 @@ export function GitGraphRow({
       >
         {relativeTime}
       </span>
+      </div>
+
+      {/* Expanded commit details */}
+      {isExpanded && (
+        <CommitDetails
+          hash={node.hash}
+          repoPath={repoPath}
+          onFileClick={onFileClick}
+        />
+      )}
     </div>
   );
 }

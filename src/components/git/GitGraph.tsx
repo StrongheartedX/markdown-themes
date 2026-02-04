@@ -13,6 +13,7 @@ const PAGE_SIZE = 50;
 interface GitGraphProps {
   repoPath: string;
   onCommitSelect?: (hash: string) => void;
+  onFileClick?: (commitHash: string, filePath: string, status: string) => void;
   className?: string;
 }
 
@@ -26,7 +27,7 @@ interface GraphState {
   skip: number;
 }
 
-export function GitGraph({ repoPath, onCommitSelect, className = '' }: GitGraphProps) {
+export function GitGraph({ repoPath, onCommitSelect, onFileClick, className = '' }: GitGraphProps) {
   const [state, setState] = useState<GraphState>({
     commits: [],
     layout: { nodes: [], connections: [], railCount: 0 },
@@ -37,6 +38,7 @@ export function GitGraph({ repoPath, onCommitSelect, className = '' }: GitGraphP
     skip: 0,
   });
   const [selectedHash, setSelectedHash] = useState<string | null>(null);
+  const [expandedHashes, setExpandedHashes] = useState<Set<string>>(new Set());
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Fetch commits from the API
@@ -115,11 +117,25 @@ export function GitGraph({ repoPath, onCommitSelect, className = '' }: GitGraphP
     return () => container.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
 
-  // Handle commit click
+  // Handle commit click - toggle expansion
   const handleCommitClick = useCallback((hash: string) => {
     setSelectedHash(hash);
+    setExpandedHashes((prev) => {
+      const next = new Set(prev);
+      if (next.has(hash)) {
+        next.delete(hash);
+      } else {
+        next.add(hash);
+      }
+      return next;
+    });
     onCommitSelect?.(hash);
   }, [onCommitSelect]);
+
+  // Handle file click from expanded commit details
+  const handleFileClick = useCallback((commitHash: string, filePath: string, status: string) => {
+    onFileClick?.(commitHash, filePath, status);
+  }, [onFileClick]);
 
   // Handle refresh
   const handleRefresh = useCallback(() => {
@@ -234,7 +250,10 @@ export function GitGraph({ repoPath, onCommitSelect, className = '' }: GitGraphP
               node={node}
               rowHeight={ROW_HEIGHT}
               isSelected={selectedHash === node.hash}
+              isExpanded={expandedHashes.has(node.hash)}
+              repoPath={repoPath}
               onClick={() => handleCommitClick(node.hash)}
+              onFileClick={(path, status) => handleFileClick(node.hash, path, status)}
             />
           ))}
         </div>
