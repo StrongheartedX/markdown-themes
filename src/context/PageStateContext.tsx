@@ -17,15 +17,9 @@ interface PromptsPageState {
   showLibrary: boolean;
 }
 
-interface SourceControlPageState {
-  expandedRepos: string[];
-  searchQuery: string;
-}
-
 interface PageState {
   files: FilesPageState;
   prompts: PromptsPageState;
-  sourceControl: SourceControlPageState;
 }
 
 interface PageStateContextValue {
@@ -36,10 +30,6 @@ interface PageStateContextValue {
   // Prompts page state
   promptsState: PromptsPageState;
   setPromptsState: (state: Partial<PromptsPageState>) => void;
-
-  // SourceControl page state
-  sourceControlState: SourceControlPageState;
-  setSourceControlState: (state: Partial<SourceControlPageState>) => void;
 }
 
 const defaultState: PageState = {
@@ -53,10 +43,6 @@ const defaultState: PageState = {
   prompts: {
     currentFile: null,
     showLibrary: true,
-  },
-  sourceControl: {
-    expandedRepos: [],
-    searchQuery: '',
   },
 };
 
@@ -77,10 +63,6 @@ function loadPageState(): PageState {
       prompts: {
         currentFile: parsed.prompts?.currentFile ?? defaultState.prompts.currentFile,
         showLibrary: parsed.prompts?.showLibrary ?? defaultState.prompts.showLibrary,
-      },
-      sourceControl: {
-        expandedRepos: parsed.sourceControl?.expandedRepos ?? defaultState.sourceControl.expandedRepos,
-        searchQuery: parsed.sourceControl?.searchQuery ?? defaultState.sourceControl.searchQuery,
       },
     };
   } catch {
@@ -129,17 +111,6 @@ export function PageStateProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const setSourceControlState = useCallback((partial: Partial<SourceControlPageState>) => {
-    setState((prev) => {
-      const next = {
-        ...prev,
-        sourceControl: { ...prev.sourceControl, ...partial },
-      };
-      savePageState(next);
-      return next;
-    });
-  }, []);
-
   return (
     <PageStateContext.Provider
       value={{
@@ -147,8 +118,6 @@ export function PageStateProvider({ children }: { children: ReactNode }) {
         setFilesState,
         promptsState: state.prompts,
         setPromptsState,
-        sourceControlState: state.sourceControl,
-        setSourceControlState,
       }}
     >
       {children}

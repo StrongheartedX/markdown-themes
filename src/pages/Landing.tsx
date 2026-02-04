@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Folder, GitBranch, BookOpen } from 'lucide-react';
+import { Folder, BookOpen } from 'lucide-react';
 
 interface NavigationCard {
   icon: React.ComponentType<{ className?: string }>;
@@ -14,12 +14,6 @@ const navigationCards: NavigationCard[] = [
     title: 'Files',
     description: 'Browse and view files with themes',
     route: '/files',
-  },
-  {
-    icon: GitBranch,
-    title: 'Source Control',
-    description: 'Git operations and batch actions',
-    route: '/source-control',
   },
   {
     icon: BookOpen,
@@ -46,7 +40,7 @@ export function Landing() {
       </div>
 
       <nav className="w-full max-w-6xl">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
           {navigationCards.map((card) => {
             const Icon = card.icon;
             return (

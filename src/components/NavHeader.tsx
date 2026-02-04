@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Home, Folder, GitBranch, BookOpen } from 'lucide-react';
+import { Home, Folder, BookOpen } from 'lucide-react';
 import { ThemeSelector } from './ThemeSelector';
 import { ProjectSelector } from './ProjectSelector';
 import type { ThemeId } from '../themes';
@@ -23,7 +23,6 @@ interface NavItem {
 const navItems: NavItem[] = [
   { to: '/', label: 'Home', icon: Home, iconOnly: true },
   { to: '/files', label: 'Files', icon: Folder },
-  { to: '/source-control', label: 'Source Control', icon: GitBranch },
   { to: '/prompts', label: 'Prompts', icon: BookOpen },
 ];
 

@@ -34,8 +34,7 @@ src/
 │   └── filters.ts             # File tree filter presets
 ├── pages/
 │   ├── Files.tsx              # Main markdown viewer with sidebar
-│   ├── Prompts.tsx            # Prompty file viewer with library
-│   └── SourceControl.tsx      # Git repo management dashboard
+│   └── Prompts.tsx            # Prompty file viewer with library
 ├── components/
 │   ├── MarkdownViewer.tsx     # Streamdown renderer
 │   ├── Sidebar.tsx            # File tree with search + filters
@@ -122,13 +121,12 @@ The app auto-detects file types and renders with appropriate viewers:
 | PDF | `.pdf` | PdfViewer (page navigation) |
 
 ### Page State Persistence
-`PageStateContext` preserves UI state when navigating between pages (Files, Prompts, SourceControl). State is held in memory only—refreshing the page resets it.
+`PageStateContext` preserves UI state when navigating between pages (Files, Prompts). State is held in memory only—refreshing the page resets it.
 
 | Page | Preserved State |
 |------|-----------------|
 | Files | Open tabs, active tab, split view, split ratio, right pane file |
 | Prompts | Current file, library visibility |
-| SourceControl | Expanded repos, search query |
 
 The hooks `useTabManager` and `useSplitView` accept optional `initialState` and `onStateChange` props to sync with the context.
 
@@ -180,15 +178,6 @@ The Files page toolbar has a git graph button that shows commit history in the r
 | `Ctrl+G` | Toggle git graph |
 | `Ctrl+Click` | Open file in right pane (when split) |
 | `Escape` | Clear focus |
-
-### SourceControl Page
-| Shortcut | Action |
-|----------|--------|
-| `/` | Focus search |
-| `j` / `k` | Navigate repos (vim-style) |
-| `Enter` | Toggle expand focused repo |
-| `r` | Refresh repos |
-| `Escape` | Clear search / collapse all |
 
 ## Commands
 
