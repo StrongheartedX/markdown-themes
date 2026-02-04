@@ -280,12 +280,12 @@ export function Files() {
     enabled: appState.followStreamingMode,
   });
 
-  // Auto-open streaming file when follow mode is enabled
+  // Auto-open streaming file when follow mode is enabled (opens in right pane)
   useEffect(() => {
     if (!appState.followStreamingMode || !streamingFile) return;
 
-    // Only auto-open if the streaming file is different from current file
-    if (streamingFile !== currentFile) {
+    // Only auto-open if the streaming file is different from current right pane file
+    if (streamingFile !== rightFile) {
       // Filter out noisy files that aren't useful to watch
       const fileName = streamingFile.split('/').pop() || '';
       const ext = fileName.split('.').pop()?.toLowerCase() || '';
@@ -343,10 +343,14 @@ export function Files() {
         return;
       }
 
-      openTab(streamingFile, true); // Open as preview tab
+      // Open streaming file in right pane (enables split if needed)
+      if (!isSplit) {
+        toggleSplit();
+      }
+      setRightPaneFile(streamingFile);
       addRecentFile(streamingFile);
     }
-  }, [appState.followStreamingMode, streamingFile, currentFile, openTab, addRecentFile]);
+  }, [appState.followStreamingMode, streamingFile, rightFile, isSplit, toggleSplit, setRightPaneFile, addRecentFile]);
 
   const themeClass = themes.find((t) => t.id === appState.theme)?.className ?? '';
 
