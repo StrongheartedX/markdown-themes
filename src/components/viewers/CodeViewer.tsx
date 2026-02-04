@@ -1,13 +1,16 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { codeToHtml, bundledLanguages } from 'shiki';
 import { createCssVariablesTheme } from 'shiki';
-import { findAllChangedLines, type LineChangeType } from '../../utils/markdownDiff';
+import { useGitDiff, type GitDiffLineType } from '../../hooks/useGitDiff';
+import { findAllChangedLines } from '../../utils/markdownDiff';
 
 interface CodeViewerProps {
   content: string;
   filePath: string;
   fontSize?: number;
   isStreaming?: boolean;
+  /** Repository root path for git diff highlighting */
+  repoPath?: string | null;
 }
 
 // Create a single CSS variables theme - colors defined in each theme's CSS
@@ -121,61 +124,94 @@ function getLanguageFromPath(filePath: string): string {
   return 'text';
 }
 
-export function CodeViewer({ content, filePath, fontSize = 100, isStreaming = false }: CodeViewerProps) {
+// Type for combined line highlighting (git diff + recent edit)
+interface LineHighlight {
+  gitDiff?: GitDiffLineType;
+  recentEdit?: boolean;
+}
+
+export function CodeViewer({ content, filePath, fontSize = 100, isStreaming = false, repoPath = null }: CodeViewerProps) {
   const [highlightedHtml, setHighlightedHtml] = useState<string>('');
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [changedLines, setChangedLines] = useState<Map<number, LineChangeType>>(new Map());
 
-  // Track previous content for diffing
+  // Recent edit tracking (streaming-based)
+  const [recentEditLines, setRecentEditLines] = useState<Set<number>>(new Set());
   const prevContentRef = useRef<string>('');
-  // Track if we were recently streaming (to keep highlights visible briefly after streaming stops)
-  const wasStreamingRef = useRef(false);
-  const clearHighlightsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recentEditTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Git diff highlighting
+  const { changedLines: gitChangedLines } = useGitDiff({
+    filePath,
+    repoPath,
+    content, // Trigger refetch on content change
+    debounceMs: 800, // Slightly longer debounce for git diff
+  });
 
   const language = useMemo(() => getLanguageFromPath(filePath), [filePath]);
   const lineCount = useMemo(() => content.split('\n').length, [content]);
 
-  // Track changed lines during streaming
-  useEffect(() => {
-    // Clear any pending highlight clear
-    if (clearHighlightsTimeoutRef.current) {
-      clearTimeout(clearHighlightsTimeoutRef.current);
-      clearHighlightsTimeoutRef.current = null;
+  // Clear recent edit timer
+  const clearRecentEditTimer = useCallback(() => {
+    if (recentEditTimerRef.current) {
+      clearTimeout(recentEditTimerRef.current);
+      recentEditTimerRef.current = null;
     }
+  }, []);
 
-    if (isStreaming) {
-      wasStreamingRef.current = true;
+  // Track recent edits during streaming
+  useEffect(() => {
+    if (isStreaming && prevContentRef.current && prevContentRef.current !== content) {
+      // Find changed lines
+      const result = findAllChangedLines(prevContentRef.current, content);
+      const newRecentLines = new Set(result.changedLines.keys());
 
-      // Compare with previous content
-      if (prevContentRef.current && prevContentRef.current !== content) {
-        const result = findAllChangedLines(prevContentRef.current, content);
-        setChangedLines(result.changedLines);
+      if (newRecentLines.size > 0) {
+        setRecentEditLines(newRecentLines);
+
+        // Clear any existing timer and set new one to fade the highlight
+        clearRecentEditTimer();
+        recentEditTimerRef.current = setTimeout(() => {
+          setRecentEditLines(new Set());
+        }, 2500); // Fade after 2.5 seconds
       }
-    } else if (wasStreamingRef.current) {
-      // Streaming just stopped - keep highlights for a moment then clear
-      clearHighlightsTimeoutRef.current = setTimeout(() => {
-        setChangedLines(new Map());
-        wasStreamingRef.current = false;
-      }, 2000); // Keep highlights visible for 2 seconds after streaming stops
     }
 
     // Always update previous content
     prevContentRef.current = content;
+  }, [content, isStreaming, clearRecentEditTimer]);
 
-    return () => {
-      if (clearHighlightsTimeoutRef.current) {
-        clearTimeout(clearHighlightsTimeoutRef.current);
-      }
-    };
-  }, [content, isStreaming]);
-
-  // Reset changed lines when file changes
+  // Reset recent edit lines when file changes
   useEffect(() => {
-    setChangedLines(new Map());
+    setRecentEditLines(new Set());
     prevContentRef.current = '';
-    wasStreamingRef.current = false;
-  }, [filePath]);
+    clearRecentEditTimer();
+  }, [filePath, clearRecentEditTimer]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      clearRecentEditTimer();
+    };
+  }, [clearRecentEditTimer]);
+
+  // Combine git diff and recent edit highlights
+  const lineHighlights = useMemo(() => {
+    const highlights = new Map<number, LineHighlight>();
+
+    // Add git diff highlights
+    for (const [lineNum, diffType] of gitChangedLines) {
+      highlights.set(lineNum, { gitDiff: diffType });
+    }
+
+    // Add recent edit highlights (overlays on top)
+    for (const lineNum of recentEditLines) {
+      const existing = highlights.get(lineNum) || {};
+      highlights.set(lineNum, { ...existing, recentEdit: true });
+    }
+
+    return highlights;
+  }, [gitChangedLines, recentEditLines]);
 
   useEffect(() => {
     let cancelled = false;
@@ -216,6 +252,32 @@ export function CodeViewer({ content, filePath, fontSize = 100, isStreaming = fa
     return Array.from({ length: lineCount }, (_, i) => i + 1);
   }, [lineCount]);
 
+  // Get styles for a line based on its highlights
+  const getLineStyles = useCallback((lineNum: number): { gutter: React.CSSProperties; content: React.CSSProperties } => {
+    const highlight = lineHighlights.get(lineNum);
+
+    const gutterStyle: React.CSSProperties = {};
+    const contentStyle: React.CSSProperties = {};
+
+    // Git diff background colors
+    if (highlight?.gitDiff === 'added') {
+      gutterStyle.backgroundColor = 'var(--diff-added)';
+      contentStyle.backgroundColor = 'var(--diff-added)';
+    } else if (highlight?.gitDiff === 'modified') {
+      gutterStyle.backgroundColor = 'var(--diff-modified)';
+      contentStyle.backgroundColor = 'var(--diff-modified)';
+    }
+
+    // Recent edit border (accent color on left)
+    if (highlight?.recentEdit) {
+      contentStyle.borderLeft = '3px solid var(--accent)';
+      contentStyle.marginLeft = '-3px'; // Compensate for border width
+      contentStyle.transition = 'border-color 0.3s ease-out';
+    }
+
+    return { gutter: gutterStyle, content: contentStyle };
+  }, [lineHighlights]);
+
   // Only show loading on initial render, not on content updates
   if (isInitialLoad && !highlightedHtml) {
     return (
@@ -243,19 +305,9 @@ export function CodeViewer({ content, filePath, fontSize = 100, isStreaming = fa
             }}
           >
             {lineNumbers.map((num) => {
-              const changeType = changedLines.get(num);
-              const bgColor = changeType === 'added'
-                ? 'var(--diff-added)'
-                : changeType === 'modified'
-                  ? 'var(--diff-modified)'
-                  : undefined;
+              const styles = getLineStyles(num);
               return (
-                <div
-                  key={num}
-                  data-line={num}
-                  data-change-type={changeType || undefined}
-                  style={bgColor ? { backgroundColor: bgColor } : undefined}
-                >
+                <div key={num} data-line={num} style={styles.gutter}>
                   {num}
                 </div>
               );
@@ -294,19 +346,9 @@ export function CodeViewer({ content, filePath, fontSize = 100, isStreaming = fa
           }}
         >
           {lineNumbers.map((num) => {
-            const changeType = changedLines.get(num);
-            const bgColor = changeType === 'added'
-              ? 'var(--diff-added)'
-              : changeType === 'modified'
-                ? 'var(--diff-modified)'
-                : undefined;
+            const styles = getLineStyles(num);
             return (
-              <div
-                key={num}
-                data-line={num}
-                data-change-type={changeType || undefined}
-                style={bgColor ? { backgroundColor: bgColor } : undefined}
-              >
+              <div key={num} data-line={num} style={styles.gutter}>
                 {num}
               </div>
             );
@@ -331,10 +373,66 @@ export function CodeViewer({ content, filePath, fontSize = 100, isStreaming = fa
               font-size: inherit;
               line-height: inherit;
             }
+            .code-content .line {
+              display: block;
+              min-height: 1.7em;
+            }
+            .code-content .line[data-highlight="added"] {
+              background-color: var(--diff-added);
+            }
+            .code-content .line[data-highlight="modified"] {
+              background-color: var(--diff-modified);
+            }
+            .code-content .line[data-recent-edit="true"] {
+              border-left: 3px solid var(--accent);
+              margin-left: -3px;
+            }
           `}</style>
-          <div dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
+          <HighlightedCode html={highlightedHtml} lineHighlights={lineHighlights} />
         </div>
       </div>
     </div>
   );
+}
+
+/**
+ * Component that renders highlighted HTML and applies line-level highlights.
+ * We need to post-process the Shiki output to add highlight attributes to lines.
+ */
+function HighlightedCode({
+  html,
+  lineHighlights,
+}: {
+  html: string;
+  lineHighlights: Map<number, LineHighlight>;
+}) {
+  const processedHtml = useMemo(() => {
+    if (lineHighlights.size === 0) {
+      return html;
+    }
+
+    // Shiki outputs <pre><code>...</code></pre> with .line spans
+    // We need to add data attributes to each .line span based on line number
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const lines = doc.querySelectorAll('.line');
+
+    lines.forEach((line, index) => {
+      const lineNum = index + 1;
+      const highlight = lineHighlights.get(lineNum);
+
+      if (highlight?.gitDiff) {
+        line.setAttribute('data-highlight', highlight.gitDiff);
+      }
+      if (highlight?.recentEdit) {
+        line.setAttribute('data-recent-edit', 'true');
+      }
+    });
+
+    // Get the modified HTML from the pre element
+    const pre = doc.querySelector('pre');
+    return pre ? pre.outerHTML : html;
+  }, [html, lineHighlights]);
+
+  return <div dangerouslySetInnerHTML={{ __html: processedHtml }} />;
 }

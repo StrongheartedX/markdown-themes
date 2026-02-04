@@ -728,6 +728,7 @@ export function Files() {
                       isStreaming={isStreaming}
                       themeClassName={themeClass}
                       fontSize={appState.fontSize}
+                      repoPath={workspacePath}
                     />
                   </div>
                 </>
@@ -771,9 +772,10 @@ export function Files() {
                         <ViewerContainer
                           filePath={rightFile!}
                           content={rightMarkdownContent}
-                          isStreaming={rightIsStreaming}
+                          isStreaming={rightIsStreaming || appState.followStreamingMode}
                           themeClassName={themeClass}
                           fontSize={appState.fontSize}
+                          repoPath={workspacePath}
                         />
                       </div>
                     </>

@@ -18,6 +18,8 @@ interface ViewerContainerProps {
   isStreaming?: boolean;
   themeClassName?: string;
   fontSize?: number;
+  /** Repository root path for git diff highlighting */
+  repoPath?: string | null;
 }
 
 type ViewerType = 'markdown' | 'code' | 'image' | 'csv' | 'json' | 'jsonl' | 'audio' | 'video' | 'svg' | 'pdf' | 'prompty';
@@ -88,6 +90,7 @@ export function ViewerContainer({
   isStreaming = false,
   themeClassName = '',
   fontSize = 100,
+  repoPath = null,
 }: ViewerContainerProps) {
   const viewerType = useMemo(() => getViewerType(filePath), [filePath]);
 
@@ -138,6 +141,6 @@ export function ViewerContainer({
 
     case 'code':
     default:
-      return <CodeViewer content={content} filePath={filePath} fontSize={fontSize} isStreaming={isStreaming} />;
+      return <CodeViewer content={content} filePath={filePath} fontSize={fontSize} isStreaming={isStreaming} repoPath={repoPath} />;
   }
 }
