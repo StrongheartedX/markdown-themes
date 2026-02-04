@@ -45,16 +45,22 @@ src/
 │   ├── InlineField.tsx        # Editable {{variable}} fields
 │   ├── viewers/               # File type viewers (see Supported File Types)
 │   └── git/                   # Git components (RepoCard, CommitForm, etc.)
+├── context/
+│   ├── AppStoreContext.tsx    # localStorage persistence (theme, recent files, favorites)
+│   ├── WorkspaceContext.tsx   # Current workspace path + file tree
+│   └── PageStateContext.tsx   # In-memory page state (tabs, split view, etc.)
 ├── hooks/
 │   ├── useFileWatcher.ts      # WebSocket file watching + streaming detection
 │   ├── useWorkspace.ts        # File tree via TabzChrome API
-│   ├── useAppStore.ts         # localStorage persistence
+│   ├── useTabManager.ts       # Tab state management for Files page
+│   ├── useSplitView.ts        # Split view state for Files page
+│   ├── useAppStore.ts         # Hook for AppStoreContext
 │   └── useGitRepos.ts         # Git repository scanning
 ├── utils/
 │   ├── frontmatter.ts         # YAML frontmatter parser
 │   └── promptyUtils.ts        # Prompty parsing + variable handling
 └── themes/
-    ├── index.ts               # Theme registry (10 themes)
+    ├── index.ts               # Theme registry (15 themes)
     └── *.css                  # Theme CSS files
 ```
 
@@ -115,6 +121,17 @@ The app auto-detects file types and renders with appropriate viewers:
 | Audio | `.mp3`, `.wav`, `.ogg` | AudioViewer with waveform |
 | PDF | `.pdf` | PdfViewer (page navigation) |
 
+### Page State Persistence
+`PageStateContext` preserves UI state when navigating between pages (Files, Prompts, SourceControl). State is held in memory only—refreshing the page resets it.
+
+| Page | Preserved State |
+|------|-----------------|
+| Files | Open tabs, active tab, split view, split ratio, right pane file |
+| Prompts | Current file, library visibility |
+| SourceControl | Expanded repos, search query |
+
+The hooks `useTabManager` and `useSplitView` accept optional `initialState` and `onStateChange` props to sync with the context.
+
 ### TabzChrome Integration
 The app integrates with TabzChrome for terminal/chat actions via WebSocket:
 
@@ -166,10 +183,10 @@ Tests use Vitest + React Testing Library. Run `npm run test:run` before committi
 
 ## Themes
 
-Available themes (from htmlstyleguides):
-- dark-academia, cyberpunk, parchment, cosmic
-- noir, nordic, glassmorphism, pixel-art
-- art-deco, retro-futurism
+Available themes (15 total):
+- dark-academia, cyberpunk, parchment, cosmic, noir
+- nordic, glassmorphism, film-grain, verdant-grove
+- art-deco, knolling, industrial, streamline-moderne, pixel-art
 
 ### Adding a New Theme
 

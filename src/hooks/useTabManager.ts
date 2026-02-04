@@ -1,10 +1,16 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 
 export interface Tab {
   id: string;
   path: string;
   isPreview: boolean;
   isPinned: boolean;
+}
+
+interface UseTabManagerOptions {
+  initialTabs?: Tab[];
+  initialActiveTabId?: string | null;
+  onStateChange?: (tabs: Tab[], activeTabId: string | null) => void;
 }
 
 interface UseTabManagerResult {
@@ -21,9 +27,23 @@ function generateTabId(): string {
   return `tab-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-export function useTabManager(): UseTabManagerResult {
-  const [tabs, setTabs] = useState<Tab[]>([]);
-  const [activeTabId, setActiveTabId] = useState<string | null>(null);
+export function useTabManager(options: UseTabManagerOptions = {}): UseTabManagerResult {
+  const { initialTabs = [], initialActiveTabId = null, onStateChange } = options;
+
+  const [tabs, setTabs] = useState<Tab[]>(initialTabs);
+  const [activeTabId, setActiveTabId] = useState<string | null>(initialActiveTabId);
+
+  // Track if this is the initial mount to avoid triggering onStateChange
+  const isInitialMount = useRef(true);
+
+  // Notify parent of state changes (skip initial mount)
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    onStateChange?.(tabs, activeTabId);
+  }, [tabs, activeTabId, onStateChange]);
 
   const activeTab = useMemo(
     () => tabs.find((t) => t.id === activeTabId) ?? null,

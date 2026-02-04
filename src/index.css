@@ -90,6 +90,12 @@ body {
   transition: background-color 0.3s, color 0.3s;
 }
 
+/* Landing page titles - default bold, themes can override */
+.landing-title,
+.landing-card-title {
+  font-weight: 700;
+}
+
 /* Default scrollbar styling - uses theme variables, can be overridden */
 ::-webkit-scrollbar {
   width: 8px;

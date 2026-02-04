@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Clock, ChevronLeft } from 'lucide-react';
 import { useFileWatcher } from '../hooks/useFileWatcher';
 import { useWorkspaceContext } from '../context/WorkspaceContext';
+import { usePageState } from '../context/PageStateContext';
 import { useAppStore } from '../hooks/useAppStore';
 import { useTabManager } from '../hooks/useTabManager';
 import { useSplitView } from '../hooks/useSplitView';
@@ -18,6 +19,17 @@ import { themes } from '../themes';
 const DEFAULT_HOME_PATH = '/home/marci';
 
 export function Files() {
+  // Get page state from context for persistence across navigation
+  const { filesState, setFilesState } = usePageState();
+
+  // Tab manager with initial state from context
+  const handleTabStateChange = useCallback(
+    (tabs: Parameters<typeof setFilesState>[0]['tabs'], activeTabId: string | null) => {
+      setFilesState({ tabs, activeTabId });
+    },
+    [setFilesState]
+  );
+
   const {
     tabs,
     activeTabId,
@@ -26,7 +38,11 @@ export function Files() {
     pinTab,
     closeTab,
     setActiveTab,
-  } = useTabManager();
+  } = useTabManager({
+    initialTabs: filesState.tabs,
+    initialActiveTabId: filesState.activeTabId,
+    onStateChange: handleTabStateChange,
+  });
 
   // Current file is derived from the active tab
   const currentFile = activeTab?.path ?? null;
@@ -46,7 +62,14 @@ export function Files() {
   // Get workspace from global context
   const { workspacePath, fileTree } = useWorkspaceContext();
 
-  // Split view state
+  // Split view state with initial state from context
+  const handleSplitStateChange = useCallback(
+    (state: { isSplit: boolean; splitRatio: number; rightFile: string | null }) => {
+      setFilesState(state);
+    },
+    [setFilesState]
+  );
+
   const {
     isSplit,
     splitRatio,
@@ -54,7 +77,14 @@ export function Files() {
     toggleSplit,
     setSplitRatio,
     setRightFile,
-  } = useSplitView();
+  } = useSplitView({
+    initialState: {
+      isSplit: filesState.isSplit,
+      splitRatio: filesState.splitRatio,
+      rightFile: filesState.rightFile,
+    },
+    onStateChange: handleSplitStateChange,
+  });
 
   // Use file watcher to get content and streaming state (left/main pane)
   const {

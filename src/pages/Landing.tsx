@@ -34,7 +34,7 @@ export function Landing() {
     <div className="flex flex-col items-center justify-center h-full px-8 py-12">
       <div className="text-center mb-16 max-w-2xl">
         <h1
-          className="text-5xl font-bold mb-4"
+          className="text-5xl mb-4 landing-title"
           style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
         >
           Markdown Themes
@@ -78,7 +78,7 @@ export function Landing() {
                   <Icon className="w-12 h-12 transition-colors duration-300" />
                 </div>
                 <h2
-                  className="text-2xl font-bold mb-2"
+                  className="text-2xl mb-2 landing-card-title"
                   style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
                 >
                   {card.title}

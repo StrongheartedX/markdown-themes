@@ -392,79 +392,108 @@ body {
   text-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
 }
 `,
-  'retro-futurism': `
+  'film-grain': `
 :root {
-  --bg-primary: #fff8e7;
-  --bg-secondary: #fff5dc;
-  --text-primary: #1a1a3e;
-  --text-secondary: #4a4a6a;
-  --accent: #40e0d0;
-  --accent-hover: #ff6b6b;
-  --border: rgba(26, 26, 62, 0.15);
-  --font-body: 'Questrial', -apple-system, sans-serif;
-  --font-heading: 'Audiowide', 'Orbitron', cursive;
-  --font-mono: 'Space Mono', 'Courier New', monospace;
-  --radius: 100px;
+  --bg-primary: #faf6ed;
+  --bg-secondary: #f5f0e6;
+  --text-primary: #3d3a35;
+  --text-secondary: #8b7355;
+  --accent: #d4a066;
+  --accent-hover: #b8864a;
+  --border: #b8b2a6;
+  --font-body: 'Source Serif 4', Georgia, serif;
+  --font-heading: 'Special Elite', 'Courier New', monospace;
+  --font-mono: 'DM Mono', 'Courier New', monospace;
+  --radius: 2px;
 }
 
 .prose h1,
-.prose h2 {
-  font-weight: 400;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  background: linear-gradient(135deg, #ff6b6b, #f4d03f);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
+.prose h2,
 .prose h3 {
   font-family: var(--font-heading);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-primary);
+  font-weight: 400;
+  letter-spacing: 0.02em;
 }
 
 .prose blockquote {
-  background: linear-gradient(135deg, rgba(64, 224, 208, 0.1), rgba(152, 216, 170, 0.1));
-  border-left: 4px solid var(--accent);
-  border-radius: 0 1rem 1rem 0;
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
   padding: 1rem 1.5rem;
+  font-style: italic;
+  color: var(--text-secondary);
 }
 
 .prose hr {
   border: none;
-  height: 3px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-hover), #f4d03f, var(--accent));
-  border-radius: var(--radius);
-}
-
-.prose code {
-  background: linear-gradient(135deg, rgba(64, 224, 208, 0.15), rgba(152, 216, 170, 0.15));
-  border-radius: var(--radius);
-  padding: 0.125rem 0.5rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border) 20%, var(--border) 80%, transparent);
 }
 
 .prose pre {
   background: var(--bg-secondary);
-  border: 2px solid var(--border);
-  border-radius: 1rem;
-  box-shadow: 0 4px 20px rgba(26, 26, 62, 0.08);
+  border: 1px solid var(--border);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.prose a {
+  color: var(--accent-hover);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+}
+`,
+  'verdant-grove': `
+:root {
+  --bg-primary: #f4f8f3;
+  --bg-secondary: #eff6ef;
+  --text-primary: #1f2a24;
+  --text-secondary: #6f7f74;
+  --accent: #4f8a6e;
+  --accent-hover: #315c45;
+  --border: rgba(31, 42, 36, 0.14);
+  --font-body: 'Karla', 'Inter', sans-serif;
+  --font-heading: 'Cormorant Garamond', Georgia, serif;
+  --font-mono: 'IBM Plex Mono', 'Consolas', monospace;
+  --radius: 10px;
+}
+
+.prose h1 { color: #123526; }
+.prose h2 { color: #315c45; }
+.prose h3 { color: #4f8a6e; }
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+}
+
+.prose blockquote {
+  background: white;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 1.5rem 2rem;
+  box-shadow: 0 4px 16px rgba(18, 53, 38, 0.08);
+}
+
+.prose hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #a6c1ae 20%, #a6c1ae 80%, transparent);
+}
+
+.prose pre {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: 0 4px 16px rgba(18, 53, 38, 0.08);
 }
 
 .prose a {
   color: var(--accent);
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.2s;
-}
-
-.prose a:hover {
-  color: var(--accent-hover);
-}
-
-.prose strong {
-  color: var(--accent-hover);
+  text-decoration: underline;
+  text-decoration-color: #a6c1ae;
 }
 `,
   'art-deco': `
@@ -911,8 +940,11 @@ const themeFonts: Record<ThemeId | 'default', string[]> = {
   glassmorphism: [
     'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap',
   ],
-  'retro-futurism': [
-    'https://fonts.googleapis.com/css2?family=Questrial&family=Audiowide&family=Space+Mono:wght@400;700&display=swap',
+  'film-grain': [
+    'https://fonts.googleapis.com/css2?family=Special+Elite&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=DM+Mono:wght@400;500&display=swap',
+  ],
+  'verdant-grove': [
+    'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Karla:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap',
   ],
   'art-deco': [
     'https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@400;600;700&family=Poiret+One&display=swap',

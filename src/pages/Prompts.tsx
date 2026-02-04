@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useFileWatcher } from '../hooks/useFileWatcher';
 import { useAppStore } from '../hooks/useAppStore';
 import { useWorkspaceContext } from '../context/WorkspaceContext';
+import { usePageState } from '../context/PageStateContext';
 import { PromptLibrary } from '../components/PromptLibrary';
 import { PromptNotebook } from '../components/PromptNotebook';
 import { FilePickerModal } from '../components/FilePickerModal';
@@ -12,9 +13,22 @@ import { FolderOpen, FileText, X, Clock, ChevronLeft } from 'lucide-react';
 const DEFAULT_HOME_PATH = '/home/marci';
 
 export function Prompts() {
-  const [currentFile, setCurrentFile] = useState<string | null>(null);
+  // Get page state from context for persistence across navigation
+  const { promptsState, setPromptsState } = usePageState();
+
+  const currentFile = promptsState.currentFile;
+  const setCurrentFile = useCallback(
+    (path: string | null) => setPromptsState({ currentFile: path }),
+    [setPromptsState]
+  );
+
+  const showLibrary = promptsState.showLibrary;
+  const setShowLibrary = useCallback(
+    (show: boolean) => setPromptsState({ showLibrary: show }),
+    [setPromptsState]
+  );
+
   const [showFilePicker, setShowFilePicker] = useState(false);
-  const [showLibrary, setShowLibrary] = useState(true);
 
   const {
     state: appState,

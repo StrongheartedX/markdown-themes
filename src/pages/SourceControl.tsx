@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { GitBranch, RefreshCw, AlertCircle, Search } from 'lucide-react';
 import { useGitRepos } from '../hooks/useGitRepos';
 import { useBulkGitOperations } from '../hooks/useBulkGitOperations';
+import { usePageState } from '../context/PageStateContext';
 import { RepoCard, BulkActionsBar } from '../components/git';
 
 // Default projects directory
@@ -43,12 +44,26 @@ export function SourceControl() {
   // Bulk operations
   const { progress, isRunning, fetchAll, pullAll, pushAll, clearProgress } = useBulkGitOperations();
 
-  // Search and filtering
-  const [searchQuery, setSearchQuery] = useState('');
+  // Get page state from context for persistence across navigation
+  const { sourceControlState, setSourceControlState } = usePageState();
+
+  // Search and filtering - use context state
+  const searchQuery = sourceControlState.searchQuery;
+  const setSearchQuery = useCallback(
+    (query: string) => setSourceControlState({ searchQuery: query }),
+    [setSourceControlState]
+  );
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Track which cards are expanded
-  const [expandedRepos, setExpandedRepos] = useState<Set<string>>(new Set());
+  // Track which cards are expanded - use context state
+  const expandedRepos = useMemo(
+    () => new Set(sourceControlState.expandedRepos),
+    [sourceControlState.expandedRepos]
+  );
+  const setExpandedRepos = useCallback(
+    (repos: Set<string>) => setSourceControlState({ expandedRepos: Array.from(repos) }),
+    [setSourceControlState]
+  );
 
   // Track focused repo index for keyboard navigation
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
@@ -57,16 +72,14 @@ export function SourceControl() {
   const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set());
 
   const toggleExpand = useCallback((repoName: string) => {
-    setExpandedRepos((prev) => {
-      const next = new Set(prev);
-      if (next.has(repoName)) {
-        next.delete(repoName);
-      } else {
-        next.add(repoName);
-      }
-      return next;
-    });
-  }, []);
+    const next = new Set(expandedRepos);
+    if (next.has(repoName)) {
+      next.delete(repoName);
+    } else {
+      next.add(repoName);
+    }
+    setExpandedRepos(next);
+  }, [expandedRepos, setExpandedRepos]);
 
   const toggleSelect = useCallback((repoName: string) => {
     setSelectedRepos((prev) => {
@@ -169,7 +182,7 @@ export function SourceControl() {
       setExpandedRepos(new Set([filteredRepos[0].name]));
       hasAutoExpanded.current = true;
     }
-  }, [filteredRepos, loading]);
+  }, [filteredRepos, loading, setExpandedRepos]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -230,7 +243,7 @@ export function SourceControl() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [searchQuery, loading, refetch, filteredRepos, focusedIndex, toggleExpand]);
+  }, [searchQuery, setSearchQuery, loading, refetch, filteredRepos, focusedIndex, toggleExpand, setExpandedRepos]);
 
   return (
     <div className="flex flex-col h-full">
