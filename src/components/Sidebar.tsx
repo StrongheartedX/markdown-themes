@@ -48,6 +48,8 @@ interface SidebarProps {
   isFavorite: (path: string) => boolean;
   /** Ref to the search input for external focus control */
   searchInputRef?: React.RefObject<HTMLInputElement | null>;
+  /** Set of files changed via WebSocket during this session (for "Changed" filter) */
+  changedFiles?: Set<string>;
 }
 
 interface TreeItemProps {
@@ -484,7 +486,7 @@ function filterTreeBySearch<T extends FileTreeNode>(nodes: T[], query: string): 
 const MIN_SIDEBAR_WIDTH = 150;
 const MAX_SIDEBAR_WIDTH = 400;
 
-export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSplit, width = 250, onWidthChange, onWidthChangeEnd, onFileSelect, onFileDoubleClick, onRightFileSelect, favorites, toggleFavorite, isFavorite, searchInputRef }: SidebarProps) {
+export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSplit, width = 250, onWidthChange, onWidthChangeEnd, onFileSelect, onFileDoubleClick, onRightFileSelect, favorites, toggleFavorite, isFavorite, searchInputRef, changedFiles }: SidebarProps) {
   const workspaceName = workspacePath?.split('/').pop() ?? workspacePath?.split('\\').pop() ?? 'Workspace';
 
   // Get lazy loading state from workspace context
@@ -650,7 +652,7 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
     matchCount,
     isFiltered,
     homeLoading,
-  } = useFileFilter({ files: fileTree, homePath });
+  } = useFileFilter({ files: fileTree, homePath, gitStatus, changedFiles });
 
   // Apply search filter on top of the preset filter
   const searchFilteredFiles = useMemo(() => {

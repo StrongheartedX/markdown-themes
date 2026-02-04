@@ -10,6 +10,10 @@ interface UseWorkspaceStreamingOptions {
 interface UseWorkspaceStreamingResult {
   streamingFile: string | null;
   connected: boolean;
+  /** Set of all files that have changed during this session */
+  changedFiles: Set<string>;
+  /** Clear the changed files set */
+  clearChangedFiles: () => void;
 }
 
 interface WorkspaceFileChangeMessage {
@@ -37,6 +41,7 @@ export function useWorkspaceStreaming({
 }: UseWorkspaceStreamingOptions): UseWorkspaceStreamingResult {
   const [streamingFile, setStreamingFile] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
+  const [changedFiles, setChangedFiles] = useState<Set<string>>(new Set());
 
   const wsRef = useRef<WebSocket | null>(null);
   const streamingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -44,6 +49,11 @@ export function useWorkspaceStreaming({
   const currentPathRef = useRef<string | null>(null);
   const maxReconnectAttempts = 5;
   const mountedRef = useRef(true);
+
+  // Clear changed files (e.g., when switching workspaces or manually clearing)
+  const clearChangedFiles = useCallback(() => {
+    setChangedFiles(new Set());
+  }, []);
 
   // Clear streaming timer
   const clearStreamingTimer = useCallback(() => {
@@ -83,6 +93,14 @@ export function useWorkspaceStreaming({
         if (message.type === 'workspace-file-change') {
           // Server only sends this for first change or streaming, so always open
           setStreamingFile(message.path);
+
+          // Accumulate changed files for the Changed filter
+          setChangedFiles((prev) => {
+            if (prev.has(message.path)) return prev;
+            const next = new Set(prev);
+            next.add(message.path);
+            return next;
+          });
 
           // Reset streaming state after timeout
           clearStreamingTimer();
@@ -208,11 +226,17 @@ export function useWorkspaceStreaming({
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       if (previousPath && previousPath !== workspacePath) {
         unsubscribeFrom(wsRef.current, previousPath);
+        // Clear changed files when workspace changes
+        setChangedFiles(new Set());
       }
       subscribeTo(wsRef.current, workspacePath);
     } else {
       // Need to establish connection
       reconnectAttemptRef.current = 0;
+      // Clear changed files when starting fresh connection
+      if (previousPath !== workspacePath) {
+        setChangedFiles(new Set());
+      }
       connect(workspacePath);
     }
   }, [workspacePath, enabled, connect, subscribeTo, unsubscribeFrom]);
@@ -228,5 +252,7 @@ export function useWorkspaceStreaming({
   return {
     streamingFile,
     connected,
+    changedFiles,
+    clearChangedFiles,
   };
 }

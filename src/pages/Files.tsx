@@ -170,6 +170,7 @@ export function Files() {
     activeTabId,
     activeTab,
     openTab,
+    openDiffTab,
     pinTab,
     closeTab,
     setActiveTab,
@@ -225,7 +226,6 @@ export function Files() {
     setRightPaneFile,
     setRightPaneGitGraph,
     setRightPaneWorkingTree,
-    setRightPaneDiff,
   } = useSplitView({
     initialState: {
       isSplit: filesState.isSplit,
@@ -274,10 +274,10 @@ export function Files() {
     path: isSplit && !isRightFileBinary ? rightFile : null,
   });
 
-  // Workspace streaming detection for follow mode
-  const { streamingFile } = useWorkspaceStreaming({
+  // Workspace streaming detection for follow mode and changed files tracking
+  const { streamingFile, changedFiles } = useWorkspaceStreaming({
     workspacePath,
-    enabled: appState.followStreamingMode,
+    enabled: true, // Always enabled to track changed files for the Changed filter
   });
 
   // Auto-open streaming file when follow mode is enabled (opens in right pane)
@@ -381,12 +381,13 @@ export function Files() {
   );
 
   // Auto-scroll to changes during actual streaming (rapid file changes < 1.5s)
-  // Only for markdown files where block diffing works well
+  // Uses block-level diffing for markdown, line-level for code files
   useDiffAutoScroll({
-    content: markdownContent,
+    content: isMarkdownFile ? markdownContent : content,
     isStreaming,
     scrollContainerRef: leftScrollContainerRef,
-    enabled: isStreaming && isMarkdownFile,
+    filePath: currentFile ?? undefined,
+    enabled: isStreaming,
   });
 
   // Get recent files for empty state (limit to 6)
@@ -597,6 +598,7 @@ export function Files() {
             toggleFavorite={toggleFavorite}
             isFavorite={isFavorite}
             searchInputRef={searchInputRef}
+            changedFiles={changedFiles}
           />
         )}
 
@@ -618,13 +620,13 @@ export function Files() {
                 onTabPin={pinTab}
               />
 
-              {loading && !content && (
+              {activeTab?.type !== 'diff' && loading && !content && (
                 <div className="flex items-center justify-center h-full">
                   <p style={{ color: 'var(--text-secondary)' }}>Loading...</p>
                 </div>
               )}
 
-              {error && (
+              {activeTab?.type !== 'diff' && error && (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
                     <p className="text-red-500 mb-2">{error}</p>
@@ -635,7 +637,7 @@ export function Files() {
                 </div>
               )}
 
-              {!loading && !error && !currentFile && (
+              {activeTab?.type !== 'diff' && !loading && !error && !currentFile && (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center max-w-md">
                     {recentFilesForEmptyState.length > 0 ? (
@@ -693,7 +695,19 @@ export function Files() {
                 </div>
               )}
 
-              {!error && currentFile && content && (
+              {/* Diff tab content */}
+              {activeTab?.type === 'diff' && activeTab.diffData && workspacePath && (
+                <DiffPane
+                  repoPath={workspacePath}
+                  base={activeTab.diffData.base}
+                  head={activeTab.diffData.head}
+                  file={activeTab.diffData.file}
+                  fontSize={appState.fontSize}
+                />
+              )}
+
+              {/* File tab content */}
+              {activeTab?.type !== 'diff' && !error && currentFile && content && (
                 <>
                   {isMarkdownFile && frontmatter && <MetadataBar frontmatter={frontmatter} />}
                   <div className="flex-1 overflow-auto" ref={leftScrollContainerRef}>
@@ -762,7 +776,8 @@ export function Files() {
                   repoPath={workspacePath}
                   onCommitSelect={(hash) => console.log('Selected commit:', hash)}
                   onFileClick={(commitHash, filePath) => {
-                    setRightPaneDiff(commitHash, undefined, filePath);
+                    // Open diff in left pane as a tab instead of replacing the git graph
+                    openDiffTab(commitHash, filePath);
                   }}
                   fontSize={appState.fontSize}
                 />

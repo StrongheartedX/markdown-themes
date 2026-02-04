@@ -61,7 +61,7 @@ export const CONFIG_PATTERNS = [
   '.env',             // Environment variables
 ];
 
-export type FilterId = 'claude-code' | 'prompts' | 'markdown' | 'media' | 'config';
+export type FilterId = 'claude-code' | 'prompts' | 'markdown' | 'media' | 'config' | 'changed';
 
 /**
  * Scope for merged file tree display
@@ -129,6 +129,11 @@ export const FILTERS: FilterDefinition[] = [
     id: 'config',
     name: 'Config',
     patterns: CONFIG_PATTERNS,
+  },
+  {
+    id: 'changed',
+    name: 'Changed',
+    patterns: [], // Special filter - matches gitStatus + WebSocket changedFiles
   },
 ];
 

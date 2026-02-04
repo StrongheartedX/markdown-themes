@@ -39,6 +39,10 @@ interface UseFileFilterOptions {
   files: FileTreeNode[];
   /** The user's home directory path (e.g., "/home/marci") */
   homePath?: string;
+  /** Git status map for the "changed" filter (maps file paths to status info) */
+  gitStatus?: Record<string, { status: string }>;
+  /** Set of files changed via WebSocket during this session (for "changed" filter) */
+  changedFiles?: Set<string>;
 }
 
 // Files/folders to exclude from the tree
@@ -150,7 +154,97 @@ function tagWithScope(nodes: FileTreeNode[], scope: FileScope): ScopedFileTreeNo
  * @param options - Filter options including files and homePath
  * @returns Filter state and actions
  */
-export function useFileFilter({ files, homePath }: UseFileFilterOptions): UseFileFilterResult {
+/**
+ * Check if a file path matches the "changed" filter criteria.
+ * A file is "changed" if it's in gitStatus OR in changedFiles set.
+ */
+function matchesChangedFilter(
+  path: string,
+  gitStatus?: Record<string, { status: string }>,
+  changedFiles?: Set<string>
+): boolean {
+  if (gitStatus && path in gitStatus) return true;
+  if (changedFiles && changedFiles.has(path)) return true;
+  return false;
+}
+
+/**
+ * Check if a node or any of its descendants match the changed filter.
+ */
+function nodeOrDescendantsMatchChanged(
+  node: FileTreeNode,
+  gitStatus?: Record<string, { status: string }>,
+  changedFiles?: Set<string>
+): boolean {
+  if (!node.isDirectory && matchesChangedFilter(node.path, gitStatus, changedFiles)) {
+    return true;
+  }
+
+  if (node.isDirectory && node.children) {
+    return node.children.some((child) => nodeOrDescendantsMatchChanged(child, gitStatus, changedFiles));
+  }
+
+  return false;
+}
+
+/**
+ * Filter a file tree to only include files that match the "changed" filter.
+ * Parent directories are preserved if they contain matching descendants.
+ */
+function filterFilesChanged(
+  files: FileTreeNode[],
+  gitStatus?: Record<string, { status: string }>,
+  changedFiles?: Set<string>
+): FileTreeNode[] {
+  const result: FileTreeNode[] = [];
+
+  for (const node of files) {
+    if (node.isDirectory) {
+      // For directories, check if they have matching descendants
+      if (nodeOrDescendantsMatchChanged(node, gitStatus, changedFiles)) {
+        // Recursively filter children
+        const filteredChildren = node.children
+          ? filterFilesChanged(node.children, gitStatus, changedFiles)
+          : undefined;
+
+        result.push({
+          ...node,
+          children: filteredChildren,
+        });
+      }
+    } else {
+      // For files, only include if they match
+      if (matchesChangedFilter(node.path, gitStatus, changedFiles)) {
+        result.push(node);
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Count the number of files matching the "changed" filter.
+ */
+function countChangedMatches(
+  files: FileTreeNode[],
+  gitStatus?: Record<string, { status: string }>,
+  changedFiles?: Set<string>
+): number {
+  let count = 0;
+
+  for (const node of files) {
+    if (node.isDirectory && node.children) {
+      count += countChangedMatches(node.children, gitStatus, changedFiles);
+    } else if (!node.isDirectory && matchesChangedFilter(node.path, gitStatus, changedFiles)) {
+      count++;
+    }
+  }
+
+  return count;
+}
+
+export function useFileFilter({ files, homePath, gitStatus, changedFiles }: UseFileFilterOptions): UseFileFilterResult {
   const [activeFilter, setActiveFilter] = useState<FilterId | null>(null);
   const [homeFiles, setHomeFiles] = useState<FileTreeNode[]>([]);
   const [homeLoading, setHomeLoading] = useState(false);
@@ -230,14 +324,20 @@ export function useFileFilter({ files, homePath }: UseFileFilterOptions): UseFil
     if (!activeFilterDef) {
       return files;
     }
+    // Special case for "changed" filter - use gitStatus + changedFiles
+    if (activeFilterDef.id === 'changed') {
+      return filterFilesChanged(files, gitStatus, changedFiles);
+    }
     return filterFiles(files, activeFilterDef.patterns);
-  }, [files, activeFilterDef]);
+  }, [files, activeFilterDef, gitStatus, changedFiles]);
 
   // Filter home files (already filtered by fetch, but apply pattern filter for safety)
+  // Note: "changed" filter doesn't apply to home files (only project files)
   const filteredHomeFiles = useMemo(() => {
     if (!activeFilterDef || homeFiles.length === 0) {
       return [];
     }
+    // "changed" filter doesn't have home paths, so this won't run for it
     return filterFiles(homeFiles, activeFilterDef.patterns);
   }, [homeFiles, activeFilterDef]);
 
@@ -271,8 +371,12 @@ export function useFileFilter({ files, homePath }: UseFileFilterOptions): UseFil
     if (!activeFilterDef) {
       return 0;
     }
+    // Special case for "changed" filter
+    if (activeFilterDef.id === 'changed') {
+      return countChangedMatches(files, gitStatus, changedFiles);
+    }
     return countMatches(files, activeFilterDef.patterns);
-  }, [files, activeFilterDef]);
+  }, [files, activeFilterDef, gitStatus, changedFiles]);
 
   const userMatchCount = useMemo(() => {
     if (!activeFilterDef || homeFiles.length === 0) {
