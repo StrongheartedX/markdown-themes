@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Columns, Copy, AtSign, MessageSquare, Check } from 'lucide-react';
+import { Columns, Copy, AtSign, MessageSquare, Check, GitBranch } from 'lucide-react';
 import { queueToChat } from '../lib/api';
 
 interface ToolbarProps {
@@ -9,11 +9,13 @@ interface ToolbarProps {
   recentFiles?: string[];
   fontSize?: number;
   isSplit?: boolean;
+  isGitGraph?: boolean;
   content?: string;
   workspacePath?: string | null;
   onFileSelect: (path: string) => void;
   onFontSizeChange?: (size: number) => void;
   onSplitToggle?: () => void;
+  onGitGraphToggle?: () => void;
 }
 
 export function Toolbar({
@@ -23,11 +25,13 @@ export function Toolbar({
   recentFiles = [],
   fontSize = 100,
   isSplit = false,
+  isGitGraph = false,
   content,
   workspacePath,
   onFileSelect,
   onFontSizeChange,
   onSplitToggle,
+  onGitGraphToggle,
 }: ToolbarProps) {
   const [showRecentFiles, setShowRecentFiles] = useState(false);
   const [showPathInput, setShowPathInput] = useState(false);
@@ -308,6 +312,22 @@ export function Toolbar({
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Git graph toggle */}
+          <button
+            type="button"
+            onClick={onGitGraphToggle}
+            className="w-8 h-8 flex items-center justify-center transition-colors"
+            style={{
+              borderRadius: 'var(--radius)',
+              backgroundColor: isGitGraph ? 'var(--accent)' : 'var(--bg-primary)',
+              color: isGitGraph ? 'var(--bg-primary)' : 'var(--text-primary)',
+              border: '1px solid var(--border)',
+            }}
+            title={isGitGraph ? 'Close git graph' : 'Show git graph'}
+          >
+            <GitBranch className="w-4 h-4" />
+          </button>
+
           {/* Split view toggle */}
           <button
             type="button"

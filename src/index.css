@@ -518,3 +518,55 @@ body {
   border-radius: var(--radius);
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
 }
+
+/* ========================================
+   GIT GRAPH STYLES
+   ======================================== */
+
+/* Rail colors - used for graph visualization */
+:root {
+  --rail-color-0: #6bcaf7; /* cyan */
+  --rail-color-1: #f76b6b; /* red */
+  --rail-color-2: #6bf78e; /* green */
+  --rail-color-3: #f7a86b; /* orange */
+  --rail-color-4: #b76bf7; /* purple */
+  --rail-color-5: #f76bb7; /* pink */
+  --rail-color-6: #b7f76b; /* olive */
+  --rail-color-7: #c4a8ff; /* lavender */
+}
+
+.git-graph {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.git-graph-row {
+  border-bottom: 1px solid var(--border);
+}
+
+.git-graph-row:hover {
+  background: var(--bg-secondary);
+}
+
+.git-graph-ref {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Git graph node styles */
+.git-graph-node {
+  transition: transform 0.15s ease;
+}
+
+.git-graph-node:hover {
+  transform: scale(1.2);
+}
+
+/* Git graph selected row */
+.git-graph-row-selected {
+  background: color-mix(in srgb, var(--accent) 15%, var(--bg-primary));
+  border-left: 2px solid var(--accent);
+}

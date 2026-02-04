@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Clock, ChevronLeft, GitBranch, GitCommit, FileDiff } from 'lucide-react';
+import { Clock, ChevronLeft, GitCommit, FileDiff } from 'lucide-react';
 import { useFileWatcher } from '../hooks/useFileWatcher';
 import { useWorkspaceContext } from '../context/WorkspaceContext';
 import { usePageState } from '../context/PageStateContext';
@@ -12,6 +12,7 @@ import { MetadataBar } from '../components/MetadataBar';
 import { Sidebar } from '../components/Sidebar';
 import { TabBar } from '../components/TabBar';
 import { SplitView } from '../components/SplitView';
+import { GitGraph } from '../components/git';
 import { parseFrontmatter } from '../utils/frontmatter';
 import { themes } from '../themes';
 
@@ -85,6 +86,7 @@ export function Files() {
     toggleSplit,
     setSplitRatio,
     setRightFile,
+    setRightPaneGitGraph,
   } = useSplitView({
     initialState: {
       isSplit: filesState.isSplit,
@@ -209,6 +211,20 @@ export function Files() {
     saveSidebarWidth(width);
   }, [saveSidebarWidth]);
 
+  // Handle git graph toggle
+  const handleGitGraphToggle = useCallback(() => {
+    // If git graph is already shown, close the split view
+    if (rightPaneContent?.type === 'git-graph') {
+      setRightFile(null);
+    } else {
+      // Open split view with git graph
+      if (!isSplit) {
+        toggleSplit();
+      }
+      setRightPaneGitGraph();
+    }
+  }, [rightPaneContent, isSplit, toggleSplit, setRightFile, setRightPaneGitGraph]);
+
   return (
     <>
       <Toolbar
@@ -218,11 +234,13 @@ export function Files() {
         recentFiles={appState.recentFiles}
         fontSize={appState.fontSize}
         isSplit={isSplit}
+        isGitGraph={rightPaneContent?.type === 'git-graph'}
         content={content}
         workspacePath={workspacePath}
         onFileSelect={handleFileSelect}
         onFontSizeChange={handleFontSizeChange}
         onSplitToggle={toggleSplit}
+        onGitGraphToggle={handleGitGraphToggle}
       />
 
       <div className="flex-1 flex overflow-hidden">
@@ -401,19 +419,12 @@ export function Files() {
                 </>
               )}
 
-              {/* Git graph content type - placeholder */}
-              {rightPaneContent?.type === 'git-graph' && (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <GitBranch size={48} style={{ color: 'var(--text-secondary)', margin: '0 auto 16px' }} />
-                    <h3 className="text-lg font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
-                      Git Graph
-                    </h3>
-                    <p style={{ color: 'var(--text-secondary)' }}>
-                      Coming soon
-                    </p>
-                  </div>
-                </div>
+              {/* Git graph content type */}
+              {rightPaneContent?.type === 'git-graph' && workspacePath && (
+                <GitGraph
+                  repoPath={workspacePath}
+                  onCommitSelect={(hash) => console.log('Selected commit:', hash)}
+                />
               )}
 
               {/* Diff content type - placeholder */}
