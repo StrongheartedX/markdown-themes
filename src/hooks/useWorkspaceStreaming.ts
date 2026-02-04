@@ -56,12 +56,7 @@ export function useWorkspaceStreaming({
   // Subscribe to workspace watching
   const subscribeTo = useCallback((ws: WebSocket, path: string) => {
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(
-        JSON.stringify({
-          type: 'workspace-watch',
-          path,
-        })
-      );
+      ws.send(JSON.stringify({ type: 'workspace-watch', path }));
     }
   }, []);
 
