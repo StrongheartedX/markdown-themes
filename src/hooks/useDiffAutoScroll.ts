@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { findFirstChangedBlock, getScrollPercentage } from '../utils/markdownDiff';
+import { findFirstChangedBlock } from '../utils/markdownDiff';
 
 interface UseDiffAutoScrollOptions {
   /** Current content to render */
@@ -10,9 +10,12 @@ interface UseDiffAutoScrollOptions {
   scrollContainerRef: React.RefObject<HTMLElement | null>;
   /** Whether auto-scroll is enabled (default: true) */
   enabled?: boolean;
-  /** Debounce delay in ms before scrolling (default: 100) */
+  /** Debounce delay in ms before scrolling (default: 150) */
   debounceMs?: number;
 }
+
+// Block-level elements that correspond to markdown blocks
+const BLOCK_SELECTORS = 'p, h1, h2, h3, h4, h5, h6, pre, ul, ol, blockquote, table, hr';
 
 /**
  * Hook that auto-scrolls to changed content during AI streaming.
@@ -20,8 +23,8 @@ interface UseDiffAutoScrollOptions {
  * How it works:
  * 1. Tracks previous content in a ref
  * 2. When content changes during streaming, diffs old vs new
- * 3. Finds the first changed block
- * 4. Scrolls to that position in the container
+ * 3. Finds the first changed block index
+ * 4. Queries the DOM for block elements and scrolls to the matching one
  *
  * User interruption: If user manually scrolls during streaming,
  * auto-scroll is paused until streaming stops.
@@ -31,7 +34,7 @@ export function useDiffAutoScroll({
   isStreaming,
   scrollContainerRef,
   enabled = true,
-  debounceMs = 100,
+  debounceMs = 150,
 }: UseDiffAutoScrollOptions) {
   const prevContentRef = useRef<string>('');
   const userScrolledRef = useRef(false);
@@ -47,7 +50,7 @@ export function useDiffAutoScroll({
       // If this scroll happened very recently after we programmatically scrolled,
       // ignore it (it's probably our scroll, not user's)
       const timeSinceOurScroll = Date.now() - lastScrollTimeRef.current;
-      if (timeSinceOurScroll < 150) return;
+      if (timeSinceOurScroll < 200) return;
 
       userScrolledRef.current = true;
     };
@@ -91,33 +94,51 @@ export function useDiffAutoScroll({
       clearTimeout(scrollTimeoutRef.current);
     }
 
-    // Debounce the scroll to avoid thrashing
+    // Debounce the scroll to avoid thrashing and let DOM update
     scrollTimeoutRef.current = setTimeout(() => {
       const container = scrollContainerRef.current;
       if (!container) return;
 
       // Find what changed
       const diff = findFirstChangedBlock(prevContent, content);
-      const scrollPercent = getScrollPercentage(diff);
+      if (diff.firstChangedBlock < 0) return; // No change found
 
-      if (scrollPercent < 0) return; // No change found
+      // Find block elements in the rendered DOM
+      const blocks = container.querySelectorAll(BLOCK_SELECTORS);
+      const targetBlock = blocks[diff.firstChangedBlock];
 
-      // Calculate target scroll position
-      const scrollHeight = container.scrollHeight - container.clientHeight;
-      const targetScroll = scrollHeight * scrollPercent;
+      if (targetBlock) {
+        // Get the block's position relative to the scroll container
+        const containerRect = container.getBoundingClientRect();
+        const blockRect = targetBlock.getBoundingClientRect();
+        const relativeTop = blockRect.top - containerRect.top + container.scrollTop;
 
-      // Only scroll if the change is below current viewport
-      // (don't scroll up when edits happen above)
-      const currentScroll = container.scrollTop;
-      const targetIsBelow = targetScroll > currentScroll;
+        // Check if block is currently visible in viewport
+        const currentScroll = container.scrollTop;
+        const viewportHeight = container.clientHeight;
+        const blockTop = relativeTop;
+        const blockBottom = relativeTop + blockRect.height;
+        const viewportTop = currentScroll;
+        const viewportBottom = currentScroll + viewportHeight;
+        const isVisible = blockTop < viewportBottom && blockBottom > viewportTop;
 
-      // Also scroll if target is near the bottom (new content being added)
-      const isNearBottom = scrollPercent > 0.8;
+        // Always scroll to new additions, or scroll if block is not visible
+        if (diff.isAddition || !isVisible) {
+          lastScrollTimeRef.current = Date.now();
 
-      if (targetIsBelow || isNearBottom) {
+          // Scroll to show the block in the lower third of the viewport
+          const targetScroll = Math.max(0, relativeTop - viewportHeight * 0.6);
+
+          container.scrollTo({
+            top: targetScroll,
+            behavior: 'smooth',
+          });
+        }
+      } else if (diff.isAddition) {
+        // If we couldn't find the exact block but content was added, scroll to bottom
         lastScrollTimeRef.current = Date.now();
         container.scrollTo({
-          top: targetScroll,
+          top: container.scrollHeight,
           behavior: 'smooth',
         });
       }
@@ -136,18 +157,15 @@ export function useDiffAutoScroll({
     if (!container || !prevContentRef.current) return;
 
     const diff = findFirstChangedBlock(prevContentRef.current, content);
-    const scrollPercent = getScrollPercentage(diff);
+    if (diff.firstChangedBlock < 0) return;
 
-    if (scrollPercent < 0) return;
+    const blocks = container.querySelectorAll(BLOCK_SELECTORS);
+    const targetBlock = blocks[diff.firstChangedBlock];
 
-    const scrollHeight = container.scrollHeight - container.clientHeight;
-    const targetScroll = scrollHeight * scrollPercent;
-
-    lastScrollTimeRef.current = Date.now();
-    container.scrollTo({
-      top: targetScroll,
-      behavior: 'smooth',
-    });
+    if (targetBlock) {
+      lastScrollTimeRef.current = Date.now();
+      targetBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
   }, [content, scrollContainerRef]);
 
   // Reset user scroll flag manually

@@ -286,6 +286,63 @@ export function Files() {
 
     // Only auto-open if the streaming file is different from current file
     if (streamingFile !== currentFile) {
+      // Filter out noisy files that aren't useful to watch
+      const fileName = streamingFile.split('/').pop() || '';
+      const ext = fileName.split('.').pop()?.toLowerCase() || '';
+
+      // Skip internal/generated files
+      if (
+        streamingFile.includes('/.beads/') ||
+        streamingFile.includes('/node_modules/') ||
+        streamingFile.includes('/.git/') ||
+        streamingFile.includes('/coverage/') ||
+        streamingFile.includes('/.nyc_output/') ||
+        streamingFile.includes('/dist/') ||
+        streamingFile.includes('/build/') ||
+        fileName.startsWith('.') ||
+        fileName === 'package-lock.json' ||
+        fileName === 'yarn.lock' ||
+        fileName === 'pnpm-lock.yaml' ||
+        fileName === 'composer.lock' ||
+        ext === 'log' ||
+        // Skip test result files
+        fileName.includes('.test-result') ||
+        fileName.includes('.junit') ||
+        (ext === 'json' && (
+          fileName.includes('test') ||
+          fileName.includes('result') ||
+          fileName.includes('report') ||
+          fileName.includes('coverage')
+        )) ||
+        // Skip JSONL data files (often logs or large datasets)
+        ext === 'jsonl' ||
+        ext === 'ndjson'
+      ) {
+        return;
+      }
+
+      // Only follow source code and documentation files
+      const followableExtensions = new Set([
+        // Code
+        'ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs',
+        'py', 'rb', 'go', 'rs', 'java', 'kt', 'swift',
+        'c', 'cpp', 'h', 'hpp', 'cs',
+        'php', 'vue', 'svelte', 'astro',
+        // Markup/docs
+        'md', 'mdx', 'markdown', 'txt', 'rst',
+        // Styles
+        'css', 'scss', 'sass', 'less',
+        // Config (but not lock files)
+        'json', 'yaml', 'yml', 'toml', 'ini',
+        'xml', 'html', 'htm',
+        // Shell
+        'sh', 'bash', 'zsh',
+      ]);
+
+      if (!followableExtensions.has(ext)) {
+        return;
+      }
+
       openTab(streamingFile, true); // Open as preview tab
       addRecentFile(streamingFile);
     }
@@ -319,12 +376,12 @@ export function Files() {
     [rightContent, isRightMarkdownFile]
   );
 
-  // Auto-scroll to changes when streaming (left pane)
+  // Auto-scroll to changes when streaming or following AI edits (left pane)
   useDiffAutoScroll({
     content: markdownContent,
-    isStreaming,
+    isStreaming: isStreaming || appState.followStreamingMode,
     scrollContainerRef: leftScrollContainerRef,
-    enabled: isStreaming && isMarkdownFile,
+    enabled: (isStreaming || appState.followStreamingMode) && isMarkdownFile,
   });
 
   // Get recent files for empty state (limit to 6)
