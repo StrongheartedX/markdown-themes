@@ -14,10 +14,14 @@ export function SvgViewer({ filePath, content, fontSize = 100 }: SvgViewerProps)
 
   const fileName = filePath.split('/').pop() || 'SVG file';
 
+  // Create a data URL from the SVG content for inline rendering
+  const svgDataUrl = useMemo(() => {
+    const encoded = encodeURIComponent(content);
+    return `data:image/svg+xml,${encoded}`;
+  }, [content]);
+
   // Extract SVG dimensions from content if available
   const svgInfo = useMemo(() => {
-    if (!content) return { width: null, height: null, viewBox: null };
-
     const widthMatch = content.match(/width=["'](\d+(?:\.\d+)?)(px|em|%)?["']/);
     const heightMatch = content.match(/height=["'](\d+(?:\.\d+)?)(px|em|%)?["']/);
     const viewBoxMatch = content.match(/viewBox=["']([^"']+)["']/);
@@ -25,8 +29,12 @@ export function SvgViewer({ filePath, content, fontSize = 100 }: SvgViewerProps)
     let width: string | null = null;
     let height: string | null = null;
 
-    if (widthMatch) width = widthMatch[1] + (widthMatch[2] || 'px');
-    if (heightMatch) height = heightMatch[1] + (heightMatch[2] || 'px');
+    if (widthMatch) {
+      width = widthMatch[1] + (widthMatch[2] || 'px');
+    }
+    if (heightMatch) {
+      height = heightMatch[1] + (heightMatch[2] || 'px');
+    }
 
     // Try to get dimensions from viewBox if width/height not specified
     if (viewBoxMatch && (!width || !height)) {
@@ -76,15 +84,13 @@ export function SvgViewer({ filePath, content, fontSize = 100 }: SvgViewerProps)
               borderRadius: 'var(--radius)',
             }}
           >
-            {/* Render SVG directly for better compatibility */}
-            <div
-              dangerouslySetInnerHTML={{ __html: content || '' }}
+            <img
+              src={svgDataUrl}
+              alt={fileName}
               style={{
                 maxWidth: '100%',
                 maxHeight: 'calc(100vh - 200px)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                display: 'block',
               }}
             />
           </div>
