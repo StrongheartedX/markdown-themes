@@ -157,6 +157,29 @@ body {
   50% { transform: scaleY(0.6); }
 }
 
+/* Audio player volume slider styling */
+.audio-viewer input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.audio-viewer input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
 /* Streamdown code blocks - target data-streamdown attributes */
 .streamdown-content [data-streamdown="code-block"] {
   border: none !important;
