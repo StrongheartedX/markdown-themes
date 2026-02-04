@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findFirstChangedBlock, getScrollPercentage } from './markdownDiff';
+import { findFirstChangedBlock, getScrollPercentage, findFirstChangedLine } from './markdownDiff';
 
 describe('findFirstChangedBlock', () => {
   it('returns -1 when content is identical', () => {
@@ -96,5 +96,76 @@ describe('getScrollPercentage', () => {
       isAddition: true,
     });
     expect(result).toBe(0.8);
+  });
+});
+
+describe('findFirstChangedLine', () => {
+  it('returns -1 when content is identical', () => {
+    const content = 'const x = 1;\nconst y = 2;';
+    const result = findFirstChangedLine(content, content);
+    expect(result.firstChangedLine).toBe(-1);
+  });
+
+  it('detects change in first line', () => {
+    const old = 'const x = 1;\nconst y = 2;';
+    const newContent = 'const x = 100;\nconst y = 2;';
+    const result = findFirstChangedLine(old, newContent);
+    expect(result.firstChangedLine).toBe(1);
+  });
+
+  it('detects change in second line', () => {
+    const old = 'const x = 1;\nconst y = 2;';
+    const newContent = 'const x = 1;\nconst y = 200;';
+    const result = findFirstChangedLine(old, newContent);
+    expect(result.firstChangedLine).toBe(2);
+  });
+
+  it('detects change in middle of file', () => {
+    const old = 'line1\nline2\nline3\nline4\nline5';
+    const newContent = 'line1\nline2\nline3-modified\nline4\nline5';
+    const result = findFirstChangedLine(old, newContent);
+    expect(result.firstChangedLine).toBe(3);
+  });
+
+  it('detects added line at end', () => {
+    const old = 'line1\nline2';
+    const newContent = 'line1\nline2\nline3';
+    const result = findFirstChangedLine(old, newContent);
+    expect(result.firstChangedLine).toBe(3);
+    expect(result.isAddition).toBe(true);
+  });
+
+  it('detects deleted line at end', () => {
+    const old = 'line1\nline2\nline3';
+    const newContent = 'line1\nline2';
+    const result = findFirstChangedLine(old, newContent);
+    expect(result.firstChangedLine).toBe(2);
+    expect(result.isAddition).toBe(false);
+  });
+
+  it('handles empty old content', () => {
+    const result = findFirstChangedLine('', 'line1\nline2');
+    expect(result.firstChangedLine).toBe(1);
+    expect(result.isAddition).toBe(true);
+  });
+
+  it('handles empty new content', () => {
+    const result = findFirstChangedLine('line1\nline2', '');
+    expect(result.totalLines).toBe(1); // empty string splits to ['']
+    expect(result.firstChangedLine).toBe(1);
+  });
+
+  it('handles Windows line endings', () => {
+    const old = 'line1\r\nline2';
+    const newContent = 'line1\r\nline2-modified';
+    const result = findFirstChangedLine(old, newContent);
+    expect(result.firstChangedLine).toBe(2);
+  });
+
+  it('returns correct total lines', () => {
+    const old = 'line1\nline2';
+    const newContent = 'line1\nline2\nline3\nline4';
+    const result = findFirstChangedLine(old, newContent);
+    expect(result.totalLines).toBe(4);
   });
 });

@@ -139,3 +139,63 @@ export function getScrollPercentage(diff: DiffResult): number {
 
   return diff.firstChangedBlock / diff.totalBlocks;
 }
+
+export interface LineDiffResult {
+  /** Line number of first changed line (1-based), or -1 if no change */
+  firstChangedLine: number;
+  /** Total number of lines in new content */
+  totalLines: number;
+  /** Whether content was added (vs modified or deleted) */
+  isAddition: boolean;
+}
+
+/**
+ * Find the first line that differs between old and new content.
+ * Used for code files where line-level precision is needed.
+ */
+export function findFirstChangedLine(oldContent: string, newContent: string): LineDiffResult {
+  // Normalize line endings
+  const oldNormalized = oldContent.replace(/\r\n/g, '\n');
+  const newNormalized = newContent.replace(/\r\n/g, '\n');
+
+  const oldLines = oldNormalized.split('\n');
+  const newLines = newNormalized.split('\n');
+
+  // Find first differing line
+  const minLength = Math.min(oldLines.length, newLines.length);
+
+  for (let i = 0; i < minLength; i++) {
+    if (oldLines[i] !== newLines[i]) {
+      return {
+        firstChangedLine: i + 1, // 1-based line numbers
+        totalLines: newLines.length,
+        isAddition: newLines[i].length > oldLines[i].length,
+      };
+    }
+  }
+
+  // If old has more lines, content was deleted at end
+  if (oldLines.length > newLines.length) {
+    return {
+      firstChangedLine: newLines.length > 0 ? newLines.length : 1,
+      totalLines: newLines.length,
+      isAddition: false,
+    };
+  }
+
+  // If new has more lines, content was added at end
+  if (newLines.length > oldLines.length) {
+    return {
+      firstChangedLine: oldLines.length + 1, // First new line
+      totalLines: newLines.length,
+      isAddition: true,
+    };
+  }
+
+  // No change
+  return {
+    firstChangedLine: -1,
+    totalLines: newLines.length,
+    isAddition: false,
+  };
+}

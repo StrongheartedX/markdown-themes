@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { findFirstChangedBlock } from '../utils/markdownDiff';
+import { findFirstChangedBlock, findFirstChangedLine } from '../utils/markdownDiff';
 
 /**
  * useDiffAutoScroll - Auto-scroll to content changes during AI streaming
@@ -21,10 +21,36 @@ interface UseDiffAutoScrollOptions {
   isStreaming: boolean;
   /** Ref to the scroll container element */
   scrollContainerRef: React.RefObject<HTMLElement | null>;
+  /** File path for determining diff mode (optional) */
+  filePath?: string;
   /** Whether auto-scroll is enabled (default: true) */
   enabled?: boolean;
   /** Debounce delay in ms before scrolling (default: 150) */
   debounceMs?: number;
+}
+
+/** File extensions that should use line-level diffing */
+const CODE_EXTENSIONS = new Set([
+  'ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs',
+  'py', 'rb', 'php', 'java', 'kt', 'kts', 'scala', 'go', 'rs', 'c', 'cpp', 'cc', 'h', 'hpp', 'cs', 'swift',
+  'sh', 'bash', 'zsh', 'fish', 'ps1', 'bat', 'cmd',
+  'json', 'jsonc', 'yaml', 'yml', 'toml', 'ini', 'xml',
+  'sql', 'graphql', 'gql', 'lua', 'r', 'perl', 'pl', 'hs', 'elm', 'clj', 'ex', 'exs', 'erl',
+  'css', 'scss', 'sass', 'less', 'html', 'htm', 'vue', 'svelte', 'astro',
+  'dockerfile', 'makefile', 'cmake', 'vim', 'tex', 'diff', 'prisma',
+]);
+
+/**
+ * Determine if a file should use line-level diffing based on extension.
+ */
+function isCodeFile(filePath: string | undefined): boolean {
+  if (!filePath) return false;
+  const fileName = filePath.split('/').pop() || '';
+  // Handle special filenames
+  if (fileName === 'Dockerfile' || fileName.startsWith('Dockerfile.')) return true;
+  if (fileName === 'Makefile' || fileName === 'makefile') return true;
+  const ext = fileName.split('.').pop()?.toLowerCase() || '';
+  return CODE_EXTENSIONS.has(ext);
 }
 
 /**
@@ -51,9 +77,11 @@ export function useDiffAutoScroll({
   content,
   isStreaming,
   scrollContainerRef,
+  filePath,
   enabled = true,
   debounceMs = 150,
 }: UseDiffAutoScrollOptions) {
+  const useLineDiff = isCodeFile(filePath);
   const prevContentRef = useRef<string>('');
   const userScrolledRef = useRef(false);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -117,54 +145,103 @@ export function useDiffAutoScroll({
       const container = scrollContainerRef.current;
       if (!container) return;
 
-      // Find what changed
-      const diff = findFirstChangedBlock(prevContent, content);
-      if (diff.firstChangedBlock < 0) return; // No change found
+      if (useLineDiff) {
+        // Line-level diffing for code files
+        const lineDiff = findFirstChangedLine(prevContent, content);
+        if (lineDiff.firstChangedLine < 0) return; // No change found
 
-      // Find block elements in the rendered DOM
-      const blocks = container.querySelectorAll(BLOCK_SELECTORS);
-      const targetBlock = blocks[diff.firstChangedBlock];
+        // Find the line element by data-line attribute
+        const targetLine = container.querySelector(`[data-line="${lineDiff.firstChangedLine}"]`);
 
-      if (targetBlock) {
-        // Get the block's position relative to the scroll container
-        const containerRect = container.getBoundingClientRect();
-        const blockRect = targetBlock.getBoundingClientRect();
-        const relativeTop = blockRect.top - containerRect.top + container.scrollTop;
+        if (targetLine) {
+          // Get the line's position relative to the scroll container
+          const containerRect = container.getBoundingClientRect();
+          const lineRect = targetLine.getBoundingClientRect();
+          const relativeTop = lineRect.top - containerRect.top + container.scrollTop;
 
-        // Check if block is currently visible in viewport
-        const currentScroll = container.scrollTop;
-        const viewportHeight = container.clientHeight;
-        const blockTop = relativeTop;
-        const blockBottom = relativeTop + blockRect.height;
-        const viewportTop = currentScroll;
-        const viewportBottom = currentScroll + viewportHeight;
-        const isVisible = blockTop < viewportBottom && blockBottom > viewportTop;
+          // Check if line is currently visible in viewport
+          const currentScroll = container.scrollTop;
+          const viewportHeight = container.clientHeight;
+          const lineTop = relativeTop;
+          const lineBottom = relativeTop + lineRect.height;
+          const viewportTop = currentScroll;
+          const viewportBottom = currentScroll + viewportHeight;
+          const isVisible = lineTop < viewportBottom && lineBottom > viewportTop;
 
-        // Always scroll to new additions, or scroll if block is not visible
-        if (diff.isAddition || !isVisible) {
+          // Always scroll to new additions, or scroll if line is not visible
+          if (lineDiff.isAddition || !isVisible) {
+            lastScrollTimeRef.current = Date.now();
+
+            // Scroll to show the line in the lower third of the viewport
+            const targetScroll = Math.max(0, relativeTop - viewportHeight * 0.6);
+
+            container.scrollTo({
+              top: targetScroll,
+              behavior: 'smooth',
+            });
+          }
+        } else {
+          // Fallback: percentage-based scroll for code files without data-line
+          const scrollHeight = container.scrollHeight - container.clientHeight;
+          const scrollPercent = lineDiff.totalLines > 0
+            ? lineDiff.firstChangedLine / lineDiff.totalLines
+            : 1;
+
           lastScrollTimeRef.current = Date.now();
-
-          // Scroll to show the block in the lower third of the viewport
-          const targetScroll = Math.max(0, relativeTop - viewportHeight * 0.6);
-
           container.scrollTo({
-            top: targetScroll,
+            top: scrollHeight * Math.max(scrollPercent, 0.5),
             behavior: 'smooth',
           });
         }
       } else {
-        // Couldn't find specific block - use percentage-based fallback
-        // This handles code files where block structure differs from markdown
-        const scrollHeight = container.scrollHeight - container.clientHeight;
-        const scrollPercent = diff.totalBlocks > 0
-          ? diff.firstChangedBlock / diff.totalBlocks
-          : 1; // Default to bottom if no blocks
+        // Block-level diffing for markdown files
+        const diff = findFirstChangedBlock(prevContent, content);
+        if (diff.firstChangedBlock < 0) return; // No change found
 
-        lastScrollTimeRef.current = Date.now();
-        container.scrollTo({
-          top: scrollHeight * Math.max(scrollPercent, 0.5), // At least scroll halfway
-          behavior: 'smooth',
-        });
+        // Find block elements in the rendered DOM
+        const blocks = container.querySelectorAll(BLOCK_SELECTORS);
+        const targetBlock = blocks[diff.firstChangedBlock];
+
+        if (targetBlock) {
+          // Get the block's position relative to the scroll container
+          const containerRect = container.getBoundingClientRect();
+          const blockRect = targetBlock.getBoundingClientRect();
+          const relativeTop = blockRect.top - containerRect.top + container.scrollTop;
+
+          // Check if block is currently visible in viewport
+          const currentScroll = container.scrollTop;
+          const viewportHeight = container.clientHeight;
+          const blockTop = relativeTop;
+          const blockBottom = relativeTop + blockRect.height;
+          const viewportTop = currentScroll;
+          const viewportBottom = currentScroll + viewportHeight;
+          const isVisible = blockTop < viewportBottom && blockBottom > viewportTop;
+
+          // Always scroll to new additions, or scroll if block is not visible
+          if (diff.isAddition || !isVisible) {
+            lastScrollTimeRef.current = Date.now();
+
+            // Scroll to show the block in the lower third of the viewport
+            const targetScroll = Math.max(0, relativeTop - viewportHeight * 0.6);
+
+            container.scrollTo({
+              top: targetScroll,
+              behavior: 'smooth',
+            });
+          }
+        } else {
+          // Couldn't find specific block - use percentage-based fallback
+          const scrollHeight = container.scrollHeight - container.clientHeight;
+          const scrollPercent = diff.totalBlocks > 0
+            ? diff.firstChangedBlock / diff.totalBlocks
+            : 1; // Default to bottom if no blocks
+
+          lastScrollTimeRef.current = Date.now();
+          container.scrollTo({
+            top: scrollHeight * Math.max(scrollPercent, 0.5), // At least scroll halfway
+            behavior: 'smooth',
+          });
+        }
       }
     }, debounceMs);
 
@@ -173,24 +250,35 @@ export function useDiffAutoScroll({
         clearTimeout(scrollTimeoutRef.current);
       }
     };
-  }, [content, isStreaming, enabled, scrollContainerRef, debounceMs]);
+  }, [content, isStreaming, enabled, scrollContainerRef, debounceMs, useLineDiff]);
 
   // Manual scroll function for external use
   const scrollToChange = useCallback(() => {
     const container = scrollContainerRef.current;
     if (!container || !prevContentRef.current) return;
 
-    const diff = findFirstChangedBlock(prevContentRef.current, content);
-    if (diff.firstChangedBlock < 0) return;
+    if (useLineDiff) {
+      const lineDiff = findFirstChangedLine(prevContentRef.current, content);
+      if (lineDiff.firstChangedLine < 0) return;
 
-    const blocks = container.querySelectorAll(BLOCK_SELECTORS);
-    const targetBlock = blocks[diff.firstChangedBlock];
+      const targetLine = container.querySelector(`[data-line="${lineDiff.firstChangedLine}"]`);
+      if (targetLine) {
+        lastScrollTimeRef.current = Date.now();
+        targetLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    } else {
+      const diff = findFirstChangedBlock(prevContentRef.current, content);
+      if (diff.firstChangedBlock < 0) return;
 
-    if (targetBlock) {
-      lastScrollTimeRef.current = Date.now();
-      targetBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const blocks = container.querySelectorAll(BLOCK_SELECTORS);
+      const targetBlock = blocks[diff.firstChangedBlock];
+
+      if (targetBlock) {
+        lastScrollTimeRef.current = Date.now();
+        targetBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
-  }, [content, scrollContainerRef]);
+  }, [content, scrollContainerRef, useLineDiff]);
 
   // Reset user scroll flag manually
   const resetUserScroll = useCallback(() => {

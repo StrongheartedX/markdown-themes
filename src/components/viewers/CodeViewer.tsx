@@ -229,7 +229,7 @@ export function CodeViewer({ content, filePath, fontSize = 100 }: CodeViewerProp
           }}
         >
           {lineNumbers.map((num) => (
-            <div key={num}>{num}</div>
+            <div key={num} data-line={num}>{num}</div>
           ))}
         </div>
         <div
