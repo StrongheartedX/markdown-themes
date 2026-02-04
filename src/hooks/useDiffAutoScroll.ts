@@ -14,8 +14,9 @@ interface UseDiffAutoScrollOptions {
   debounceMs?: number;
 }
 
-// Block-level elements that correspond to markdown blocks
-const BLOCK_SELECTORS = 'p, h1, h2, h3, h4, h5, h6, pre, ul, ol, blockquote, table, hr';
+// Block-level elements that correspond to content blocks
+// Includes markdown elements + code viewer elements
+const BLOCK_SELECTORS = 'p, h1, h2, h3, h4, h5, h6, pre, ul, ol, blockquote, table, hr, .line, [data-line]';
 
 /**
  * Hook that auto-scrolls to changed content during AI streaming.
@@ -134,11 +135,17 @@ export function useDiffAutoScroll({
             behavior: 'smooth',
           });
         }
-      } else if (diff.isAddition) {
-        // If we couldn't find the exact block but content was added, scroll to bottom
+      } else {
+        // Couldn't find specific block - use percentage-based fallback
+        // This handles code files where block structure differs from markdown
+        const scrollHeight = container.scrollHeight - container.clientHeight;
+        const scrollPercent = diff.totalBlocks > 0
+          ? diff.firstChangedBlock / diff.totalBlocks
+          : 1; // Default to bottom if no blocks
+
         lastScrollTimeRef.current = Date.now();
         container.scrollTo({
-          top: container.scrollHeight,
+          top: scrollHeight * Math.max(scrollPercent, 0.5), // At least scroll halfway
           behavior: 'smooth',
         });
       }

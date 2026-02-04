@@ -377,11 +377,12 @@ export function Files() {
   );
 
   // Auto-scroll to changes when streaming or following AI edits (left pane)
+  // Works for all file types - markdown uses block diffing, code falls back to bottom scroll
   useDiffAutoScroll({
-    content: markdownContent,
+    content: content,
     isStreaming: isStreaming || appState.followStreamingMode,
     scrollContainerRef: leftScrollContainerRef,
-    enabled: (isStreaming || appState.followStreamingMode) && isMarkdownFile,
+    enabled: (isStreaming || appState.followStreamingMode) && !!currentFile,
   });
 
   // Get recent files for empty state (limit to 6)
