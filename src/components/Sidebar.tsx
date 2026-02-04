@@ -4,6 +4,18 @@ import { useFileFilter, type ScopedFileTreeNode } from '../hooks/useFileFilter';
 import { FILTERS, type FilterId } from '../lib/filters';
 import { getFileIconInfo } from '../utils/fileIcons';
 import type { FavoriteItem } from '../context/AppStoreContext';
+import { FileContextMenu } from './FileContextMenu';
+import { queueToChat, fetchFileContent } from '../lib/api';
+
+// Context menu state interface
+interface ContextMenuState {
+  show: boolean;
+  x: number;
+  y: number;
+  filePath: string;
+  fileName: string;
+  isDirectory: boolean;
+}
 
 interface SidebarProps {
   fileTree: FileTreeNode[];
@@ -41,9 +53,10 @@ interface TreeItemProps {
   onToggleExpandPath: (path: string) => void;
   isFavorite: (path: string) => boolean;
   toggleFavorite: (path: string, isDirectory: boolean) => void;
+  onContextMenu: (e: React.MouseEvent, path: string, name: string, isDirectory: boolean) => void;
 }
 
-function TreeItem({ node, currentFile, isSplit, onFileSelect, onFileDoubleClick, onRightFileSelect, depth, isExpanded, onToggleExpand, expandedPaths, onToggleExpandPath, isFavorite, toggleFavorite }: TreeItemProps) {
+function TreeItem({ node, currentFile, isSplit, onFileSelect, onFileDoubleClick, onRightFileSelect, depth, isExpanded, onToggleExpand, expandedPaths, onToggleExpandPath, isFavorite, toggleFavorite, onContextMenu }: TreeItemProps) {
   const isSelected = node.path === currentFile;
   const paddingLeft = 12 + depth * 16;
   const favorited = isFavorite(node.path);
@@ -104,6 +117,7 @@ function TreeItem({ node, currentFile, isSplit, onFileSelect, onFileDoubleClick,
                 onToggleExpandPath={onToggleExpandPath}
                 isFavorite={isFavorite}
                 toggleFavorite={toggleFavorite}
+                onContextMenu={onContextMenu}
               />
             ))}
           </div>
@@ -112,11 +126,17 @@ function TreeItem({ node, currentFile, isSplit, onFileSelect, onFileDoubleClick,
     );
   }
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onContextMenu(e, node.path, node.name, node.isDirectory);
+  };
+
   if (node.isDirectory) {
     return (
       <div>
         <button
           onClick={onToggleExpand}
+          onContextMenu={handleContextMenu}
           className="group/item w-full text-left py-1.5 pr-2 flex items-center gap-1.5 text-sm transition-colors"
           style={{
             paddingLeft,
@@ -173,6 +193,7 @@ function TreeItem({ node, currentFile, isSplit, onFileSelect, onFileDoubleClick,
                 onToggleExpandPath={onToggleExpandPath}
                 isFavorite={isFavorite}
                 toggleFavorite={toggleFavorite}
+                onContextMenu={onContextMenu}
               />
             ))}
           </div>
@@ -194,6 +215,7 @@ function TreeItem({ node, currentFile, isSplit, onFileSelect, onFileDoubleClick,
     <button
       onClick={handleClick}
       onDoubleClick={() => onFileDoubleClick?.(node.path)}
+      onContextMenu={handleContextMenu}
       className="group/item w-full text-left py-1.5 pr-2 flex items-center gap-1.5 text-sm transition-colors"
         style={{
           paddingLeft: paddingLeft + 20,
@@ -230,7 +252,7 @@ function TreeItem({ node, currentFile, isSplit, onFileSelect, onFileDoubleClick,
 }
 
 // FavoriteItem component for the favorites section
-interface FavoriteItemProps {
+interface FavoriteItemComponentProps {
   favorite: FavoriteItem;
   currentFile: string | null;
   isSplit?: boolean;
@@ -238,9 +260,10 @@ interface FavoriteItemProps {
   onFileDoubleClick?: (path: string) => void;
   onRightFileSelect?: (path: string) => void;
   toggleFavorite: (path: string, isDirectory: boolean) => void;
+  onContextMenu: (e: React.MouseEvent, path: string, name: string, isDirectory: boolean) => void;
 }
 
-function FavoriteItem({ favorite, currentFile, isSplit, onFileSelect, onFileDoubleClick, onRightFileSelect, toggleFavorite }: FavoriteItemProps) {
+function FavoriteItemComponent({ favorite, currentFile, isSplit, onFileSelect, onFileDoubleClick, onRightFileSelect, toggleFavorite, onContextMenu }: FavoriteItemComponentProps) {
   const isSelected = favorite.path === currentFile;
   const fileName = favorite.path.split('/').pop() ?? favorite.path;
 
@@ -258,10 +281,16 @@ function FavoriteItem({ favorite, currentFile, isSplit, onFileSelect, onFileDoub
     toggleFavorite(favorite.path, favorite.isDirectory);
   };
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onContextMenu(e, favorite.path, fileName, favorite.isDirectory);
+  };
+
   return (
     <button
       onClick={handleClick}
       onDoubleClick={() => !favorite.isDirectory && onFileDoubleClick?.(favorite.path)}
+      onContextMenu={handleContextMenu}
       className="group/fav w-full text-left py-1.5 pr-2 flex items-center gap-1.5 text-sm transition-colors"
         style={{
           paddingLeft: 32,
@@ -358,6 +387,45 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
   const filterMenuRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
   const currentWidthRef = useRef(width);
+
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>({
+    show: false,
+    x: 0,
+    y: 0,
+    filePath: '',
+    fileName: '',
+    isDirectory: false,
+  });
+
+  // Context menu handlers
+  const handleContextMenu = useCallback((e: React.MouseEvent, path: string, name: string, isDirectory: boolean) => {
+    e.preventDefault();
+    setContextMenu({
+      show: true,
+      x: e.clientX,
+      y: e.clientY,
+      filePath: path,
+      fileName: name,
+      isDirectory,
+    });
+  }, []);
+
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(prev => ({ ...prev, show: false }));
+  }, []);
+
+  const handleSendToChat = useCallback(async () => {
+    if (contextMenu.isDirectory) return;
+    try {
+      const fileContent = await fetchFileContent(contextMenu.filePath);
+      // Format as markdown code block with file path
+      const message = `\`\`\`${contextMenu.fileName}\n${fileContent.content}\n\`\`\``;
+      await queueToChat(message);
+    } catch (err) {
+      console.error('Failed to send to chat:', err);
+    }
+  }, [contextMenu.filePath, contextMenu.fileName, contextMenu.isDirectory]);
 
   // Keep ref in sync with prop
   useEffect(() => {
@@ -743,7 +811,7 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
                 {favorites
                   .sort((a, b) => a.addedAt - b.addedAt)
                   .map((fav) => (
-                    <FavoriteItem
+                    <FavoriteItemComponent
                       key={fav.path}
                       favorite={fav}
                       currentFile={currentFile}
@@ -752,6 +820,7 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
                       onFileDoubleClick={onFileDoubleClick}
                       onRightFileSelect={onRightFileSelect}
                       toggleFavorite={toggleFavorite}
+                      onContextMenu={handleContextMenu}
                     />
                   ))}
               </div>
@@ -782,6 +851,7 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
                 onToggleExpandPath={toggleExpandPath}
                 isFavorite={isFavorite}
                 toggleFavorite={toggleFavorite}
+                onContextMenu={handleContextMenu}
               />
             ))
           )}
@@ -800,6 +870,20 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
           style={{ backgroundColor: 'var(--border)' }}
         />
       </div>
+
+      {/* File context menu */}
+      <FileContextMenu
+        show={contextMenu.show}
+        x={contextMenu.x}
+        y={contextMenu.y}
+        filePath={contextMenu.filePath}
+        fileName={contextMenu.fileName}
+        isDirectory={contextMenu.isDirectory}
+        isFavorite={isFavorite(contextMenu.filePath)}
+        onClose={closeContextMenu}
+        onToggleFavorite={() => toggleFavorite(contextMenu.filePath, contextMenu.isDirectory)}
+        onSendToChat={handleSendToChat}
+      />
     </aside>
   );
 }
