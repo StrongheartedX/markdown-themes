@@ -18,7 +18,10 @@ import (
 func GitRepos(w http.ResponseWriter, r *http.Request) {
 	dir := r.URL.Query().Get("dir")
 	if dir == "" {
-		http.Error(w, `{"error": "dir parameter required"}`, http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "dir parameter required",
+		})
 		return
 	}
 
@@ -42,7 +45,18 @@ func GitRepos(w http.ResponseWriter, r *http.Request) {
 	var repos []models.GitRepoInfo
 	findGitRepos(dir, 0, maxDepth, &repos)
 
-	json.NewEncoder(w).Encode(repos)
+	// Ensure repos is never null in JSON
+	if repos == nil {
+		repos = []models.GitRepoInfo{}
+	}
+
+	json.NewEncoder(w).Encode(models.GitReposResponse{
+		Success: true,
+		Data: models.GitReposData{
+			ProjectsDir: dir,
+			Repos:       repos,
+		},
+	})
 }
 
 func findGitRepos(path string, currentDepth, maxDepth int, repos *[]models.GitRepoInfo) {
@@ -53,16 +67,60 @@ func findGitRepos(path string, currentDepth, maxDepth int, repos *[]models.GitRe
 	// Check if this is a git repo
 	if utils.IsGitRepo(path) {
 		repo := models.GitRepoInfo{
-			Path:    path,
-			Name:    filepath.Base(path),
-			Branch:  utils.GetGitBranch(path),
-			IsDirty: isGitDirty(path),
+			Path:      path,
+			Name:      filepath.Base(path),
+			Branch:    utils.GetGitBranch(path),
+			IsDirty:   isGitDirty(path),
+			Staged:    []models.GitFile{},
+			Unstaged:  []models.GitFile{},
+			Untracked: []models.GitFile{},
+			Worktrees: []models.GitWorktree{},
 		}
 
-		// Get remote URL
+		// Get remote URL and derive GitHub URL
 		cmd := exec.Command("git", "-C", path, "remote", "get-url", "origin")
 		if output, err := cmd.Output(); err == nil {
 			repo.RemoteURL = strings.TrimSpace(string(output))
+			githubURL := remoteToGithubURL(repo.RemoteURL)
+			repo.GithubURL = githubURL
+		}
+
+		// Get tracking branch and ahead/behind
+		cmd = exec.Command("git", "-C", path, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
+		if output, err := cmd.Output(); err == nil {
+			repo.Tracking = strings.TrimSpace(string(output))
+		}
+
+		if repo.Tracking != "" {
+			cmd = exec.Command("git", "-C", path, "rev-list", "--left-right", "--count", "HEAD...@{u}")
+			if output, err := cmd.Output(); err == nil {
+				parts := strings.Fields(strings.TrimSpace(string(output)))
+				if len(parts) == 2 {
+					repo.Ahead, _ = strconv.Atoi(parts[0])
+					repo.Behind, _ = strconv.Atoi(parts[1])
+				}
+			}
+		}
+
+		// Get staged, unstaged, untracked files from git status
+		cmd = exec.Command("git", "-C", path, "status", "--porcelain")
+		if output, err := cmd.Output(); err == nil {
+			parseRepoStatus(string(output), &repo)
+		}
+
+		// Get last activity (last commit date)
+		cmd = exec.Command("git", "-C", path, "log", "-1", "--format=%aI")
+		if output, err := cmd.Output(); err == nil {
+			lastActivity := strings.TrimSpace(string(output))
+			if lastActivity != "" {
+				repo.LastActivity = &lastActivity
+			}
+		}
+
+		// Get worktrees
+		cmd = exec.Command("git", "-C", path, "worktree", "list", "--porcelain")
+		if output, err := cmd.Output(); err == nil {
+			repo.Worktrees = parseWorktrees(string(output))
 		}
 
 		*repos = append(*repos, repo)
@@ -88,6 +146,112 @@ func findGitRepos(path string, currentDepth, maxDepth int, repos *[]models.GitRe
 
 		findGitRepos(filepath.Join(path, name), currentDepth+1, maxDepth, repos)
 	}
+}
+
+// remoteToGithubURL converts a git remote URL to a GitHub web URL
+func remoteToGithubURL(remoteURL string) *string {
+	if remoteURL == "" {
+		return nil
+	}
+
+	url := remoteURL
+
+	// Handle SSH format: git@github.com:user/repo.git
+	if strings.HasPrefix(url, "git@github.com:") {
+		url = strings.TrimPrefix(url, "git@github.com:")
+		url = strings.TrimSuffix(url, ".git")
+		result := "https://github.com/" + url
+		return &result
+	}
+
+	// Handle HTTPS format: https://github.com/user/repo.git
+	if strings.Contains(url, "github.com") {
+		url = strings.TrimSuffix(url, ".git")
+		return &url
+	}
+
+	return nil
+}
+
+// parseRepoStatus parses git status --porcelain output into staged/unstaged/untracked
+func parseRepoStatus(output string, repo *models.GitRepoInfo) {
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		if len(line) < 3 {
+			continue
+		}
+
+		indexStatus := line[0]
+		workTreeStatus := line[1]
+		filePath := strings.TrimSpace(line[3:])
+
+		// Handle renames
+		if strings.Contains(filePath, " -> ") {
+			parts := strings.Split(filePath, " -> ")
+			filePath = parts[1]
+		}
+
+		// Untracked
+		if indexStatus == '?' && workTreeStatus == '?' {
+			repo.Untracked = append(repo.Untracked, models.GitFile{
+				Path:   filePath,
+				Status: "?",
+			})
+			continue
+		}
+
+		// Staged changes (index has changes)
+		if indexStatus != ' ' && indexStatus != '?' {
+			repo.Staged = append(repo.Staged, models.GitFile{
+				Path:   filePath,
+				Status: string(indexStatus),
+			})
+		}
+
+		// Unstaged changes (worktree has changes)
+		if workTreeStatus != ' ' && workTreeStatus != '?' {
+			repo.Unstaged = append(repo.Unstaged, models.GitFile{
+				Path:   filePath,
+				Status: string(workTreeStatus),
+			})
+		}
+	}
+}
+
+// parseWorktrees parses git worktree list --porcelain output
+func parseWorktrees(output string) []models.GitWorktree {
+	var worktrees []models.GitWorktree
+	var current *models.GitWorktree
+
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+
+		if strings.HasPrefix(line, "worktree ") {
+			if current != nil {
+				worktrees = append(worktrees, *current)
+			}
+			current = &models.GitWorktree{
+				Path: strings.TrimPrefix(line, "worktree "),
+			}
+		} else if strings.HasPrefix(line, "HEAD ") && current != nil {
+			current.Head = strings.TrimPrefix(line, "HEAD ")
+		} else if strings.HasPrefix(line, "branch ") && current != nil {
+			branch := strings.TrimPrefix(line, "branch ")
+			// Strip refs/heads/ prefix
+			branch = strings.TrimPrefix(branch, "refs/heads/")
+			current.Branch = branch
+		} else if line == "detached" && current != nil {
+			current.Detached = true
+		} else if line == "bare" && current != nil {
+			current.Bare = true
+		}
+	}
+
+	if current != nil {
+		worktrees = append(worktrees, *current)
+	}
+
+	return worktrees
 }
 
 // GitGraph handles GET /api/git/graph - get commit history
