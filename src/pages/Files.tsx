@@ -261,12 +261,14 @@ export function Files() {
     onStateChange: handleRightPaneTabsStateChange,
   });
 
-  // Clear rightFile when all tabs are closed (so pane doesn't show stale content)
+  // Close split view when all right pane tabs are closed
+  // Follow mode will re-open split when needed (see line ~388)
   useEffect(() => {
-    if (rightPaneTabs.length === 0 && rightPaneContent?.type === 'file') {
+    if (rightPaneTabs.length === 0 && rightPaneContent?.type === 'file' && isSplit) {
       setRightFile(null);
+      toggleSplit();
     }
-  }, [rightPaneTabs.length, rightPaneContent?.type, setRightFile]);
+  }, [rightPaneTabs.length, rightPaneContent?.type, isSplit, setRightFile, toggleSplit]);
 
   // Binary file types that have dedicated viewers fetching their own content
   // Skip file watcher for these to avoid binary data leaking to markdown renderer
