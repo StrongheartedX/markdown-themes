@@ -18,6 +18,16 @@ import './editorial.css';
 import './persian-miniature.css';
 import './concrete-brutalist.css';
 import './windows31.css';
+import './retro-terminal.css';
+import './swiss-international.css';
+import './air-traffic-control.css';
+import './japanese-zen.css';
+import './de-stijl.css';
+import './constructivism.css';
+import './letterpress.css';
+import './risograph.css';
+import './art-nouveau.css';
+import './frutiger-aero.css';
 
 export const themes = [
   { id: 'default', name: 'Default', className: '', accent: '#6366f1', font: 'system-ui, sans-serif', bg: '#ffffff' },
@@ -41,6 +51,16 @@ export const themes = [
   { id: 'persian-miniature', name: 'Persian Miniature', className: 'theme-persian-miniature', accent: '#d4a012', font: "'Cinzel Decorative', serif", bg: '#f5f0e1' },
   { id: 'concrete-brutalist', name: 'Concrete Brutalist', className: 'theme-concrete-brutalist', accent: '#ffb800', font: "'Bebas Neue', sans-serif", bg: '#4a4a4a' },
   { id: 'windows31', name: 'Windows 3.1', className: 'theme-windows31', accent: '#000080', font: "'Segoe UI', Tahoma, sans-serif", bg: '#c0c0c0' },
+  { id: 'retro-terminal', name: 'Retro Terminal', className: 'theme-retro-terminal', accent: '#00ff00', font: "'VT323', monospace", bg: '#000a00' },
+  { id: 'swiss-international', name: 'Swiss International', className: 'theme-swiss-international', accent: '#E30613', font: "'Inter', sans-serif", bg: '#ffffff' },
+  { id: 'air-traffic-control', name: 'Air Traffic Control', className: 'theme-air-traffic-control', accent: '#00ff66', font: "'Orbitron', sans-serif", bg: '#0a0f0a' },
+  { id: 'japanese-zen', name: 'Japanese Zen', className: 'theme-japanese-zen', accent: '#8B9A6B', font: "'Noto Serif JP', serif", bg: '#F5F2EB' },
+  { id: 'de-stijl', name: 'De Stijl', className: 'theme-de-stijl', accent: '#D40920', font: "'Work Sans', sans-serif", bg: '#ffffff' },
+  { id: 'constructivism', name: 'Constructivism', className: 'theme-constructivism', accent: '#CC0000', font: "'Bebas Neue', sans-serif", bg: '#F5F5F0' },
+  { id: 'letterpress', name: 'Letterpress', className: 'theme-letterpress', accent: '#8B0000', font: "'Playfair Display', serif", bg: '#F5ECD7' },
+  { id: 'risograph', name: 'Risograph', className: 'theme-risograph', accent: '#FF6B6B', font: "'Space Mono', monospace", bg: '#FDF6E3' },
+  { id: 'art-nouveau', name: 'Art Nouveau', className: 'theme-art-nouveau', accent: '#C9A227', font: "'Playfair Display', serif", bg: '#F5F0E6' },
+  { id: 'frutiger-aero', name: 'Frutiger Aero', className: 'theme-frutiger-aero', accent: '#3a9fd5', font: "'Source Sans Pro', sans-serif", bg: '#e8f4fc' },
 ] as const;
 
 export type ThemeId = typeof themes[number]['id'];

@@ -450,33 +450,6 @@
     var(--shadow-soft);
 }
 
-/* Shiki syntax highlighting - ensure dark background everywhere code is displayed */
-.theme-persian-miniature .streamdown-content pre.shiki,
-.theme-persian-miniature pre.shiki,
-.theme-persian-miniature .shiki,
-.theme-persian-miniature [class*="code"],
-.theme-persian-miniature [class*="file-content"],
-.theme-persian-miniature [class*="preview"] pre,
-.theme-persian-miniature [class*="viewer"],
-.theme-persian-miniature [class*="Viewer"],
-.theme-persian-miniature .json-null,
-.theme-persian-miniature .json-node,
-.theme-persian-miniature [class*="jsonl"],
-.theme-persian-miniature [class*="Jsonl"] {
-  background: var(--lapis-deep) !important;
-  border: 3px solid var(--gold-leaf);
-  box-shadow: var(--shadow-inset), var(--shadow-gold);
-}
-
-/* Ensure nested elements in viewers don't double-border */
-.theme-persian-miniature [class*="viewer"] [class*="viewer"],
-.theme-persian-miniature [class*="Viewer"] [class*="Viewer"],
-.theme-persian-miniature [class*="viewer"] .json-null,
-.theme-persian-miniature [class*="viewer"] .json-node {
-  background: transparent !important;
-  border: none;
-  box-shadow: none;
-}
 
 /* Streamdown specific overrides */
 .theme-persian-miniature .streamdown-content {
@@ -496,20 +469,20 @@
    ======================================== */
 
 .theme-persian-miniature {
-  /* Shiki base colors - high contrast for dark lapis background */
-  --shiki-foreground: #fff8e8;
+  /* Shiki base colors - for light parchment background */
+  --shiki-foreground: #0f2442;
   --shiki-background: transparent;
 
-  /* Shiki token colors - vivid Persian jewel tones for readability */
-  --shiki-token-constant: #ff7b5a;                      /* Bright vermillion for constants */
-  --shiki-token-string: #6de8e8;                        /* Vivid turquoise for strings */
-  --shiki-token-comment: #a89880;                       /* Muted tan for comments */
-  --shiki-token-keyword: #ffd970;                       /* Bright gold for keywords */
-  --shiki-token-parameter: #ffe4a0;                     /* Light saffron for parameters */
-  --shiki-token-function: #f5c84a;                      /* Rich gold for functions */
-  --shiki-token-string-expression: #6de8e8;
-  --shiki-token-punctuation: #d4c8b0;                   /* Warm cream for punctuation */
-  --shiki-token-link: #ffd970;
+  /* Shiki token colors - dark jewel tones for light background readability */
+  --shiki-token-constant: #9a2b2b;                      /* Dark vermillion for constants */
+  --shiki-token-string: #1a6060;                        /* Dark turquoise for strings */
+  --shiki-token-comment: #7a6b5a;                       /* Muted brown for comments */
+  --shiki-token-keyword: #8a6d1a;                       /* Dark gold for keywords */
+  --shiki-token-parameter: #6b1c3f;                     /* Burgundy for parameters */
+  --shiki-token-function: #b8922f;                      /* Rich dark gold for functions */
+  --shiki-token-string-expression: #1a6060;
+  --shiki-token-punctuation: #4a4035;                   /* Dark warm brown for punctuation */
+  --shiki-token-link: #1e3a5f;
 }
 
 /* ========================================
