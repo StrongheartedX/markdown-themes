@@ -959,7 +959,7 @@ export function Files() {
                 onTabPin={pinTab}
               />
 
-              {(activeTab?.type === 'file' || activeTab?.type === 'conversation') && loading && !content && (
+              {(activeTab?.type === 'file' || activeTab?.type === 'conversation') && loading && (
                 <div className="flex items-center justify-center h-full">
                   <p style={{ color: 'var(--text-secondary)' }}>Loading...</p>
                 </div>
@@ -1046,7 +1046,7 @@ export function Files() {
               )}
 
               {/* File and Conversation tab content */}
-              {(activeTab?.type === 'file' || activeTab?.type === 'conversation') && !error && currentFile && content && (
+              {(activeTab?.type === 'file' || activeTab?.type === 'conversation') && !loading && !error && currentFile && content && (
                 <>
                   {isMarkdownFile && frontmatter && <MetadataBar frontmatter={frontmatter} />}
                   <div className="flex-1 overflow-auto" ref={leftScrollContainerRef}>
