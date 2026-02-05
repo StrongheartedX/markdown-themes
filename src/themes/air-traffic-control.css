@@ -400,6 +400,17 @@
   box-shadow: var(--shadow-inset), var(--glow-sm);
 }
 
+/* Catch-all for code blocks outside .prose (frontmatter, viewers, etc) */
+.theme-air-traffic-control pre:not(.prose pre) {
+  background: #0a0f0a;
+  color: #00ff66;
+}
+
+.theme-air-traffic-control pre:not(.prose pre) code {
+  background: transparent;
+  color: inherit;
+}
+
 /* Streamdown specific overrides */
 .theme-air-traffic-control .streamdown-content {
   font-family: var(--font-body);

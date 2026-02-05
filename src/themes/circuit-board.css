@@ -408,6 +408,17 @@
   box-shadow: var(--shadow-component);
 }
 
+/* Catch-all for code blocks outside .prose (frontmatter, viewers, etc) */
+.theme-circuit-board pre:not(.prose pre) {
+  background: #2D2D2D;
+  color: #33FF33;
+}
+
+.theme-circuit-board pre:not(.prose pre) code {
+  background: transparent;
+  color: inherit;
+}
+
 /* Streamdown specific overrides */
 .theme-circuit-board .streamdown-content {
   font-family: var(--font-body);

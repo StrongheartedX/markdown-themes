@@ -380,6 +380,17 @@
   overflow: hidden;
 }
 
+/* Catch-all for code blocks outside .prose (frontmatter, viewers, etc) */
+.theme-streamline-moderne pre:not(.prose pre) {
+  background: #1A2A4A;
+  color: #F5F0E6;
+}
+
+.theme-streamline-moderne pre:not(.prose pre) code {
+  background: transparent;
+  color: inherit;
+}
+
 /* Chrome top accent on Shiki blocks */
 .theme-streamline-moderne .streamdown-content pre.shiki::before {
   content: '';

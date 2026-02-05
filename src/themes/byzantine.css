@@ -401,6 +401,17 @@
   box-shadow: var(--shadow-inset), var(--shadow-gold);
 }
 
+/* Catch-all for code blocks outside .prose (frontmatter, viewers, etc) */
+.theme-byzantine pre:not(.prose pre) {
+  background: #2d0a30;
+  color: #f5f0e1;
+}
+
+.theme-byzantine pre:not(.prose pre) code {
+  background: transparent;
+  color: inherit;
+}
+
 /* Streamdown specific overrides */
 .theme-byzantine .streamdown-content {
   font-family: var(--font-body);

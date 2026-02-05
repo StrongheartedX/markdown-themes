@@ -505,6 +505,17 @@
   box-shadow: var(--shadow-inset);
 }
 
+/* Catch-all for code blocks outside .prose (frontmatter, viewers, etc) */
+.theme-retro-terminal pre:not(.prose pre) {
+  background: #000a00;
+  color: #33ff33;
+}
+
+.theme-retro-terminal pre:not(.prose pre) code {
+  background: transparent;
+  color: inherit;
+}
+
 /* Streamdown specific overrides */
 .theme-retro-terminal .streamdown-content {
   font-family: var(--font-body);

@@ -408,6 +408,17 @@
   box-shadow: var(--shadow-inset);
 }
 
+/* Catch-all for code blocks outside .prose (frontmatter, viewers, etc) */
+.theme-concrete-brutalist pre:not(.prose pre) {
+  background: #1C1C1A;
+  color: #C4C4BC;
+}
+
+.theme-concrete-brutalist pre:not(.prose pre) code {
+  background: transparent;
+  color: inherit;
+}
+
 /* Streamdown specific overrides */
 .theme-concrete-brutalist .streamdown-content {
   font-family: var(--font-body);

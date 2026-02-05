@@ -414,6 +414,17 @@
   border: 4px solid var(--stijl-black);
 }
 
+/* Catch-all for code blocks outside .prose (frontmatter, viewers, etc) */
+.theme-de-stijl pre:not(.prose pre) {
+  background: #000000;
+  color: #FFFFFF;
+}
+
+.theme-de-stijl pre:not(.prose pre) code {
+  background: transparent;
+  color: inherit;
+}
+
 /* Streamdown specific overrides */
 .theme-de-stijl .streamdown-content {
   font-family: var(--font-body);

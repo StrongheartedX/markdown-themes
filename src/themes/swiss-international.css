@@ -337,6 +337,17 @@
   border: none;
 }
 
+/* Catch-all for code blocks outside .prose (frontmatter, viewers, etc) */
+.theme-swiss-international pre:not(.prose pre) {
+  background: #171717;
+  color: #E5E5E5;
+}
+
+.theme-swiss-international pre:not(.prose pre) code {
+  background: transparent;
+  color: inherit;
+}
+
 /* Streamdown specific overrides */
 .theme-swiss-international .streamdown-content {
   font-family: var(--font-body);

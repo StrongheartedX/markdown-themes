@@ -263,6 +263,17 @@
   box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.3), var(--shadow-warm);
 }
 
+/* Catch-all for code blocks outside .prose (frontmatter, viewers, etc) */
+.theme-dark-academia pre:not(.prose pre) {
+  background: #2a1a0a;
+  color: #f4f1e8;
+}
+
+.theme-dark-academia pre:not(.prose pre) code {
+  background: transparent;
+  color: inherit;
+}
+
 /* Streamdown specific overrides */
 .theme-dark-academia .streamdown-content {
   font-family: var(--font-body);
