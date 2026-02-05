@@ -93,10 +93,20 @@ function isRealUserMessage(entry: UserMessage & { isMeta?: boolean }): boolean {
 /**
  * Parse JSONL content into conversation entries.
  * Filters for user/assistant/summary types only.
+ *
+ * @param content JSONL string
+ * @param maxLines Maximum lines to parse (0 for unlimited). When limited,
+ *                 takes from the END of the file to show recent messages.
  */
-function parseConversationEntries(content: string): ConversationEntry[] {
+function parseConversationEntries(content: string, maxLines: number = 0): ConversationEntry[] {
   const entries: ConversationEntry[] = [];
-  const lines = content.split('\n');
+  let lines = content.split('\n');
+
+  // Truncate lines BEFORE parsing to reduce cost on large files
+  // Take from the end to get most recent messages
+  if (maxLines > 0 && lines.length > maxLines) {
+    lines = lines.slice(-maxLines);
+  }
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -267,18 +277,25 @@ export function jsonlToMarkdown(content: string, maxEntries: number = 50): strin
     return '';
   }
 
-  let entries = parseConversationEntries(content);
+  // Pre-truncate lines to reduce parse cost on large files
+  // Use 3x maxEntries as buffer since not all lines become entries (some are filtered)
+  const maxLinesToParse = maxEntries > 0 ? maxEntries * 3 : 0;
+  const totalLines = content.split('\n').length;
+  const wasTruncated = maxLinesToParse > 0 && totalLines > maxLinesToParse;
+
+  let entries = parseConversationEntries(content, maxLinesToParse);
 
   if (entries.length === 0) {
     return '';
   }
 
-  // Limit to most recent entries to prevent performance issues
-  const totalEntries = entries.length;
+  // Further limit entries if we still have too many after parsing
   let truncationNote = '';
   if (maxEntries > 0 && entries.length > maxEntries) {
     entries = entries.slice(-maxEntries);
-    truncationNote = `*Showing last ${maxEntries} of ${totalEntries} messages...*\n\n---\n\n`;
+    truncationNote = `*Showing last ${maxEntries} messages (large conversation)...*\n\n---\n\n`;
+  } else if (wasTruncated) {
+    truncationNote = `*Showing recent messages (large conversation)...*\n\n---\n\n`;
   }
 
   const formattedParts: string[] = [];

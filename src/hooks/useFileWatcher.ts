@@ -80,6 +80,12 @@ export function useFileWatcher({
       try {
         const message = JSON.parse(event.data) as FileWatcherMessage;
 
+        // Ignore messages for paths we're no longer watching
+        // This prevents stale messages from overwriting content after tab switch
+        if (message.path && message.path !== currentPathRef.current) {
+          return;
+        }
+
         switch (message.type) {
           case 'file-content':
             // Initial file content
