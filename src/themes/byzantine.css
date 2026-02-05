@@ -46,7 +46,7 @@
   --accent-hover: var(--gold-light);
   --accent-secondary: var(--imperial-purple);
   --border: rgba(212, 160, 18, 0.4);
-  --code-bg: var(--purple-dark);
+  --code-bg: #1c1812;  /* Dark brown matching gold aesthetic */
 
   /* Typography - Elegant serifs and uncial styles */
   --font-display: 'Uncial Antiqua', 'Cinzel', serif;
@@ -286,9 +286,9 @@
   border-radius: 50%;
 }
 
-/* Code Blocks - Dark purple with gold accents */
+/* Code Blocks - Dark brown with gold accents */
 .theme-byzantine .prose pre {
-  background: var(--purple-dark);
+  background: var(--code-bg);
   border: 2px solid rgba(212, 160, 18, 0.4);
   border-radius: var(--radius);
   box-shadow: var(--shadow-inset), var(--shadow-gold);
@@ -396,14 +396,14 @@
 
 /* Shiki syntax highlighting */
 .theme-byzantine .streamdown-content pre[data-streamdown] {
-  background: var(--purple-dark) !important;
+  background: var(--code-bg) !important;
   border: 2px solid rgba(212, 160, 18, 0.4);
   box-shadow: var(--shadow-inset), var(--shadow-gold);
 }
 
 /* Catch-all for code blocks outside .prose (frontmatter, viewers, etc) */
 .theme-byzantine pre:not(.prose pre) {
-  background: #2d0a30;
+  background: #1c1812;
   color: #f5f0e1;
 }
 
@@ -431,7 +431,7 @@
 .theme-byzantine {
   /* Shiki base colors */
   --shiki-foreground: #f5f0e1;
-  --shiki-background: #2d0a30;
+  --shiki-background: #1c1812;  /* Dark brown instead of purple */
 
   /* Shiki token colors - Byzantine jewel-tone palette */
   --shiki-token-constant: var(--gold-light);            /* Sacred gold for constants */
