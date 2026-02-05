@@ -99,6 +99,15 @@
   letter-spacing: 0.02em;
 }
 
+/* Landing page description text - needs contrast on teal desktop */
+.theme-windows31 .landing-subtitle,
+.theme-windows31 .landing-description,
+.theme-windows31 [class*="landing"] p,
+.theme-windows31 [class*="hero"] p {
+  color: var(--vga-white);
+  text-shadow: 1px 1px 0 var(--vga-black);
+}
+
 /* Header needs higher z-index for dropdowns */
 .theme-windows31 > header {
   z-index: 200;
