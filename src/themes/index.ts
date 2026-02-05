@@ -15,6 +15,9 @@ import './pixel-art.css';
 import './circuit-board.css';
 import './byzantine.css';
 import './editorial.css';
+import './persian-miniature.css';
+import './concrete-brutalist.css';
+import './windows31.css';
 
 export const themes = [
   { id: 'default', name: 'Default', className: '', accent: '#6366f1', font: 'system-ui, sans-serif', bg: '#ffffff' },
@@ -35,6 +38,9 @@ export const themes = [
   { id: 'circuit-board', name: 'Circuit Board', className: 'theme-circuit-board', accent: '#c87533', font: "'JetBrains Mono', monospace", bg: '#0a3d0a' },
   { id: 'byzantine', name: 'Byzantine', className: 'theme-byzantine', accent: '#d4a012', font: "'Cinzel', serif", bg: '#1a0a2e' },
   { id: 'editorial', name: 'Editorial', className: 'theme-editorial', accent: '#c41e3a', font: "'Playfair Display', serif", bg: '#faf8f5' },
+  { id: 'persian-miniature', name: 'Persian Miniature', className: 'theme-persian-miniature', accent: '#d4a012', font: "'Cinzel Decorative', serif", bg: '#f5f0e1' },
+  { id: 'concrete-brutalist', name: 'Concrete Brutalist', className: 'theme-concrete-brutalist', accent: '#ffb800', font: "'Bebas Neue', sans-serif", bg: '#4a4a4a' },
+  { id: 'windows31', name: 'Windows 3.1', className: 'theme-windows31', accent: '#000080', font: "'Segoe UI', Tahoma, sans-serif", bg: '#c0c0c0' },
 ] as const;
 
 export type ThemeId = typeof themes[number]['id'];
