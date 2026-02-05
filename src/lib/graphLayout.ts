@@ -149,9 +149,11 @@ export function calculateGraphLayout(commits: Commit[]): GraphLayout {
     commitRowMap.set(commit.hash, row);
     commitRailMap.set(commit.hash, rail);
 
-    // Create the graph node
+    // Create the graph node (ensure parents/refs are always arrays)
     nodes.push({
       ...commit,
+      parents: commit.parents ?? [],
+      refs: commit.refs ?? [],
       rail,
       row,
     });

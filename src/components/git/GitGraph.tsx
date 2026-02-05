@@ -265,8 +265,8 @@ export function GitGraph({ repoPath, onCommitSelect, onFileClick, className = ''
         {/* Node circles (drawn on top of canvas, positioned absolutely) */}
         <div className="absolute top-0 left-0" style={{ width: canvasWidth, height: canvasHeight, pointerEvents: 'none' }}>
           {state.layout.nodes.map((node) => {
-            const isMerge = node.parents.length > 1;
-            const isHead = node.refs.some((ref) => ref === 'HEAD' || ref.includes('HEAD ->'));
+            const isMerge = (node.parents?.length ?? 0) > 1;
+            const isHead = node.refs?.some((ref) => ref === 'HEAD' || ref.includes('HEAD ->')) ?? false;
             const cx = (node.rail + 0.5) * RAIL_WIDTH;
             const cy = node.row * ROW_HEIGHT + ROW_HEIGHT / 2;
 
