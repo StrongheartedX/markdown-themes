@@ -2,8 +2,15 @@ import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { MarkdownViewer } from '../MarkdownViewer';
 import { jsonlToMarkdown } from '../../utils/conversationMarkdown';
 
+/** Maximum messages to display (prevents UI freeze on large conversations) */
+const MAX_MESSAGES = 100;
+
+/** Maximum lines to scan for metadata (prevents freeze on 10MB+ files) */
+const MAX_METADATA_SCAN_LINES = 500;
+
 interface ConversationMetadata {
   messageCount: number;
+  estimatedTotal: number | null; // null if exact, number if estimated
   hasThinking: boolean;
   hasTool: boolean;
 }
@@ -66,7 +73,7 @@ function useThrottledContent(content: string, isStreaming: boolean, throttleMs: 
 
 /**
  * Extract metadata from conversation JSONL content.
- * Looks for the first few entries to get session info.
+ * For large files, samples lines and estimates total to avoid UI freeze.
  */
 function extractMetadata(content: string): ConversationMetadata | null {
   if (!content || !content.trim()) {
@@ -74,11 +81,17 @@ function extractMetadata(content: string): ConversationMetadata | null {
   }
 
   const lines = content.split('\n').filter(line => line.trim());
+  const totalLines = lines.length;
+
+  // For large files, only scan a limited number of lines and estimate
+  const isLargeFile = totalLines > MAX_METADATA_SCAN_LINES;
+  const linesToScan = isLargeFile ? lines.slice(-MAX_METADATA_SCAN_LINES) : lines;
+
   let messageCount = 0;
   let hasThinking = false;
   let hasTool = false;
 
-  for (const line of lines) {
+  for (const line of linesToScan) {
     try {
       const parsed: unknown = JSON.parse(line.trim());
 
@@ -123,7 +136,19 @@ function extractMetadata(content: string): ConversationMetadata | null {
     }
   }
 
-  return messageCount > 0 ? { messageCount, hasThinking, hasTool } : null;
+  if (messageCount === 0) {
+    return null;
+  }
+
+  // Estimate total if we only scanned a subset
+  let estimatedTotal: number | null = null;
+  if (isLargeFile) {
+    // Estimate based on message density in sampled lines
+    const messageDensity = messageCount / linesToScan.length;
+    estimatedTotal = Math.round(messageDensity * totalLines);
+  }
+
+  return { messageCount, estimatedTotal, hasThinking, hasTool };
 }
 
 /**
@@ -145,9 +170,10 @@ export function ConversationMarkdownViewer({
 
   // Transform JSONL to markdown (now using throttled content)
   // Wrapped in try-catch to handle malformed JSONL gracefully
+  // Uses MAX_MESSAGES to prevent UI freeze on large conversations
   const markdown = useMemo(() => {
     try {
-      return jsonlToMarkdown(throttledContent);
+      return jsonlToMarkdown(throttledContent, MAX_MESSAGES);
     } catch (err) {
       console.error('Failed to parse conversation JSONL:', err);
       return '';
@@ -228,7 +254,13 @@ export function ConversationMarkdownViewer({
             color: 'var(--text-secondary)',
           }}
         >
-          <span>{metadata.messageCount} messages</span>
+          <span>
+            {metadata.estimatedTotal !== null
+              ? `~${metadata.estimatedTotal.toLocaleString()} messages (showing last ${MAX_MESSAGES})`
+              : metadata.messageCount > MAX_MESSAGES
+                ? `${metadata.messageCount.toLocaleString()} messages (showing last ${MAX_MESSAGES})`
+                : `${metadata.messageCount} messages`}
+          </span>
           {metadata.hasThinking && (
             <span
               className="px-2 py-0.5 rounded"

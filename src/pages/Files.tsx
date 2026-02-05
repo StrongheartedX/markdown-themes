@@ -246,6 +246,10 @@ export function Files() {
   const recentlyClosedRef = useRef<Map<string, number>>(new Map());
   const RECENTLY_CLOSED_TTL = 5000; // 5 seconds
 
+  // Track recently auto-opened files to prevent duplicate opens from race conditions
+  // (e.g., both streamingFile and changedFiles effects triggering on the same file)
+  const recentlyAutoOpenedRef = useRef<Map<string, number>>(new Map());
+
   // Check if a file was recently closed (within TTL)
   const wasRecentlyClosed = useCallback((path: string) => {
     const closedAt = recentlyClosedRef.current.get(path);
@@ -255,6 +259,18 @@ export function Files() {
       recentlyClosedRef.current.delete(path);
     }
     return isRecent;
+  }, []);
+
+  // Check and mark file as auto-opened to prevent duplicate opens from race conditions
+  // Returns true if the file should be opened, false if it was already opened recently
+  const shouldAutoOpen = useCallback((filePath: string) => {
+    const now = Date.now();
+    const lastOpened = recentlyAutoOpenedRef.current.get(filePath);
+    if (lastOpened && now - lastOpened < 500) {
+      return false; // Already opened recently, skip
+    }
+    recentlyAutoOpenedRef.current.set(filePath, now);
+    return true;
   }, []);
 
   // Wrap closeTab to track recently closed files
@@ -474,6 +490,11 @@ export function Files() {
         return;
       }
 
+      // Deduplicate: skip if another effect already opened this file recently
+      if (!shouldAutoOpen(streamingFile)) {
+        return;
+      }
+
       // Open streaming file in right pane tabs (enables split if needed)
       if (!isSplit) {
         toggleSplit();
@@ -484,7 +505,7 @@ export function Files() {
       openRightTab(streamingFile, true);
       addRecentFile(streamingFile);
     }
-  }, [appState.followStreamingMode, streamingFile, rightPaneFilePath, isSplit, toggleSplit, setRightPaneFile, openRightTab, addRecentFile, wasRecentlyClosed]);
+  }, [appState.followStreamingMode, streamingFile, rightPaneFilePath, isSplit, toggleSplit, setRightPaneFile, openRightTab, addRecentFile, wasRecentlyClosed, shouldAutoOpen]);
 
   // Track files that have been auto-opened as tabs (to avoid re-opening)
   const autoOpenedFilesRef = useRef<Set<string>>(new Set());
@@ -542,10 +563,14 @@ export function Files() {
 
     // Open new tabs in the right pane as preview tabs
     newChangedFiles.forEach((filePath) => {
+      // Deduplicate: skip if another effect already opened this file recently
+      if (!shouldAutoOpen(filePath)) {
+        return;
+      }
       autoOpenedFilesRef.current.add(filePath);
       openRightTab(filePath, true); // preview mode
     });
-  }, [appState.followStreamingMode, isSplit, changedFiles, rightPaneTabs, openRightTab]);
+  }, [appState.followStreamingMode, isSplit, changedFiles, rightPaneTabs, openRightTab, shouldAutoOpen]);
 
   // Handle commit success - close tabs for committed files (review queue cleanup)
   // Right pane tabs act as a review queue; committed files are "done" and removed
