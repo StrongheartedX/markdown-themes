@@ -1248,7 +1248,7 @@ export function Files() {
 
             {/* Chat panel */}
             <div
-              className="flex flex-col overflow-hidden"
+              className="h-full flex flex-col overflow-hidden"
               style={{ width: `${chatPanelWidth}px`, flexShrink: 0 }}
             >
               <ChatPanel

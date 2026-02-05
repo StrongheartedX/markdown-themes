@@ -113,7 +113,7 @@ export function ChatPanel({ cwd, currentFile, currentFileContent: _currentFileCo
   // Conversation list view
   if (showList) {
     return (
-      <div className="h-full flex flex-col">
+      <div className="h-full flex flex-col overflow-hidden">
         <div
           className="flex items-center justify-between px-3 py-2 border-b shrink-0"
           style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}
@@ -182,7 +182,7 @@ export function ChatPanel({ cwd, currentFile, currentFileContent: _currentFileCo
 
   // Active conversation view
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col overflow-hidden">
       <div
         className="flex items-center gap-2 px-3 py-2 border-b shrink-0"
         style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}
