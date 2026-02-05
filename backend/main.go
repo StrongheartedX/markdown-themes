@@ -60,6 +60,9 @@ func main() {
 		r.Get("/files/content", handlers.FileContent)
 		r.Get("/files/git-status", handlers.GitStatus)
 
+		// Claude
+		r.Get("/claude/session", handlers.ClaudeSession)
+
 		// Git
 		r.Get("/git/repos", handlers.GitRepos)
 		r.Get("/git/graph", handlers.GitGraph)

@@ -57,13 +57,60 @@ type GitGraphResponse struct {
 	TotalCount int         `json:"totalCount,omitempty"`
 }
 
-// GitRepoInfo represents basic info about a git repository
+// GitRepoInfo represents detailed info about a git repository
 type GitRepoInfo struct {
-	Path       string `json:"path"`
-	Name       string `json:"name"`
-	Branch     string `json:"branch"`
-	IsDirty    bool   `json:"isDirty"`
-	RemoteURL  string `json:"remoteUrl,omitempty"`
+	Path         string        `json:"path"`
+	Name         string        `json:"name"`
+	Branch       string        `json:"branch"`
+	Tracking     string        `json:"tracking,omitempty"`
+	Ahead        int           `json:"ahead"`
+	Behind       int           `json:"behind"`
+	Staged       []GitFile     `json:"staged"`
+	Unstaged     []GitFile     `json:"unstaged"`
+	Untracked    []GitFile     `json:"untracked"`
+	GithubURL    *string       `json:"githubUrl"`
+	LastActivity *string       `json:"lastActivity"`
+	Worktrees    []GitWorktree `json:"worktrees"`
+	IsDirty      bool          `json:"isDirty"`
+	RemoteURL    string        `json:"remoteUrl,omitempty"`
+	Error        string        `json:"error,omitempty"`
+}
+
+// GitFile represents a file in git status
+type GitFile struct {
+	Path   string `json:"path"`
+	Status string `json:"status"`
+}
+
+// GitWorktree represents a git worktree
+type GitWorktree struct {
+	Path      string `json:"path"`
+	Branch    string `json:"branch,omitempty"`
+	Head      string `json:"head,omitempty"`
+	GithubURL string `json:"githubUrl,omitempty"`
+	Detached  bool   `json:"detached,omitempty"`
+	Bare      bool   `json:"bare,omitempty"`
+}
+
+// GitReposResponse is the wrapper response for /api/git/repos
+type GitReposResponse struct {
+	Success bool         `json:"success"`
+	Data    GitReposData `json:"data"`
+}
+
+// GitReposData contains the repos list and metadata
+type GitReposData struct {
+	ProjectsDir string        `json:"projectsDir"`
+	Repos       []GitRepoInfo `json:"repos"`
+}
+
+// ClaudeSessionInfo represents info about an active Claude session
+type ClaudeSessionInfo struct {
+	SessionID        string `json:"sessionId"`
+	WorkingDir       string `json:"workingDir"`
+	ConversationPath string `json:"conversationPath"`
+	Pane             string `json:"pane"`
+	Status           string `json:"status"`
 }
 
 // GitDiffResponse represents a file diff
