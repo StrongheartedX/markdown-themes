@@ -142,10 +142,14 @@ export function useTabManager(options: UseTabManagerOptions = {}): UseTabManager
       setActiveTabId(newTab.id);
     } else {
       // Opening as pinned (double-click behavior)
-      setTabs((prevTabs) => {
-        // First check if there's a preview tab for this file - convert it to pinned
-        const previewTabIndex = prevTabs.findIndex((t) => t.type === 'file' && t.path === path && t.isPreview);
-        if (previewTabIndex >= 0) {
+      const currentTabs = tabsRef.current;
+
+      // First check if there's a preview tab for this file - convert it to pinned
+      const existingPreviewTab = currentTabs.find((t) => t.type === 'file' && t.path === path && t.isPreview);
+      if (existingPreviewTab) {
+        setTabs((prevTabs) => {
+          const previewTabIndex = prevTabs.findIndex((t) => t.id === existingPreviewTab.id);
+          if (previewTabIndex < 0) return prevTabs;
           const newTabs = [...prevTabs];
           newTabs[previewTabIndex] = {
             ...newTabs[previewTabIndex],
@@ -153,21 +157,22 @@ export function useTabManager(options: UseTabManagerOptions = {}): UseTabManager
             isPinned: true,
             metadata: undefined, // Clear auto-opened metadata when pinning
           };
-          setActiveTabId(prevTabs[previewTabIndex].id);
           return newTabs;
-        }
+        });
+        setActiveTabId(existingPreviewTab.id);
+        return;
+      }
 
-        // Create new pinned tab
-        const newTab: Tab = {
-          id: generateTabId(),
-          path,
-          isPreview: false,
-          isPinned: true,
-          type: 'file',
-        };
-        setActiveTabId(newTab.id);
-        return [...prevTabs, newTab];
-      });
+      // Create new pinned tab
+      const newTab: Tab = {
+        id: generateTabId(),
+        path,
+        isPreview: false,
+        isPinned: true,
+        type: 'file',
+      };
+      setTabs((prevTabs) => [...prevTabs, newTab]);
+      setActiveTabId(newTab.id);
     }
   }, []);
 
