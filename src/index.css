@@ -196,6 +196,34 @@ body {
   transition: background-color 0.3s ease-out;
 }
 
+/* Mermaid diagram sizing - ensure diagrams have proper vertical space */
+.prose .mermaid,
+.streamdown-content .mermaid {
+  min-height: 200px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Allow mermaid SVG to expand to natural height */
+.prose .mermaid svg,
+.streamdown-content .mermaid svg {
+  max-width: 100%;
+  height: auto !important;
+  min-height: 150px;
+}
+
+/* Conversation viewer specific mermaid fixes */
+.conversation-viewer .mermaid {
+  min-height: 250px;
+  margin: 1rem 0;
+}
+
+.conversation-viewer .mermaid svg {
+  min-height: 200px;
+}
+
 @keyframes waveform-pulse {
   0%, 100% { transform: scaleY(1); }
   50% { transform: scaleY(0.6); }
