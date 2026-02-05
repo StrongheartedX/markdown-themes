@@ -502,20 +502,20 @@
    ======================================== */
 
 .theme-constructivism {
-  /* Shiki base colors */
-  --shiki-foreground: #F5F5F0;
+  /* Shiki base colors - dark for light backgrounds */
+  --shiki-foreground: #1A1A1A;
   --shiki-background: #0A0A0A;
 
-  /* Shiki token colors - bold, high contrast palette */
-  --shiki-token-constant: #E52222;           /* Red-light for constants */
-  --shiki-token-string: #C4A35A;             /* Ochre for strings - warm contrast */
-  --shiki-token-comment: #8C8C8C;            /* Grey-concrete for comments */
-  --shiki-token-keyword: #FF4444;            /* Bright red for keywords - commands */
-  --shiki-token-parameter: #F5F5F0;          /* White for parameters */
-  --shiki-token-function: #FFB347;           /* Warm orange for functions */
-  --shiki-token-string-expression: #C4A35A;  /* Ochre for string expressions */
-  --shiki-token-punctuation: #9BA3A9;        /* Steel grey for punctuation */
-  --shiki-token-link: #E52222;               /* Red for links */
+  /* Shiki token colors - bold, dark for contrast on cream/white */
+  --shiki-token-constant: #B81C1C;           /* Deep red for constants */
+  --shiki-token-string: #8B7335;             /* Dark ochre for strings */
+  --shiki-token-comment: #5A5A5A;            /* Dark grey for comments */
+  --shiki-token-keyword: #CC0000;            /* Bold red for keywords */
+  --shiki-token-parameter: #2A2A2A;          /* Dark grey for parameters */
+  --shiki-token-function: #B87A00;           /* Dark orange for functions */
+  --shiki-token-string-expression: #8B7335;  /* Dark ochre for string expressions */
+  --shiki-token-punctuation: #4A4A4A;        /* Dark grey for punctuation */
+  --shiki-token-link: #B81C1C;               /* Deep red for links */
 }
 
 /* ========================================
