@@ -157,7 +157,8 @@ export function useTabManager(options: UseTabManagerOptions = {}): UseTabManager
       setActiveTabId(newTab.id);
     } else {
       // Opening as pinned (double-click behavior)
-      const currentTabs = tabsRef.current;
+      // Note: currentTabs is already defined at the top of this function - use that snapshot
+      // to avoid race conditions from reading tabsRef.current multiple times
 
       // First check if there's a preview tab for this file - convert it to pinned
       const existingPreviewTab = currentTabs.find((t) => t.type === 'file' && t.path === path && t.isPreview);
