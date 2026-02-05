@@ -94,13 +94,13 @@ export const FILTERS: FilterDefinition[] = [
     patterns: CLAUDE_CODE_PATTERNS,
     homePaths: {
       // Specific subdirectories to include (excludes heavy dirs like debug, paste-cache, shell-snapshots, session-env, todos, tasks)
+      // NOTE: .claude/projects excluded - too large (2GB+), users can navigate manually
       relativePaths: [
         '.claude/commands',
         '.claude/hooks',
         '.claude/ide',
         '.claude/mcp',
         '.claude/plugins',
-        '.claude/projects',   // Conversation JSONL logs
         '.claude/skills',
         '.claude/settings.json',
         '.claude/settings.local.json',
