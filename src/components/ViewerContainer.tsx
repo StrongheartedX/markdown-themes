@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { FileWarning } from 'lucide-react';
 import { MarkdownViewer } from './MarkdownViewer';
 import { CodeViewer } from './viewers/CodeViewer';
 import { ImageViewer } from './viewers/ImageViewer';
@@ -23,7 +24,7 @@ interface ViewerContainerProps {
   repoPath?: string | null;
 }
 
-type ViewerType = 'markdown' | 'code' | 'image' | 'csv' | 'json' | 'jsonl' | 'convlog' | 'audio' | 'video' | 'svg' | 'pdf' | 'prompty';
+type ViewerType = 'markdown' | 'code' | 'image' | 'csv' | 'json' | 'jsonl' | 'convlog' | 'audio' | 'video' | 'svg' | 'pdf' | 'prompty' | 'binary';
 
 // Extensions for each viewer type
 const markdownExtensions = new Set(['md', 'markdown', 'mdx']);
@@ -37,9 +38,71 @@ const videoExtensions = new Set(['mp4', 'webm', 'mov', 'ogg', 'mkv', 'm4v', 'avi
 const svgExtensions = new Set(['svg']);
 const pdfExtensions = new Set(['pdf']);
 
-function getViewerType(filePath: string): ViewerType {
+// Binary file extensions that shouldn't be displayed as text
+const binaryExtensions = new Set([
+  // Compiled/executable
+  'exe', 'dll', 'so', 'dylib', 'a', 'o', 'obj', 'lib', 'bin',
+  // Archives
+  'zip', 'tar', 'gz', 'bz2', 'xz', '7z', 'rar',
+  // Fonts
+  'ttf', 'otf', 'woff', 'woff2', 'eot',
+  // Other binary formats
+  'pyc', 'pyo', 'class', 'jar', 'war',
+]);
+
+// Known binary filenames (no extension)
+const binaryFilenames = new Set([
+  'markdown-themes-backend', // Our compiled Go binary
+]);
+
+/**
+ * Check if content appears to be binary (contains null bytes or high ratio of non-printable chars)
+ */
+function isBinaryContent(content: string): boolean {
+  if (!content || content.length === 0) return false;
+
+  // Check first 8KB for binary indicators
+  const sample = content.slice(0, 8192);
+
+  // Null bytes are a strong indicator of binary content
+  if (sample.includes('\0')) return true;
+
+  // Count non-printable characters (excluding common whitespace)
+  let nonPrintable = 0;
+  for (let i = 0; i < sample.length; i++) {
+    const code = sample.charCodeAt(i);
+    // Allow tabs, newlines, carriage returns, and printable ASCII
+    if (code < 32 && code !== 9 && code !== 10 && code !== 13) {
+      nonPrintable++;
+    }
+    // Characters above 127 in large quantities suggest binary
+    if (code > 127) {
+      nonPrintable++;
+    }
+  }
+
+  // If more than 10% non-printable, likely binary
+  return nonPrintable / sample.length > 0.1;
+}
+
+function getViewerType(filePath: string, content?: string): ViewerType {
   const fileName = filePath.split('/').pop() || '';
   const ext = fileName.split('.').pop()?.toLowerCase() || '';
+
+  // Check for known binary filenames first
+  if (binaryFilenames.has(fileName)) {
+    return 'binary';
+  }
+
+  // Check for binary extensions
+  if (binaryExtensions.has(ext)) {
+    return 'binary';
+  }
+
+  // For files without extensions, check content for binary data
+  if (!fileName.includes('.') && content && isBinaryContent(content)) {
+    return 'binary';
+  }
 
   if (markdownExtensions.has(ext)) {
     return 'markdown';
@@ -104,7 +167,7 @@ export function ViewerContainer({
   fontSize = 100,
   repoPath = null,
 }: ViewerContainerProps) {
-  const viewerType = useMemo(() => getViewerType(filePath), [filePath]);
+  const viewerType = useMemo(() => getViewerType(filePath, content), [filePath, content]);
 
   switch (viewerType) {
     case 'markdown':
@@ -162,6 +225,24 @@ export function ViewerContainer({
           fontSize={fontSize}
           isStreaming={isStreaming}
         />
+      );
+
+    case 'binary':
+      return (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <FileWarning size={48} style={{ color: 'var(--text-secondary)', margin: '0 auto 16px' }} />
+            <h3 className="text-lg font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+              Binary File
+            </h3>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              This file contains binary data and cannot be displayed as text.
+            </p>
+            <p className="text-xs mt-2 font-mono" style={{ color: 'var(--text-secondary)' }}>
+              {filePath.split('/').pop()}
+            </p>
+          </div>
+        </div>
       );
 
     case 'code':
