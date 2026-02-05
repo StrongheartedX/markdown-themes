@@ -29,6 +29,14 @@ interface UseDiffAutoScrollOptions {
   debounceMs?: number;
 }
 
+/**
+ * Small buffer (in pixels) added to scroll calculations to handle
+ * zoom/font-size rounding issues. At non-100% zoom levels, scrollHeight
+ * and clientHeight may have fractional values that cause the scroll
+ * position to be slightly off from the visual bottom.
+ */
+const SCROLL_BUFFER_PX = 10;
+
 /** File extensions that should use line-level diffing */
 const CODE_EXTENSIONS = new Set([
   'ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs',
@@ -155,8 +163,10 @@ export function useDiffAutoScroll({
         const isNearEnd = lineDiff.firstChangedLine > lineDiff.totalLines * 0.9;
         if (lineDiff.isAddition && isNearEnd) {
           lastScrollTimeRef.current = Date.now();
+          // Add buffer to handle zoom/font-size rounding issues
+          // At non-100% zoom, scrollHeight may have fractional values
           container.scrollTo({
-            top: container.scrollHeight,
+            top: container.scrollHeight + SCROLL_BUFFER_PX,
             behavior: 'smooth',
           });
           return;
@@ -166,30 +176,21 @@ export function useDiffAutoScroll({
         const targetLine = container.querySelector(`[data-line="${lineDiff.firstChangedLine}"]`);
 
         if (targetLine) {
-          // Get the line's position relative to the scroll container
+          // Check if line is currently visible using getBoundingClientRect
+          // which correctly handles zoom/font-size transformations
           const containerRect = container.getBoundingClientRect();
           const lineRect = targetLine.getBoundingClientRect();
-          const relativeTop = lineRect.top - containerRect.top + container.scrollTop;
 
-          // Check if line is currently visible in viewport
-          const currentScroll = container.scrollTop;
-          const viewportHeight = container.clientHeight;
-          const lineTop = relativeTop;
-          const lineBottom = relativeTop + lineRect.height;
-          const viewportTop = currentScroll;
-          const viewportBottom = currentScroll + viewportHeight;
-          const isVisible = lineTop < viewportBottom && lineBottom > viewportTop;
+          // Check visibility using visual viewport coordinates (handles zoom correctly)
+          const isAboveViewport = lineRect.bottom < containerRect.top;
+          const isBelowViewport = lineRect.top > containerRect.bottom;
+          const isVisible = !isAboveViewport && !isBelowViewport;
 
           if (!isVisible) {
             lastScrollTimeRef.current = Date.now();
-
-            // Scroll to show the line in the lower third of the viewport
-            const targetScroll = Math.max(0, relativeTop - viewportHeight * 0.6);
-
-            container.scrollTo({
-              top: targetScroll,
-              behavior: 'smooth',
-            });
+            // Use scrollIntoView which handles zoom/font-size correctly
+            // 'center' keeps changed content visible with context above and below
+            targetLine.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
           }
         } else {
           // Fallback: percentage-based scroll for code files without data-line
@@ -217,12 +218,22 @@ export function useDiffAutoScroll({
 
           if (lastBlock) {
             lastScrollTimeRef.current = Date.now();
-            lastBlock.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            // Use scrollIntoView for reliable positioning at any zoom level
+            // 'end' alignment with 'nearest' inline prevents horizontal scrolling
+            lastBlock.scrollIntoView({ behavior: 'smooth', block: 'end', inline: 'nearest' });
+            // Then nudge a bit more to ensure we're truly at the bottom
+            // This handles zoom/font-size rounding issues
+            requestAnimationFrame(() => {
+              container.scrollTo({
+                top: container.scrollTop + SCROLL_BUFFER_PX,
+                behavior: 'smooth',
+              });
+            });
           } else {
-            // Fallback: scroll to bottom
+            // Fallback: scroll to bottom with buffer for zoom handling
             lastScrollTimeRef.current = Date.now();
             container.scrollTo({
-              top: container.scrollHeight,
+              top: container.scrollHeight + SCROLL_BUFFER_PX,
               behavior: 'smooth',
             });
           }
@@ -234,30 +245,21 @@ export function useDiffAutoScroll({
         const targetBlock = blocks[diff.firstChangedBlock];
 
         if (targetBlock) {
-          // Get the block's position relative to the scroll container
+          // Check if block is currently visible using getBoundingClientRect
+          // which correctly handles zoom/font-size transformations
           const containerRect = container.getBoundingClientRect();
           const blockRect = targetBlock.getBoundingClientRect();
-          const relativeTop = blockRect.top - containerRect.top + container.scrollTop;
 
-          // Check if block is currently visible in viewport
-          const currentScroll = container.scrollTop;
-          const viewportHeight = container.clientHeight;
-          const blockTop = relativeTop;
-          const blockBottom = relativeTop + blockRect.height;
-          const viewportTop = currentScroll;
-          const viewportBottom = currentScroll + viewportHeight;
-          const isVisible = blockTop < viewportBottom && blockBottom > viewportTop;
+          // Check visibility using visual viewport coordinates (handles zoom correctly)
+          const isAboveViewport = blockRect.bottom < containerRect.top;
+          const isBelowViewport = blockRect.top > containerRect.bottom;
+          const isVisible = !isAboveViewport && !isBelowViewport;
 
           if (!isVisible) {
             lastScrollTimeRef.current = Date.now();
-
-            // Scroll to show the block in the lower third of the viewport
-            const targetScroll = Math.max(0, relativeTop - viewportHeight * 0.6);
-
-            container.scrollTo({
-              top: targetScroll,
-              behavior: 'smooth',
-            });
+            // Use scrollIntoView which handles zoom/font-size correctly
+            // 'center' keeps changed content visible with context above and below
+            targetBlock.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
           }
         } else {
           // Couldn't find specific block - use percentage-based fallback
