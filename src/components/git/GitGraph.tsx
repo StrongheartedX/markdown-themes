@@ -58,7 +58,10 @@ export function GitGraph({ repoPath, onCommitSelect, onFileClick, className = ''
       const hasMoreFromApi = data.data?.hasMore ?? false;
 
       setState((prev) => {
-        const allCommits = append ? [...prev.commits, ...newCommits] : newCommits;
+        // Deduplicate commits by hash when appending
+        const existingHashes = new Set(prev.commits.map(c => c.hash));
+        const uniqueNewCommits = newCommits.filter(c => !existingHashes.has(c.hash));
+        const allCommits = append ? [...prev.commits, ...uniqueNewCommits] : newCommits;
         const layout = calculateGraphLayout(allCommits);
 
         return {
