@@ -1,12 +1,41 @@
-import { memo, useState, useMemo } from 'react';
+import { memo, useState, useMemo, useEffect } from 'react';
 import { Copy, Check, Wrench, ChevronDown, ChevronRight } from 'lucide-react';
 import { Streamdown } from 'streamdown';
 import { createCodePlugin } from '@streamdown/code';
 import { createCssVariablesTheme } from 'shiki';
+import { createMermaidPlugin } from '@streamdown/mermaid';
+import { math } from '@streamdown/math';
+import 'katex/dist/katex.min.css';
 import type { ChatMessage as ChatMessageType } from '../../hooks/useAIChat';
 
 interface ChatMessageProps {
   message: ChatMessageType;
+}
+
+// Helper to get CSS variable value from computed style
+function getCssVar(element: Element, varName: string): string {
+  return getComputedStyle(element).getPropertyValue(varName).trim();
+}
+
+// Helper to determine if a color is dark
+function isDarkColor(color: string): boolean {
+  // Handle hex colors
+  if (color.startsWith('#')) {
+    const hex = color.slice(1);
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance < 0.5;
+  }
+  // Handle rgb/rgba
+  const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (match) {
+    const [, r, g, b] = match.map(Number);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance < 0.5;
+  }
+  return true; // Default to dark
 }
 
 // Shared Shiki CSS variables theme
@@ -25,6 +54,7 @@ const codePlugin = createCodePlugin({
 export const ChatMessageComponent = memo(function ChatMessageComponent({ message }: ChatMessageProps) {
   const [copied, setCopied] = useState(false);
   const [toolsExpanded, setToolsExpanded] = useState(false);
+  const [mermaidKey, setMermaidKey] = useState(0);
 
   const isUser = message.role === 'user';
 
@@ -33,6 +63,109 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({ message
     if (!message.toolUse) return 0;
     return message.toolUse.filter(t => t.type === 'start').length;
   }, [message.toolUse]);
+
+  // Get current theme class from body
+  const themeClassName = useMemo(() => {
+    const bodyClasses = document.body.className.split(' ');
+    return bodyClasses.find(c => c.startsWith('theme-')) || '';
+  }, []);
+
+  // Create mermaid plugin with theme-aware colors
+  const mermaidPlugin = useMemo(() => {
+    // Find theme element to read CSS variables
+    const themeEl = themeClassName ? document.querySelector(`.${themeClassName}`) : document.body;
+    const element = themeEl || document.body;
+
+    const bgPrimary = getCssVar(element, '--bg-primary') || '#1a1a1a';
+    const bgSecondary = getCssVar(element, '--bg-secondary') || '#2a2a2a';
+    const textPrimary = getCssVar(element, '--text-primary') || '#e0e0e0';
+    const textSecondary = getCssVar(element, '--text-secondary') || '#a0a0a0';
+    const accent = getCssVar(element, '--accent') || '#3b82f6';
+    const border = getCssVar(element, '--border') || '#404040';
+
+    const isDark = isDarkColor(bgPrimary);
+
+    return createMermaidPlugin({
+      config: {
+        theme: 'base',
+        themeVariables: {
+          // Background colors
+          background: bgSecondary,
+          primaryColor: bgSecondary,
+          secondaryColor: isDark ? '#3a3a3a' : '#f0f0f0',
+          tertiaryColor: isDark ? '#2a2a2a' : '#fafafa',
+
+          // Text colors
+          primaryTextColor: textPrimary,
+          secondaryTextColor: textSecondary,
+          tertiaryTextColor: textSecondary,
+
+          // Border/line colors
+          primaryBorderColor: border,
+          secondaryBorderColor: border,
+          tertiaryBorderColor: border,
+          lineColor: textSecondary,
+
+          // Accent colors for nodes
+          nodeBorder: accent,
+          clusterBorder: accent,
+
+          // Note styling
+          noteBkgColor: isDark ? '#3a3a3a' : '#fffde7',
+          noteTextColor: textPrimary,
+          noteBorderColor: accent,
+
+          // Flowchart specific
+          mainBkg: bgSecondary,
+          nodeBkg: bgSecondary,
+
+          // Sequence diagram
+          actorBkg: bgSecondary,
+          actorBorder: accent,
+          actorTextColor: textPrimary,
+          actorLineColor: textSecondary,
+          signalColor: textPrimary,
+          signalTextColor: textPrimary,
+          labelBoxBkgColor: bgSecondary,
+          labelBoxBorderColor: border,
+          labelTextColor: textPrimary,
+          loopTextColor: textPrimary,
+
+          // Pie chart
+          pie1: accent,
+          pie2: isDark ? '#4ade80' : '#22c55e',
+          pie3: isDark ? '#f472b6' : '#ec4899',
+          pie4: isDark ? '#facc15' : '#eab308',
+          pie5: isDark ? '#60a5fa' : '#3b82f6',
+          pie6: isDark ? '#a78bfa' : '#8b5cf6',
+          pie7: isDark ? '#fb923c' : '#f97316',
+          pieStrokeColor: bgPrimary,
+          pieOuterStrokeColor: bgPrimary,
+
+          // State diagram
+          labelColor: textPrimary,
+          altBackground: isDark ? '#2a2a2a' : '#f5f5f5',
+
+          // Font
+          fontFamily: 'inherit',
+          fontSize: '14px',
+        },
+      },
+    });
+  }, [themeClassName, mermaidKey]);
+
+  // Force mermaid re-render when theme changes (observe body class changes)
+  useEffect(() => {
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.attributeName === 'class') {
+          setMermaidKey(k => k + 1);
+        }
+      }
+    });
+    observer.observe(document.body, { attributes: true });
+    return () => observer.disconnect();
+  }, []);
 
   const handleCopy = async () => {
     try {
@@ -103,18 +236,22 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({ message
         <div className="prose prose-sm max-w-none chat-message-prose">
           {message.isStreaming ? (
             <Streamdown
+              key={mermaidKey}
               isAnimating={true}
               caret="block"
               parseIncompleteMarkdown={true}
-              plugins={{ code: codePlugin }}
+              plugins={{ code: codePlugin, mermaid: mermaidPlugin, math }}
+              controls={{ mermaid: { fullscreen: false } }}
             >
               {message.content || ' '}
             </Streamdown>
           ) : (
             <Streamdown
+              key={mermaidKey}
               isAnimating={false}
               parseIncompleteMarkdown={false}
-              plugins={{ code: codePlugin }}
+              plugins={{ code: codePlugin, mermaid: mermaidPlugin, math }}
+              controls={{ mermaid: { fullscreen: false } }}
             >
               {message.content}
             </Streamdown>

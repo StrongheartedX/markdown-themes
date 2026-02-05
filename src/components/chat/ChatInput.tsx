@@ -41,7 +41,7 @@ export function ChatInput({ onSend, onStop, isGenerating = false, disabled = fal
 
   return (
     <div
-      className="flex items-end gap-2 p-3 border-t"
+      className="flex items-end gap-2 p-3 border-t shrink-0"
       style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}
     >
       <textarea

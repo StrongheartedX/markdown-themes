@@ -91,7 +91,7 @@ export function ChatPanel({ cwd, currentFile, currentFileContent: _currentFileCo
           </button>
         </div>
 
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 min-h-0 overflow-auto">
           {conversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full px-6 text-center">
               <Bot size={48} style={{ color: 'var(--text-secondary)', marginBottom: '16px' }} />
@@ -189,7 +189,7 @@ export function ChatPanel({ cwd, currentFile, currentFileContent: _currentFileCo
 
       {/* Messages */}
       <div
-        className="flex-1 overflow-auto py-4"
+        className="flex-1 min-h-0 overflow-auto py-4"
         ref={scrollContainerRef}
         style={scale !== 1 ? {
           transform: `scale(${scale})`,
