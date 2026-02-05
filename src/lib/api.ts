@@ -4,8 +4,9 @@
  * Handles communication with the TabzChrome backend server.
  */
 
-const API_BASE = 'http://localhost:8129';
-const WS_URL = 'ws://localhost:8129/ws';
+// Backend URL - use Go backend (8130) or TabzChrome (8129)
+const API_BASE = 'http://localhost:8130';
+const WS_URL = 'ws://localhost:8130/ws';
 
 let authToken: string | null = null;
 let tokenPromise: Promise<string> | null = null;

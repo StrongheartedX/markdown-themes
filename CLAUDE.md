@@ -4,7 +4,7 @@ A themed markdown viewer for AI-assisted writing. Watch Claude edit files in rea
 
 ## Stack
 
-- **TabzChrome Backend** - File watching via WebSocket (port 8129)
+- **Go Backend** - Self-contained file watching server (port 8130)
 - **React 19** - UI
 - **Tailwind v4** - CSS-based config with `@theme` directive
 - **Streamdown** - Vercel's react-markdown replacement for AI streaming
@@ -13,24 +13,39 @@ A themed markdown viewer for AI-assisted writing. Watch Claude edit files in rea
 ## Architecture
 
 ```
-WSL (TabzChrome backend @ 8129)     Browser (Chrome)
+WSL (Go backend @ 8130)             Browser (Chrome)
 ┌───────────────────────────────┐   ┌─────────────────────┐
 │  /api/files/tree              │   │  markdown-themes    │
 │  /api/files/content           │◄─►│  - Streamdown       │
-│  WebSocket file-watch msgs    │   │  - Themes (CSS)     │
+│  /api/git/* endpoints         │   │  - Themes (CSS)     │
+│  WebSocket file-watch msgs    │   │                     │
 └───────────────────────────────┘   └─────────────────────┘
 ```
 
-**Requires**: TabzChrome backend running on port 8129
+**Requires**: Go backend running on port 8130
 
 ## Project Structure
 
 ```
+backend/                       # Go backend server
+├── main.go                    # Entry point, Chi router, CORS middleware
+├── go.mod                     # Go module dependencies
+├── handlers/
+│   ├── files.go               # File tree, content, git status APIs
+│   └── git.go                 # Git graph, commit details, diff APIs
+├── websocket/
+│   ├── hub.go                 # WebSocket connection management
+│   └── filewatcher.go         # fsnotify integration, streaming detection
+├── models/
+│   └── types.go               # FileTreeNode, GitCommit, etc.
+└── utils/
+    └── files.go               # File icons, git helpers, ignore patterns
+
 src/
 ├── App.tsx                    # Main app, routing, theme state
 ├── index.css                  # Tailwind + CSS variables + modal styles
 ├── lib/
-│   ├── api.ts                 # TabzChrome API client, WebSocket, queueToChat()
+│   ├── api.ts                 # Backend API client, WebSocket, file operations
 │   └── filters.ts             # File tree filter presets
 ├── pages/
 │   ├── Files.tsx              # Main markdown viewer with sidebar
@@ -53,7 +68,7 @@ src/
 │   ├── useWorkspaceStreaming.ts # Workspace-wide streaming detection (Follow AI Edits)
 │   ├── useDiffAutoScroll.ts   # Auto-scroll to changes during streaming
 │   ├── useGitDiff.ts          # Git diff highlighting (additions, modifications, deletions)
-│   ├── useWorkspace.ts        # File tree via TabzChrome API
+│   ├── useWorkspace.ts        # File tree via backend API
 │   ├── useTabManager.ts       # Tab state management for Files page
 │   ├── useSplitView.ts        # Split view state for Files page
 │   ├── useAppStore.ts         # Hook for AppStoreContext
@@ -70,9 +85,11 @@ src/
 ## Key Concepts
 
 ### File Watching (WebSocket)
-`useFileWatcher` connects to TabzChrome's WebSocket and subscribes to file changes:
+`useFileWatcher` connects to the Go backend's WebSocket and subscribes to file changes:
 - Sends `{ type: 'file-watch', path }` to subscribe
-- Receives `{ type: 'file-change', content, timeSinceLastChange }` on changes
+- Receives `{ type: 'file-content', content, modified, size }` on initial subscribe
+- Receives `{ type: 'file-change', content, timeSinceLastChange }` on modifications
+- Receives `{ type: 'file-deleted', path }` when file is removed
 - Streaming detection: `timeSinceLastChange < 1500ms` triggers streaming UI
 
 ### Streaming Detection
@@ -86,7 +103,7 @@ The toolbar has a "Follow AI Edits" button that auto-opens files as Claude write
 
 **How it works:**
 1. `useWorkspaceStreaming` subscribes to `workspace-watch` via WebSocket
-2. TabzChrome monitors the entire workspace directory with chokidar
+2. Go backend monitors the entire workspace directory with fsnotify
 3. On first file change or rapid changes (streaming), server broadcasts `workspace-file-change`
 4. Client receives the message and auto-opens the file
 5. Existing `useFileWatcher` then shows live content updates
@@ -196,23 +213,17 @@ The app auto-detects file types and renders with appropriate viewers:
 
 The hooks `useTabManager` and `useSplitView` accept optional `initialState` and `onStateChange` props to sync with the context.
 
-### TabzChrome Integration
-The app integrates with TabzChrome for terminal/chat actions via WebSocket:
+### Optional TabzChrome Integration
+Some features require TabzChrome (port 8129) running alongside the Go backend:
 
 **Send to Chat** - Queue content to the TabzChrome sidepanel chat input:
 - Files page: toolbar button sends current file content
 - Prompts page: "Send to Chat" button sends prompt with variables filled in
+- Uses `queueToChat()` which sends `{ type: 'QUEUE_COMMAND', command }` via WebSocket
 
-Uses `queueToChat()` in `lib/api.ts` which sends `{ type: 'QUEUE_COMMAND', command }` via WebSocket.
+**Spawn Terminals** - Used by GitGraph's "Gitlogue" button (requires TabzChrome)
 
-**Spawn Terminals** - Used by GitGraph's "Gitlogue" button:
-```ts
-await fetch(`${API_BASE}/api/spawn`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json', 'X-Auth-Token': token },
-  body: JSON.stringify({ name: 'Tab name', command: 'command to run' }),
-});
-```
+Note: Core file viewing and watching works with just the Go backend.
 
 ### GitGraph
 The Files page toolbar has a git graph button that shows commit history in the right pane:
@@ -271,12 +282,23 @@ Tests use Vitest + React Testing Library. Run `npm run test:run` before committi
 
 ## Prerequisites
 
-1. TabzChrome backend must be running:
+1. Start the Go backend:
    ```bash
-   cd ~/projects/TabzChrome && node backend/server.js
+   cd backend && go run .
+   # Or build first: go build && ./markdown-themes-backend
    ```
 
-2. Open http://localhost:5173 in browser
+2. Start the frontend dev server:
+   ```bash
+   npm run dev
+   ```
+
+3. Open http://localhost:5173 in browser
+
+**Optional**: For TabzChrome features (Send to Chat, Spawn Terminals), also run:
+```bash
+cd ~/projects/TabzChrome && node backend/server.js
+```
 
 ## Documentation (use /docs-seeker)
 
