@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef, useEffect, useState } from 'react';
 import { MarkdownViewer } from '../MarkdownViewer';
 import { jsonlToMarkdown } from '../../utils/conversationMarkdown';
 
@@ -8,6 +8,54 @@ interface ConversationMarkdownViewerProps {
   fontSize?: number;
   themeClassName?: string;
   isStreaming?: boolean;
+}
+
+/**
+ * Custom hook to throttle content updates during streaming.
+ * This prevents expensive re-parsing of large JSONL files on every WebSocket message.
+ */
+function useThrottledContent(content: string, isStreaming: boolean, throttleMs: number = 1000): string {
+  const [throttledContent, setThrottledContent] = useState(content);
+  const lastUpdateRef = useRef<number>(0);
+  const pendingContentRef = useRef<string>(content);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    pendingContentRef.current = content;
+
+    // If not streaming, update immediately
+    if (!isStreaming) {
+      setThrottledContent(content);
+      return;
+    }
+
+    const now = Date.now();
+    const timeSinceLastUpdate = now - lastUpdateRef.current;
+
+    // If enough time has passed, update immediately
+    if (timeSinceLastUpdate >= throttleMs) {
+      lastUpdateRef.current = now;
+      setThrottledContent(content);
+    } else {
+      // Schedule an update for the remaining time
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        lastUpdateRef.current = Date.now();
+        setThrottledContent(pendingContentRef.current);
+      }, throttleMs - timeSinceLastUpdate);
+    }
+
+    return () => clearTimeout(timeoutRef.current);
+  }, [content, isStreaming, throttleMs]);
+
+  // Final update when streaming stops
+  useEffect(() => {
+    if (!isStreaming && pendingContentRef.current !== throttledContent) {
+      setThrottledContent(pendingContentRef.current);
+    }
+  }, [isStreaming, throttledContent]);
+
+  return throttledContent;
 }
 
 /**
@@ -59,11 +107,15 @@ export function ConversationMarkdownViewer({
   themeClassName,
   isStreaming = false,
 }: ConversationMarkdownViewerProps) {
-  // Transform JSONL to markdown
-  const markdown = useMemo(() => jsonlToMarkdown(content), [content]);
+  // Throttle content updates during streaming to prevent expensive re-parsing
+  // Only update at most once per second when streaming
+  const throttledContent = useThrottledContent(content, isStreaming, 1000);
 
-  // Extract metadata for header
-  const metadata = useMemo(() => extractMetadata(content), [content]);
+  // Transform JSONL to markdown (now using throttled content)
+  const markdown = useMemo(() => jsonlToMarkdown(throttledContent), [throttledContent]);
+
+  // Extract metadata for header (also use throttled content)
+  const metadata = useMemo(() => extractMetadata(throttledContent), [throttledContent]);
 
   // Scroll to bottom on initial load (conversations are chronological)
   const containerRef = useRef<HTMLDivElement>(null);

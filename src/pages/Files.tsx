@@ -21,6 +21,7 @@ import { SplitView } from '../components/SplitView';
 import { GitGraph, WorkingTree, MultiRepoView } from '../components/git';
 import { DiffViewer } from '../components/viewers/DiffViewer';
 import { ArchiveModal } from '../components/ArchiveModal';
+import { fetchFileContent } from '../lib/api';
 import { parseFrontmatter } from '../utils/frontmatter';
 import { themes } from '../themes';
 import type { ArchivedConversation } from '../context/AppStoreContext';
@@ -211,6 +212,31 @@ export function Files() {
   const leftScrollContainerRef = useRef<HTMLDivElement>(null);
   const rightScrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // Track recently closed files to prevent circular auto-reopening (path -> close timestamp)
+  const recentlyClosedRef = useRef<Map<string, number>>(new Map());
+  const RECENTLY_CLOSED_TTL = 5000; // 5 seconds
+
+  // Check if a file was recently closed (within TTL)
+  const wasRecentlyClosed = useCallback((path: string) => {
+    const closedAt = recentlyClosedRef.current.get(path);
+    if (!closedAt) return false;
+    const isRecent = Date.now() - closedAt < RECENTLY_CLOSED_TTL;
+    if (!isRecent) {
+      recentlyClosedRef.current.delete(path);
+    }
+    return isRecent;
+  }, []);
+
+  // Wrap closeTab to track recently closed files
+  const handleCloseTab = useCallback((id: string) => {
+    // Find the tab being closed to get its path
+    const tab = tabs.find(t => t.id === id);
+    if (tab?.path) {
+      recentlyClosedRef.current.set(tab.path, Date.now());
+    }
+    closeTab(id);
+  }, [tabs, closeTab]);
+
   // Get workspace from global context
   const { workspacePath, fileTree } = useWorkspaceContext();
 
@@ -300,8 +326,21 @@ export function Files() {
   const rightFileExt = rightPaneFilePath?.split('.').pop()?.toLowerCase();
   const isRightFileBinary = rightFileExt ? BINARY_EXTENSIONS.has(rightFileExt) : false;
 
+  // Current conversation detection for "View Conversation" button
+  // Must be defined before file watchers to avoid watching the active conversation (causes freezes)
+  const { conversation, isLoading: conversationLoading } = useCurrentConversation();
+
+  // Check if a file is the current active conversation (being written to by Claude)
+  // Watching this file causes freezes due to rapid updates and heavy JSONL parsing
+  const isCurrentConversationFile = useCallback(
+    (path: string | null) => path === conversation?.conversationPath,
+    [conversation?.conversationPath]
+  );
+
   // Use file watcher to get content and streaming state (left/main pane)
   // Skip for binary files - their viewers fetch their own data
+  // Skip the current active conversation - watching it causes freezes due to rapid updates
+  const isLeftPaneActiveConversation = isCurrentConversationFile(currentFile);
   const {
     content,
     error,
@@ -309,23 +348,55 @@ export function Files() {
     isStreaming,
     connected,
   } = useFileWatcher({
-    path: isCurrentFileBinary ? null : currentFile,
+    path: isCurrentFileBinary || isLeftPaneActiveConversation ? null : currentFile,
   });
-
-  // Current conversation detection for "View Conversation" button
-  const { conversation, isLoading: conversationLoading } = useCurrentConversation();
 
   // File watcher for right pane (only active when split view is enabled)
   // Skip watching the current conversation file - it's being actively written to and can cause freezes
-  const isCurrentConversation = rightPaneFilePath === conversation?.conversationPath;
+  const isRightPaneActiveConversation = isCurrentConversationFile(rightPaneFilePath);
   const {
     content: rightContent,
     error: rightError,
     loading: rightLoading,
     isStreaming: rightIsStreaming,
   } = useFileWatcher({
-    path: isSplit && !isRightFileBinary && !isCurrentConversation ? rightPaneFilePath : null,
+    path: isSplit && !isRightFileBinary && !isRightPaneActiveConversation ? rightPaneFilePath : null,
   });
+
+  // Static content fetch for active conversation (since we can't live-watch it)
+  // Fetches once on open and periodically refreshes (every 3 seconds) to show updates
+  const [activeConversationContent, setActiveConversationContent] = useState<string>('');
+  const [activeConversationLoading, setActiveConversationLoading] = useState(false);
+  const activeConversationRefreshRef = useRef<ReturnType<typeof setInterval>>();
+
+  useEffect(() => {
+    // Only fetch if viewing the active conversation
+    if (!isLeftPaneActiveConversation || !currentFile) {
+      setActiveConversationContent('');
+      clearInterval(activeConversationRefreshRef.current);
+      return;
+    }
+
+    const fetchContent = async () => {
+      try {
+        setActiveConversationLoading(true);
+        const result = await fetchFileContent(currentFile);
+        setActiveConversationContent(result.content);
+      } catch (err) {
+        console.error('Failed to fetch active conversation:', err);
+      } finally {
+        setActiveConversationLoading(false);
+      }
+    };
+
+    // Initial fetch
+    fetchContent();
+
+    // Periodic refresh every 3 seconds (slow enough to not cause freezes)
+    activeConversationRefreshRef.current = setInterval(fetchContent, 3000);
+
+    return () => clearInterval(activeConversationRefreshRef.current);
+  }, [isLeftPaneActiveConversation, currentFile]);
 
   // Workspace streaming detection for follow mode and changed files tracking
   const { streamingFile, changedFiles } = useWorkspaceStreaming({
@@ -335,6 +406,10 @@ export function Files() {
 
   // Subagent watching - auto-open conversation tabs when subagents start
   const handleSubagentStart = useCallback((subagent: ActiveSubagent) => {
+    // Don't reopen if user recently closed this conversation
+    if (wasRecentlyClosed(subagent.conversationPath)) {
+      return;
+    }
     // Open conversation tab in the left pane
     openConversationTab(subagent.conversationPath, {
       sessionId: subagent.sessionId,
@@ -343,7 +418,7 @@ export function Files() {
       taskDescription: subagent.taskDescription,
       autoClose: false, // Don't auto-close by default
     });
-  }, [openConversationTab]);
+  }, [openConversationTab, wasRecentlyClosed]);
 
   const handleSubagentEnd = useCallback((sessionId: string) => {
     // Optionally close the tab (respects autoClose setting)
@@ -419,6 +494,11 @@ export function Files() {
         return;
       }
 
+      // Don't reopen files that were recently closed by the user
+      if (wasRecentlyClosed(streamingFile)) {
+        return;
+      }
+
       // Open streaming file in right pane tabs (enables split if needed)
       if (!isSplit) {
         toggleSplit();
@@ -429,7 +509,7 @@ export function Files() {
       openRightTab(streamingFile, true);
       addRecentFile(streamingFile);
     }
-  }, [appState.followStreamingMode, streamingFile, rightPaneFilePath, isSplit, toggleSplit, setRightPaneFile, openRightTab, addRecentFile]);
+  }, [appState.followStreamingMode, streamingFile, rightPaneFilePath, isSplit, toggleSplit, setRightPaneFile, openRightTab, addRecentFile, wasRecentlyClosed]);
 
   // Track files that have been auto-opened as tabs (to avoid re-opening)
   const autoOpenedFilesRef = useRef<Set<string>>(new Set());
@@ -536,10 +616,15 @@ export function Files() {
     return isJsonl && isInClaudeProjects;
   }, [currentFile]);
 
+  // Effective content: use static fetch for active conversation, file watcher for others
+  const effectiveContent = isLeftPaneActiveConversation ? activeConversationContent : content;
+  const effectiveLoading = isLeftPaneActiveConversation ? activeConversationLoading : loading;
+  const effectiveIsStreaming = isLeftPaneActiveConversation ? true : isStreaming; // Active conversation is always "streaming"
+
   // Parse frontmatter from content (only for markdown files)
   const { frontmatter, content: markdownContent } = useMemo(
-    () => (isMarkdownFile ? parseFrontmatter(content) : { frontmatter: null, content }),
-    [content, isMarkdownFile]
+    () => (isMarkdownFile ? parseFrontmatter(effectiveContent) : { frontmatter: null, content: effectiveContent }),
+    [effectiveContent, isMarkdownFile]
   );
 
   // Check if right file is markdown
@@ -558,11 +643,11 @@ export function Files() {
   // Auto-scroll to changes during actual streaming (rapid file changes < 1.5s)
   // Uses block-level diffing for markdown, line-level for code files
   useDiffAutoScroll({
-    content: isMarkdownFile ? markdownContent : content,
-    isStreaming,
+    content: isMarkdownFile ? markdownContent : effectiveContent,
+    isStreaming: effectiveIsStreaming,
     scrollContainerRef: leftScrollContainerRef,
     filePath: currentFile ?? undefined,
-    enabled: isStreaming,
+    enabled: effectiveIsStreaming && !isLeftPaneActiveConversation, // Disable auto-scroll for active conversation (too jumpy)
   });
 
   // Auto-scroll for right pane (used by Follow AI Edits)
@@ -628,7 +713,7 @@ export function Files() {
       if (fromPane === 'left') {
         const leftTab = tabs.find((t) => t.path === path);
         if (leftTab) {
-          closeTab(leftTab.id);
+          handleCloseTab(leftTab.id);
         }
       }
       // Ensure right pane is in file mode and open as pinned tab
@@ -636,7 +721,7 @@ export function Files() {
       openRightTab(path, false); // pinned mode (dragging = intentional)
       addRecentFile(path);
     },
-    [rightPaneFilePath, conversation?.conversationPath, tabs, closeTab, setRightPaneFile, openRightTab, addRecentFile]
+    [rightPaneFilePath, conversation?.conversationPath, tabs, handleCloseTab, setRightPaneFile, openRightTab, addRecentFile]
   );
 
   // Handle drop to left pane (drag-and-drop from right pane tabs)
@@ -796,15 +881,15 @@ export function Files() {
     <>
       <Toolbar
         currentFile={currentFile}
-        isStreaming={isStreaming}
-        connected={connected || isCurrentFileBinary}
+        isStreaming={effectiveIsStreaming}
+        connected={connected || isCurrentFileBinary || isLeftPaneActiveConversation}
         recentFiles={appState.recentFiles}
         fontSize={appState.fontSize}
         isSplit={isSplit}
         isGitGraph={rightPaneContent?.type === 'git-graph'}
         isWorkingTree={rightPaneContent?.type === 'working-tree'}
         isFollowMode={appState.followStreamingMode}
-        content={content}
+        content={effectiveContent}
         workspacePath={workspacePath}
         conversationPath={conversation?.conversationPath ?? null}
         conversationLoading={conversationLoading}
@@ -867,11 +952,11 @@ export function Files() {
                 tabs={tabs}
                 activeTabId={activeTabId}
                 onTabSelect={setActiveTab}
-                onTabClose={closeTab}
+                onTabClose={handleCloseTab}
                 onTabPin={pinTab}
               />
 
-              {(activeTab?.type === 'file' || activeTab?.type === 'conversation') && loading && !content && (
+              {(activeTab?.type === 'file' || activeTab?.type === 'conversation') && effectiveLoading && !effectiveContent && (
                 <div className="flex items-center justify-center h-full">
                   <p style={{ color: 'var(--text-secondary)' }}>Loading...</p>
                 </div>
@@ -888,7 +973,7 @@ export function Files() {
                 </div>
               )}
 
-              {(activeTab?.type === 'file' || activeTab?.type === 'conversation') && !loading && !error && !currentFile && (
+              {(activeTab?.type === 'file' || activeTab?.type === 'conversation') && !effectiveLoading && !error && !currentFile && (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center max-w-md">
                     {recentFilesForEmptyState.length > 0 ? (
@@ -958,14 +1043,14 @@ export function Files() {
               )}
 
               {/* File and Conversation tab content */}
-              {(activeTab?.type === 'file' || activeTab?.type === 'conversation') && !error && currentFile && content && (
+              {(activeTab?.type === 'file' || activeTab?.type === 'conversation') && !error && currentFile && effectiveContent && (
                 <>
                   {isMarkdownFile && frontmatter && <MetadataBar frontmatter={frontmatter} />}
                   <div className="flex-1 overflow-auto" ref={leftScrollContainerRef}>
                     <ViewerContainer
                       filePath={currentFile}
                       content={markdownContent}
-                      isStreaming={isStreaming}
+                      isStreaming={effectiveIsStreaming}
                       themeClassName={themeClass}
                       fontSize={appState.fontSize}
                       repoPath={workspacePath}
