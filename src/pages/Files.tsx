@@ -933,7 +933,7 @@ export function Files() {
                 </div>
               )}
 
-              {(activeTab?.type === 'file' || activeTab?.type === 'conversation') && !loading && !error && !currentFile && (
+              {(!activeTab || activeTab?.type === 'file' || activeTab?.type === 'conversation') && !loading && !error && !currentFile && (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center max-w-md">
                     {recentFilesForEmptyState.length > 0 ? (
