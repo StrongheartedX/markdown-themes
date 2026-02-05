@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Columns, Copy, AtSign, MessageSquare, MessageCircle, Check, GitBranch, GitPullRequestDraft, Keyboard, Crosshair, Loader2 } from 'lucide-react';
+import { Columns, Copy, AtSign, MessageSquare, MessageCircle, Check, GitBranch, GitPullRequestDraft, Keyboard, Crosshair, Loader2, Archive } from 'lucide-react';
 import { queueToChat } from '../lib/api';
 
 interface ToolbarProps {
@@ -16,6 +16,8 @@ interface ToolbarProps {
   workspacePath?: string | null;
   conversationPath?: string | null;
   conversationLoading?: boolean;
+  /** Whether the current file is a conversation file that can be archived */
+  isConversationFile?: boolean;
   onFileSelect: (path: string) => void;
   onFontSizeChange?: (size: number) => void;
   onSplitToggle?: () => void;
@@ -24,6 +26,8 @@ interface ToolbarProps {
   onFollowModeToggle?: () => void;
   onHotkeysClick?: () => void;
   onViewConversation?: () => void;
+  /** Callback when archive button is clicked */
+  onArchiveClick?: () => void;
 }
 
 export function Toolbar({
@@ -40,6 +44,7 @@ export function Toolbar({
   workspacePath,
   conversationPath,
   conversationLoading = false,
+  isConversationFile = false,
   onFileSelect,
   onFontSizeChange,
   onSplitToggle,
@@ -48,6 +53,7 @@ export function Toolbar({
   onFollowModeToggle,
   onHotkeysClick,
   onViewConversation,
+  onArchiveClick,
 }: ToolbarProps) {
   const [showRecentFiles, setShowRecentFiles] = useState(false);
   const [showPathInput, setShowPathInput] = useState(false);
@@ -316,6 +322,24 @@ export function Toolbar({
               >
                 <MessageSquare className="w-4 h-4" />
               </button>
+
+              {/* Archive conversation button - only shown for conversation files */}
+              {isConversationFile && (
+                <button
+                  type="button"
+                  onClick={onArchiveClick}
+                  className="w-8 h-8 flex items-center justify-center transition-colors"
+                  style={{
+                    borderRadius: 'var(--radius)',
+                    backgroundColor: 'var(--bg-primary)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)',
+                  }}
+                  title="Archive conversation"
+                >
+                  <Archive className="w-4 h-4" />
+                </button>
+              )}
             </div>
           )}
         </div>

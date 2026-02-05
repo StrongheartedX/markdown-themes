@@ -19,8 +19,10 @@ import { RightPaneTabBar } from '../components/RightPaneTabBar';
 import { SplitView } from '../components/SplitView';
 import { GitGraph, WorkingTree, MultiRepoView } from '../components/git';
 import { DiffViewer } from '../components/viewers/DiffViewer';
+import { ArchiveModal } from '../components/ArchiveModal';
 import { parseFrontmatter } from '../utils/frontmatter';
 import { themes } from '../themes';
+import type { ArchivedConversation } from '../context/AppStoreContext';
 
 const API_BASE = 'http://localhost:8129';
 
@@ -194,11 +196,14 @@ export function Files() {
     toggleFavorite,
     isFavorite,
     toggleFollowMode,
+    saveArchiveLocation,
+    addArchivedConversation,
   } = useAppStore();
 
   // Local state for sidebar width during drag (for smooth updates)
   const [sidebarWidth, setSidebarWidth] = useState(appState.sidebarWidth);
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const leftScrollContainerRef = useRef<HTMLDivElement>(null);
   const rightScrollContainerRef = useRef<HTMLDivElement>(null);
@@ -496,6 +501,15 @@ export function Files() {
     return ext === 'md' || ext === 'markdown' || ext === 'mdx';
   }, [currentFile]);
 
+  // Check if current file is a conversation file (JSONL in ~/.claude/projects/)
+  const isConversationFile = useMemo(() => {
+    if (!currentFile) return false;
+    const ext = currentFile.split('.').pop()?.toLowerCase();
+    const isJsonl = ext === 'jsonl' || ext === 'ndjson';
+    const isInClaudeProjects = currentFile.includes('/.claude/projects/');
+    return isJsonl && isInClaudeProjects;
+  }, [currentFile]);
+
   // Parse frontmatter from content (only for markdown files)
   const { frontmatter, content: markdownContent } = useMemo(
     () => (isMarkdownFile ? parseFrontmatter(content) : { frontmatter: null, content }),
@@ -678,6 +692,17 @@ export function Files() {
     addRecentFile(conversation.conversationPath);
   }, [conversation, openTab, addRecentFile]);
 
+  // Handle archive button click
+  const handleArchiveClick = useCallback(() => {
+    if (!currentFile || !isConversationFile) return;
+    setShowArchiveModal(true);
+  }, [currentFile, isConversationFile]);
+
+  // Handle archive completion
+  const handleArchiveComplete = useCallback((archive: ArchivedConversation) => {
+    addArchivedConversation(archive);
+  }, [addArchivedConversation]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -757,6 +782,7 @@ export function Files() {
         workspacePath={workspacePath}
         conversationPath={conversation?.conversationPath ?? null}
         conversationLoading={conversationLoading}
+        isConversationFile={isConversationFile}
         onFileSelect={handleFileSelect}
         onFontSizeChange={handleFontSizeChange}
         onSplitToggle={toggleSplit}
@@ -765,6 +791,7 @@ export function Files() {
         onFollowModeToggle={toggleFollowMode}
         onHotkeysClick={handleHotkeysClick}
         onViewConversation={handleViewConversation}
+        onArchiveClick={handleArchiveClick}
       />
 
       <div className="flex-1 flex overflow-hidden">
@@ -1037,6 +1064,17 @@ export function Files() {
           }
         />
       </div>
+
+      {/* Archive Modal */}
+      {showArchiveModal && currentFile && (
+        <ArchiveModal
+          conversationPath={currentFile}
+          archiveLocation={appState.archiveLocation}
+          onArchiveLocationChange={saveArchiveLocation}
+          onArchiveComplete={handleArchiveComplete}
+          onClose={() => setShowArchiveModal(false)}
+        />
+      )}
     </>
   );
 }

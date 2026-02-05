@@ -11,6 +11,13 @@ export interface FavoriteItem {
   addedAt: number; // timestamp for ordering
 }
 
+export interface ArchivedConversation {
+  originalPath: string;
+  archivedPath: string;
+  archivedAt: number; // timestamp
+  tags?: string[];
+}
+
 export interface AppState {
   theme: ThemeId;
   recentFiles: string[];
@@ -20,6 +27,21 @@ export interface AppState {
   sidebarWidth: number;
   favorites: FavoriteItem[];
   followStreamingMode: boolean;
+  archiveLocation: string;
+  archivedConversations: ArchivedConversation[];
+}
+
+// Get default archive location based on home directory
+// If we know the workspace path, derive home from it (e.g., /home/user/projects/foo -> /home/user/.claude/archive)
+function getDefaultArchiveLocation(workspacePath?: string): string {
+  if (workspacePath) {
+    const match = workspacePath.match(/^(\/home\/[^/]+)/);
+    if (match) {
+      return `${match[1]}/.claude/archive`;
+    }
+  }
+  // Fallback - user will need to set this via the modal
+  return '/home/.claude/archive';
 }
 
 const DEFAULT_STATE: AppState = {
@@ -31,6 +53,8 @@ const DEFAULT_STATE: AppState = {
   sidebarWidth: 250,
   favorites: [],
   followStreamingMode: false,
+  archiveLocation: getDefaultArchiveLocation(),
+  archivedConversations: [],
 };
 
 interface AppStoreContextValue {
@@ -46,6 +70,8 @@ interface AppStoreContextValue {
   toggleFavorite: (path: string, isDirectory: boolean) => void;
   isFavorite: (path: string) => boolean;
   toggleFollowMode: () => void;
+  saveArchiveLocation: (location: string) => void;
+  addArchivedConversation: (archive: ArchivedConversation) => void;
 }
 
 const AppStoreContext = createContext<AppStoreContextValue | null>(null);
@@ -56,6 +82,9 @@ function loadFromStorage(): AppState {
     if (!data) return DEFAULT_STATE;
 
     const parsed = JSON.parse(data);
+    // Derive archive location from lastWorkspace if not already set
+    const archiveLocation = parsed.archiveLocation ?? getDefaultArchiveLocation(parsed.lastWorkspace);
+
     return {
       theme: parsed.theme ?? DEFAULT_STATE.theme,
       recentFiles: parsed.recentFiles ?? DEFAULT_STATE.recentFiles,
@@ -65,6 +94,8 @@ function loadFromStorage(): AppState {
       sidebarWidth: parsed.sidebarWidth ?? DEFAULT_STATE.sidebarWidth,
       favorites: parsed.favorites ?? DEFAULT_STATE.favorites,
       followStreamingMode: parsed.followStreamingMode ?? DEFAULT_STATE.followStreamingMode,
+      archiveLocation,
+      archivedConversations: parsed.archivedConversations ?? DEFAULT_STATE.archivedConversations,
     };
   } catch {
     return DEFAULT_STATE;
@@ -181,6 +212,23 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const saveArchiveLocation = useCallback((location: string) => {
+    setState((prev) => {
+      const next = { ...prev, archiveLocation: location };
+      saveToStorage(next);
+      return next;
+    });
+  }, []);
+
+  const addArchivedConversation = useCallback((archive: ArchivedConversation) => {
+    setState((prev) => {
+      const newArchived = [...prev.archivedConversations, archive];
+      const next = { ...prev, archivedConversations: newArchived };
+      saveToStorage(next);
+      return next;
+    });
+  }, []);
+
   return (
     <AppStoreContext.Provider
       value={{
@@ -196,6 +244,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         toggleFavorite,
         isFavorite,
         toggleFollowMode,
+        saveArchiveLocation,
+        addArchivedConversation,
       }}
     >
       {children}

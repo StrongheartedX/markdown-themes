@@ -382,3 +382,49 @@ export async function fetchGitStatus(path: string): Promise<GitStatusResponse> {
 
   return response.json();
 }
+
+/**
+ * Archive a conversation file by copying it to a destination path
+ * @param sourcePath - The original conversation file path
+ * @param destPath - The destination archive path
+ * @returns The full archived file path
+ */
+export async function archiveConversation(
+  sourcePath: string,
+  destPath: string
+): Promise<string> {
+  // First, read the source file content
+  const fileContent = await fetchFileContent(sourcePath);
+
+  // Generate the archived filename with timestamp
+  const fileName = sourcePath.split('/').pop() || 'conversation.jsonl';
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const archivedFileName = `${timestamp}_${fileName}`;
+  const fullDestPath = destPath.endsWith('/')
+    ? `${destPath}${archivedFileName}`
+    : `${destPath}/${archivedFileName}`;
+
+  // Write the content to the archive location
+  await writeFile(fullDestPath, fileContent.content);
+
+  return fullDestPath;
+}
+
+/**
+ * Create a directory if it doesn't exist
+ */
+export async function ensureDirectory(path: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/files/mkdir`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+    // Ignore "already exists" errors
+    if (!error.error?.includes('already exists') && !error.error?.includes('EEXIST')) {
+      throw new Error(error.error || `Failed to create directory: ${response.status}`);
+    }
+  }
+}
