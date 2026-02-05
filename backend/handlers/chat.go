@@ -73,16 +73,15 @@ func Chat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build the Claude CLI command
-	model := req.Model
-	if model == "" {
-		model = "claude-sonnet-4-20250514"
-	}
-
 	args := []string{
-		"--model", model,
 		"--output-format", "stream-json",
 		"--verbose",
 		"-p", lastUserMessage,
+	}
+
+	// Add model if explicitly specified
+	if req.Model != "" {
+		args = append([]string{"--model", req.Model}, args...)
 	}
 
 	// Add session resumption if provided
@@ -116,7 +115,7 @@ func Chat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[Chat] Started Claude CLI (PID: %d, model: %s)", cmd.Process.Pid, model)
+	log.Printf("[Chat] Started Claude CLI (PID: %d)", cmd.Process.Pid)
 
 	// Track the process
 	convID := req.ConversationID
@@ -199,8 +198,52 @@ func Chat(w http.ResponseWriter, r *http.Request) {
 		eventType, _ := event["type"].(string)
 
 		switch eventType {
+		case "assistant":
+			// Verbose mode: extract text from message.content[].text
+			message, ok := event["message"].(map[string]interface{})
+			if !ok {
+				continue
+			}
+			// Extract session ID
+			if sid, ok := event["session_id"].(string); ok && sid != "" {
+				claudeSessionID = sid
+			}
+			// Extract content array
+			content, ok := message["content"].([]interface{})
+			if !ok {
+				continue
+			}
+			for _, block := range content {
+				blockMap, ok := block.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				blockType, _ := blockMap["type"].(string)
+				if blockType == "text" {
+					text, _ := blockMap["text"].(string)
+					if text != "" {
+						accumulatedContent += text
+						writeSSE(w, flusher, map[string]interface{}{
+							"type":    "content",
+							"content": text,
+							"done":    false,
+						})
+					}
+				} else if blockType == "tool_use" {
+					toolName, _ := blockMap["name"].(string)
+					toolID, _ := blockMap["id"].(string)
+					writeSSE(w, flusher, map[string]interface{}{
+						"type": "tool_start",
+						"tool": map[string]interface{}{
+							"name": toolName,
+							"id":   toolID,
+						},
+					})
+				}
+			}
+
 		case "content_block_delta":
-			// Extract text delta
+			// Non-verbose mode: extract text delta
 			delta, ok := event["delta"].(map[string]interface{})
 			if !ok {
 				continue
@@ -275,7 +318,7 @@ func Chat(w http.ResponseWriter, r *http.Request) {
 
 			// Extract cost/usage from result
 			usage, _ := event["usage"].(map[string]interface{})
-			costUSD, _ := event["cost_usd"].(float64)
+			costUSD, _ := event["total_cost_usd"].(float64)
 			duration, _ := event["duration_ms"].(float64)
 
 			writeSSE(w, flusher, map[string]interface{}{
