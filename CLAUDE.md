@@ -379,3 +379,29 @@ Syntax highlighting uses CSS variables via `createCssVariablesTheme()` from Shik
 | `--shiki-token-punctuation` | `{}`, `()`, `;`, `:` |
 | `--shiki-token-string-expression` | Template literals |
 | `--shiki-token-link` | URLs in comments/strings |
+
+### Catch-All Pre Selector (Important!)
+
+For themes with **dark code blocks**, always add a catch-all selector for `<pre>` elements outside of `.prose` containers. This ensures frontmatter viewers, file viewers, and other code display contexts get proper dark backgrounds instead of inheriting the page's light background.
+
+```css
+/* Catch-all for code blocks outside .prose (frontmatter, viewers, etc) */
+.theme-{theme-name} pre:not(.prose pre) {
+  background: #DARK_BG_COLOR;
+  color: #LIGHT_TEXT_COLOR;
+}
+
+.theme-{theme-name} pre:not(.prose pre) code {
+  background: transparent;
+  color: inherit;
+}
+```
+
+**Also important:** Set `--shiki-background` to the actual dark color, NOT `transparent`. This ensures Shiki-rendered code always gets the correct background:
+
+```css
+--shiki-foreground: #LIGHT_COLOR;
+--shiki-background: #DARK_COLOR;  /* NOT transparent */
+```
+
+Without these rules, code blocks outside `.prose` will show light text (from Shiki) on light backgrounds (from page), causing invisible/hard-to-read code.
