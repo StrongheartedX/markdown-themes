@@ -952,7 +952,6 @@ export function Files() {
         onSplitToggle={toggleSplit}
         onChatPanelToggle={handleChatPanelToggle}
         onFollowModeToggle={toggleFollowMode}
-        onHotkeysClick={handleHotkeysClick}
         onViewConversation={handleViewConversation}
         onArchiveClick={handleArchiveClick}
       />
@@ -992,6 +991,7 @@ export function Files() {
           isWorkingTree={rightPaneContent?.type === 'working-tree'}
           onGitGraphToggle={handleGitGraphToggle}
           onWorkingTreeToggle={handleWorkingTreeToggle}
+          onHotkeysClick={handleHotkeysClick}
           rightPaneTabBar={
             <RightPaneTabBar
               tabs={rightPaneTabs}

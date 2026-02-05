@@ -1,5 +1,5 @@
 import { useRef, useCallback, useState, type ReactNode } from 'react';
-import { GitBranch, GitPullRequestDraft } from 'lucide-react';
+import { GitBranch, GitPullRequestDraft, Keyboard } from 'lucide-react';
 import type { RightPaneContent } from '../hooks/useSplitView';
 
 interface SplitViewProps {
@@ -18,6 +18,7 @@ interface SplitViewProps {
   isWorkingTree?: boolean;
   onGitGraphToggle?: () => void;
   onWorkingTreeToggle?: () => void;
+  onHotkeysClick?: () => void;
 }
 
 export function SplitView({
@@ -36,6 +37,7 @@ export function SplitView({
   isWorkingTree = false,
   onGitGraphToggle,
   onWorkingTreeToggle,
+  onHotkeysClick,
 }: SplitViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
@@ -181,6 +183,7 @@ export function SplitView({
               isWorkingTree={isWorkingTree}
               onGitGraphToggle={onGitGraphToggle}
               onWorkingTreeToggle={onWorkingTreeToggle}
+              onHotkeysClick={onHotkeysClick}
             />
           </div>
         ) : (
@@ -192,6 +195,7 @@ export function SplitView({
             isWorkingTree={isWorkingTree}
             onGitGraphToggle={onGitGraphToggle}
             onWorkingTreeToggle={onWorkingTreeToggle}
+            onHotkeysClick={onHotkeysClick}
           />
         )}
         {rightPane}
@@ -234,11 +238,13 @@ function RightPaneActions({
   isWorkingTree = false,
   onGitGraphToggle,
   onWorkingTreeToggle,
+  onHotkeysClick,
 }: {
   isGitGraph?: boolean;
   isWorkingTree?: boolean;
   onGitGraphToggle?: () => void;
   onWorkingTreeToggle?: () => void;
+  onHotkeysClick?: () => void;
 }) {
   return (
     <div className="flex items-center gap-1 px-2 flex-shrink-0">
@@ -288,6 +294,24 @@ function RightPaneActions({
       >
         <GitPullRequestDraft size={14} />
       </button>
+      <button
+        onClick={onHotkeysClick}
+        className="w-6 h-6 flex items-center justify-center rounded transition-colors"
+        style={{
+          color: 'var(--text-secondary)',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = 'var(--bg-primary)';
+          e.currentTarget.style.color = 'var(--text-primary)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'transparent';
+          e.currentTarget.style.color = 'var(--text-secondary)';
+        }}
+        title="Keyboard shortcuts (?)"
+      >
+        <Keyboard size={14} />
+      </button>
     </div>
   );
 }
@@ -300,6 +324,7 @@ function RightPaneHeader({
   isWorkingTree = false,
   onGitGraphToggle,
   onWorkingTreeToggle,
+  onHotkeysClick,
 }: {
   rightPaneContent?: RightPaneContent | null;
   rightIsStreaming?: boolean;
@@ -308,6 +333,7 @@ function RightPaneHeader({
   isWorkingTree?: boolean;
   onGitGraphToggle?: () => void;
   onWorkingTreeToggle?: () => void;
+  onHotkeysClick?: () => void;
 }) {
   const { title, subtitle } = getHeaderTitle(rightPaneContent);
   const hasContent = !!rightPaneContent;
@@ -351,6 +377,7 @@ function RightPaneHeader({
             isWorkingTree={isWorkingTree}
             onGitGraphToggle={onGitGraphToggle}
             onWorkingTreeToggle={onWorkingTreeToggle}
+            onHotkeysClick={onHotkeysClick}
           />
           {onClose && (
             <button
@@ -386,6 +413,7 @@ function RightPaneHeader({
             isWorkingTree={isWorkingTree}
             onGitGraphToggle={onGitGraphToggle}
             onWorkingTreeToggle={onWorkingTreeToggle}
+            onHotkeysClick={onHotkeysClick}
           />
         </>
       )}

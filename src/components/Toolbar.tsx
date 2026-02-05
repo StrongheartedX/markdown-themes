@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Columns, Copy, AtSign, MessageSquare, MessageCircle, Check, Keyboard, Crosshair, Loader2, Archive, Users, Bot } from 'lucide-react';
+import { Columns, Copy, AtSign, MessageSquare, MessageCircle, Check, Crosshair, Loader2, Archive, Users, Bot } from 'lucide-react';
 import { queueToChat } from '../lib/api';
 
 interface ToolbarProps {
@@ -26,7 +26,6 @@ interface ToolbarProps {
   /** Toggle the chat panel (third column) */
   onChatPanelToggle?: () => void;
   onFollowModeToggle?: () => void;
-  onHotkeysClick?: () => void;
   onViewConversation?: () => void;
   /** Callback when archive button is clicked */
   onArchiveClick?: () => void;
@@ -52,7 +51,6 @@ export function Toolbar({
   onSplitToggle,
   onChatPanelToggle,
   onFollowModeToggle,
-  onHotkeysClick,
   onViewConversation,
   onArchiveClick,
 }: ToolbarProps) {
@@ -400,22 +398,6 @@ export function Toolbar({
             </div>
           )}
 
-          {/* AI Chat panel toggle */}
-          <button
-            type="button"
-            onClick={onChatPanelToggle}
-            className="w-8 h-8 flex items-center justify-center transition-colors"
-            style={{
-              borderRadius: 'var(--radius)',
-              backgroundColor: isChatPanelOpen ? 'var(--accent)' : 'var(--bg-primary)',
-              color: isChatPanelOpen ? 'var(--bg-primary)' : 'var(--text-primary)',
-              border: '1px solid var(--border)',
-            }}
-            title={isChatPanelOpen ? 'Close AI chat panel (Ctrl+Shift+C)' : 'Open AI chat panel (Ctrl+Shift+C)'}
-          >
-            <Bot className="w-4 h-4" />
-          </button>
-
           {/* Split view toggle */}
           <button
             type="button"
@@ -430,22 +412,6 @@ export function Toolbar({
             title={isSplit ? 'Close split view' : 'Open split view'}
           >
             <Columns className="w-4 h-4" />
-          </button>
-
-          {/* Keyboard shortcuts help */}
-          <button
-            type="button"
-            onClick={onHotkeysClick}
-            className="w-8 h-8 flex items-center justify-center transition-colors"
-            style={{
-              borderRadius: 'var(--radius)',
-              backgroundColor: 'var(--bg-primary)',
-              color: 'var(--text-primary)',
-              border: '1px solid var(--border)',
-            }}
-            title="Keyboard shortcuts"
-          >
-            <Keyboard className="w-4 h-4" />
           </button>
 
           {/* Font size controls */}
@@ -493,6 +459,22 @@ export function Toolbar({
               +
             </button>
           </div>
+
+          {/* AI Chat panel toggle */}
+          <button
+            type="button"
+            onClick={onChatPanelToggle}
+            className="w-8 h-8 flex items-center justify-center transition-colors"
+            style={{
+              borderRadius: 'var(--radius)',
+              backgroundColor: isChatPanelOpen ? 'var(--accent)' : 'var(--bg-primary)',
+              color: isChatPanelOpen ? 'var(--bg-primary)' : 'var(--text-primary)',
+              border: '1px solid var(--border)',
+            }}
+            title={isChatPanelOpen ? 'Close AI chat panel (Ctrl+Shift+C)' : 'Open AI chat panel (Ctrl+Shift+C)'}
+          >
+            <Bot className="w-4 h-4" />
+          </button>
         </div>
       </header>
 
