@@ -19,11 +19,21 @@ interface UseFileWatcherResult {
   connected: boolean;
 }
 
+// Known message types that are not file-watcher messages (silently ignore)
+const IGNORED_MESSAGE_TYPES = new Set(['memory-stats', 'pong', 'connected']);
+
 // Type guard for FileWatcherMessage
 function isFileWatcherMessage(data: unknown): data is FileWatcherMessage {
   if (typeof data !== 'object' || data === null) return false;
   const msg = data as Record<string, unknown>;
   return ['file-content', 'file-change', 'file-deleted', 'file-watch-error'].includes(msg.type as string);
+}
+
+// Check if message should be silently ignored
+function shouldIgnoreMessage(data: unknown): boolean {
+  if (typeof data !== 'object' || data === null) return false;
+  const msg = data as Record<string, unknown>;
+  return IGNORED_MESSAGE_TYPES.has(msg.type as string);
 }
 
 export function useFileWatcher({
@@ -86,6 +96,10 @@ export function useFileWatcher({
 
       try {
         const parsed = JSON.parse(event.data);
+        // Silently ignore known non-file-watcher messages
+        if (shouldIgnoreMessage(parsed)) {
+          return;
+        }
         if (!isFileWatcherMessage(parsed)) {
           console.warn('[useFileWatcher] Unknown message type:', parsed);
           return;
