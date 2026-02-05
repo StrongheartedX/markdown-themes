@@ -369,20 +369,20 @@
    ======================================== */
 
 .theme-swiss-international {
-  /* Shiki base colors */
-  --shiki-foreground: #E5E5E5;
+  /* Shiki base colors - dark for light backgrounds */
+  --shiki-foreground: #1A1A1A;
   --shiki-background: #171717;
 
-  /* Shiki token colors - clean, high contrast palette */
-  --shiki-token-constant: #FF6B6B;           /* Soft red for constants */
-  --shiki-token-string: #98D89A;             /* Clear green for strings */
-  --shiki-token-comment: #737373;            /* Gray 500 for comments */
-  --shiki-token-keyword: #E30613;            /* Swiss red for keywords */
-  --shiki-token-parameter: #93C5FD;          /* Light blue for parameters */
-  --shiki-token-function: #FCD34D;           /* Golden yellow for functions */
-  --shiki-token-string-expression: #98D89A;  /* Same green for template strings */
-  --shiki-token-punctuation: #A3A3A3;        /* Gray 400 for punctuation */
-  --shiki-token-link: #E30613;               /* Swiss red for links */
+  /* Shiki token colors - dark for contrast on light gray background */
+  --shiki-token-constant: #C84040;           /* Deep red for constants */
+  --shiki-token-string: #2E7D32;             /* Forest green for strings */
+  --shiki-token-comment: #5A5A5A;            /* Dark gray for comments */
+  --shiki-token-keyword: #C00000;            /* Swiss red for keywords */
+  --shiki-token-parameter: #1565C0;          /* Deep blue for parameters */
+  --shiki-token-function: #B8860B;           /* Dark gold for functions */
+  --shiki-token-string-expression: #2E7D32;  /* Forest green for template strings */
+  --shiki-token-punctuation: #4A4A4A;        /* Dark gray for punctuation */
+  --shiki-token-link: #C00000;               /* Swiss red for links */
 }
 
 /* ========================================
