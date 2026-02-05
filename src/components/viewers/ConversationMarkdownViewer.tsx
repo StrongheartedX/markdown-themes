@@ -72,6 +72,24 @@ function useThrottledContent(content: string, isStreaming: boolean, throttleMs: 
 }
 
 /**
+ * Efficiently extract the last N lines from a string without splitting the entire content.
+ */
+function extractLastLines(content: string, maxLines: number): string {
+  if (maxLines <= 0) return content;
+
+  let newlineCount = 0;
+  let pos = content.length;
+
+  while (pos > 0 && newlineCount < maxLines) {
+    pos = content.lastIndexOf('\n', pos - 1);
+    if (pos === -1) break;
+    newlineCount++;
+  }
+
+  return pos > 0 ? content.slice(pos + 1) : content;
+}
+
+/**
  * Extract metadata from conversation JSONL content.
  * For large files, samples lines and estimates total to avoid UI freeze.
  */
@@ -80,12 +98,16 @@ function extractMetadata(content: string): ConversationMetadata | null {
     return null;
   }
 
-  const lines = content.split('\n').filter(line => line.trim());
-  const totalLines = lines.length;
+  // Check if large file using byte size heuristic (avoid expensive split)
+  const isLargeFile = content.length > 100_000; // >100KB
 
-  // For large files, only scan a limited number of lines and estimate
-  const isLargeFile = totalLines > MAX_METADATA_SCAN_LINES;
-  const linesToScan = isLargeFile ? lines.slice(-MAX_METADATA_SCAN_LINES) : lines;
+  // For large files, only extract and scan the last N lines
+  const contentToScan = isLargeFile
+    ? extractLastLines(content, MAX_METADATA_SCAN_LINES)
+    : content;
+
+  const lines = contentToScan.split('\n').filter(line => line.trim());
+  const linesToScan = lines;
 
   let messageCount = 0;
   let hasThinking = false;
@@ -142,10 +164,12 @@ function extractMetadata(content: string): ConversationMetadata | null {
 
   // Estimate total if we only scanned a subset
   let estimatedTotal: number | null = null;
-  if (isLargeFile) {
-    // Estimate based on message density in sampled lines
+  if (isLargeFile && linesToScan.length > 0) {
+    // Estimate total based on average line length in sample
+    const avgLineLength = contentToScan.length / linesToScan.length;
+    const estimatedTotalLines = Math.round(content.length / avgLineLength);
     const messageDensity = messageCount / linesToScan.length;
-    estimatedTotal = Math.round(messageDensity * totalLines);
+    estimatedTotal = Math.round(messageDensity * estimatedTotalLines);
   }
 
   return { messageCount, estimatedTotal, hasThinking, hasTool };

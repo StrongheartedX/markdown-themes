@@ -91,6 +91,28 @@ function isRealUserMessage(entry: UserMessage & { isMeta?: boolean }): boolean {
 }
 
 /**
+ * Efficiently extract the last N lines from a string without splitting the entire content.
+ * For large files, this is much faster than split('\n').slice(-N).
+ */
+function extractLastLines(content: string, maxLines: number): string {
+  if (maxLines <= 0) return content;
+
+  let newlineCount = 0;
+  let pos = content.length;
+
+  // Find the position of the Nth newline from the end
+  while (pos > 0 && newlineCount < maxLines) {
+    pos = content.lastIndexOf('\n', pos - 1);
+    if (pos === -1) break;
+    newlineCount++;
+  }
+
+  // If we found enough lines, return from that position
+  // Otherwise return the whole content
+  return pos > 0 ? content.slice(pos + 1) : content;
+}
+
+/**
  * Parse JSONL content into conversation entries.
  * Filters for user/assistant/summary types only.
  *
@@ -100,7 +122,10 @@ function isRealUserMessage(entry: UserMessage & { isMeta?: boolean }): boolean {
  */
 function parseConversationEntries(content: string, maxLines: number = 0): ConversationEntry[] {
   const entries: ConversationEntry[] = [];
-  let lines = content.split('\n');
+
+  // For large files, extract only the tail to avoid splitting entire content
+  const contentToSplit = maxLines > 0 ? extractLastLines(content, maxLines) : content;
+  const lines = contentToSplit.split('\n');
 
   // Truncate lines BEFORE parsing to reduce cost on large files
   // Take from the end to get most recent messages
@@ -296,8 +321,10 @@ export function jsonlToMarkdown(content: string, maxEntries: number = 50): strin
   // Pre-truncate lines to reduce parse cost on large files
   // Use 3x maxEntries as buffer since not all lines become entries (some are filtered)
   const maxLinesToParse = maxEntries > 0 ? maxEntries * 3 : 0;
-  const totalLines = content.split('\n').length;
-  const wasTruncated = maxLinesToParse > 0 && totalLines > maxLinesToParse;
+
+  // Check if content is large (heuristic: >100KB likely has many messages)
+  // Avoid expensive split() just to count lines
+  const isLikelyLargeFile = content.length > 100_000;
 
   let entries = parseConversationEntries(content, maxLinesToParse);
 
@@ -310,7 +337,7 @@ export function jsonlToMarkdown(content: string, maxEntries: number = 50): strin
   if (maxEntries > 0 && entries.length > maxEntries) {
     entries = entries.slice(-maxEntries);
     truncationNote = `*Showing last ${maxEntries} messages (large conversation)...*\n\n---\n\n`;
-  } else if (wasTruncated) {
+  } else if (isLikelyLargeFile && maxLinesToParse > 0) {
     truncationNote = `*Showing recent messages (large conversation)...*\n\n---\n\n`;
   }
 
