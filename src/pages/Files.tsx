@@ -793,21 +793,15 @@ export function Files() {
   }, [workspacePath, isSplit, toggleSplit, setRightPaneFile, openRightTab]);
 
   // Handle view conversation button - open conversation JSONL file
-  const handleViewConversation = useCallback(async () => {
-    if (!conversation?.conversationPath) return;
-
-    // Verify file exists before opening (conversation may have been deleted)
-    try {
-      const response = await fetch(`${API_BASE}/api/files/content?path=${encodeURIComponent(conversation.conversationPath)}`);
-      if (!response.ok) {
-        console.warn(`Conversation file not found at ${conversation.conversationPath}`);
-        return;
-      }
-    } catch (err) {
-      console.warn('Failed to check conversation file existence:', err);
+  const handleViewConversation = useCallback(() => {
+    if (!conversation?.conversationPath) {
+      console.warn('[handleViewConversation] No conversation path available');
       return;
     }
 
+    // Skip file existence check - conversation path comes from session API
+    // which already verified the session exists. The file watcher will
+    // handle any errors if the file was deleted.
     openTab(conversation.conversationPath, false); // Open as pinned tab
     addRecentFile(conversation.conversationPath);
   }, [conversation, openTab, addRecentFile]);
