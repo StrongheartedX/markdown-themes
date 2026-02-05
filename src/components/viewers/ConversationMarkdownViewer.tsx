@@ -1,6 +1,12 @@
-import { useMemo, useRef, useEffect, useState } from 'react';
+import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { MarkdownViewer } from '../MarkdownViewer';
 import { jsonlToMarkdown } from '../../utils/conversationMarkdown';
+
+interface ConversationMetadata {
+  messageCount: number;
+  hasThinking: boolean;
+  hasTool: boolean;
+}
 
 interface ConversationMarkdownViewerProps {
   content: string;
@@ -18,7 +24,7 @@ function useThrottledContent(content: string, isStreaming: boolean, throttleMs: 
   const [throttledContent, setThrottledContent] = useState(content);
   const lastUpdateRef = useRef<number>(0);
   const pendingContentRef = useRef<string>(content);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     pendingContentRef.current = content;
@@ -62,7 +68,7 @@ function useThrottledContent(content: string, isStreaming: boolean, throttleMs: 
  * Extract metadata from conversation JSONL content.
  * Looks for the first few entries to get session info.
  */
-function extractMetadata(content: string): { messageCount: number; hasThinking: boolean; hasTool: boolean } | null {
+function extractMetadata(content: string): ConversationMetadata | null {
   if (!content || !content.trim()) {
     return null;
   }
@@ -74,15 +80,41 @@ function extractMetadata(content: string): { messageCount: number; hasThinking: 
 
   for (const line of lines) {
     try {
-      const parsed = JSON.parse(line.trim());
-      if (parsed.type === 'user' || parsed.type === 'assistant') {
-        messageCount++;
+      const parsed: unknown = JSON.parse(line.trim());
 
-        // Check for thinking/tool blocks in assistant messages
-        if (parsed.type === 'assistant' && Array.isArray(parsed.message?.content)) {
-          for (const block of parsed.message.content) {
-            if (block.type === 'thinking') hasThinking = true;
-            if (block.type === 'tool_use') hasTool = true;
+      // Type guard: ensure parsed is an object with a type property
+      if (
+        parsed &&
+        typeof parsed === 'object' &&
+        'type' in parsed &&
+        typeof (parsed as { type: unknown }).type === 'string'
+      ) {
+        const entry = parsed as { type: string; message?: unknown };
+
+        if (entry.type === 'user' || entry.type === 'assistant') {
+          messageCount++;
+
+          // Check for thinking/tool blocks in assistant messages
+          if (
+            entry.type === 'assistant' &&
+            entry.message &&
+            typeof entry.message === 'object' &&
+            'content' in entry.message &&
+            Array.isArray((entry.message as { content: unknown }).content)
+          ) {
+            const content = (entry.message as { content: unknown[] }).content;
+            for (const block of content) {
+              if (
+                block &&
+                typeof block === 'object' &&
+                'type' in block &&
+                typeof (block as { type: unknown }).type === 'string'
+              ) {
+                const blockType = (block as { type: string }).type;
+                if (blockType === 'thinking') hasThinking = true;
+                if (blockType === 'tool_use') hasTool = true;
+              }
+            }
           }
         }
       }
@@ -112,10 +144,46 @@ export function ConversationMarkdownViewer({
   const throttledContent = useThrottledContent(content, isStreaming, 1000);
 
   // Transform JSONL to markdown (now using throttled content)
-  const markdown = useMemo(() => jsonlToMarkdown(throttledContent), [throttledContent]);
+  // Wrapped in try-catch to handle malformed JSONL gracefully
+  const markdown = useMemo(() => {
+    try {
+      return jsonlToMarkdown(throttledContent);
+    } catch (err) {
+      console.error('Failed to parse conversation JSONL:', err);
+      return '';
+    }
+  }, [throttledContent]);
 
-  // Extract metadata for header (also use throttled content)
-  const metadata = useMemo(() => extractMetadata(throttledContent), [throttledContent]);
+  // Cache metadata to avoid re-parsing during streaming
+  // Only re-extract when content length decreases (new file) or streaming stops
+  const metadataCache = useRef<{ content: string; metadata: ConversationMetadata | null } | null>(null);
+  const prevContentLengthRef = useRef<number>(0);
+
+  const getMetadata = useCallback((content: string, streaming: boolean): ConversationMetadata | null => {
+    const contentLength = content.length;
+
+    // If content length decreased, it's a new file - clear cache
+    if (contentLength < prevContentLengthRef.current) {
+      metadataCache.current = null;
+    }
+    prevContentLengthRef.current = contentLength;
+
+    // During streaming, reuse cached metadata if available
+    if (streaming && metadataCache.current) {
+      return metadataCache.current.metadata;
+    }
+
+    // Extract fresh metadata when not streaming or no cache
+    const metadata = extractMetadata(content);
+    metadataCache.current = { content, metadata };
+    return metadata;
+  }, []);
+
+  // Extract metadata for header (optimized with caching)
+  const metadata = useMemo(
+    () => getMetadata(throttledContent, isStreaming),
+    [throttledContent, isStreaming, getMetadata]
+  );
 
   // Scroll to bottom on initial load (conversations are chronological)
   const containerRef = useRef<HTMLDivElement>(null);

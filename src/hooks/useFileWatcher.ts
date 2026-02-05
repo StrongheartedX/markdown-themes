@@ -19,6 +19,13 @@ interface UseFileWatcherResult {
   connected: boolean;
 }
 
+// Type guard for FileWatcherMessage
+function isFileWatcherMessage(data: unknown): data is FileWatcherMessage {
+  if (typeof data !== 'object' || data === null) return false;
+  const msg = data as Record<string, unknown>;
+  return ['file-content', 'file-change', 'file-deleted', 'file-watch-error'].includes(msg.type as string);
+}
+
 export function useFileWatcher({
   path,
   streamingTimeout = 1500,
@@ -78,7 +85,12 @@ export function useFileWatcher({
       if (!mountedRef.current) return;
 
       try {
-        const message = JSON.parse(event.data) as FileWatcherMessage;
+        const parsed = JSON.parse(event.data);
+        if (!isFileWatcherMessage(parsed)) {
+          console.warn('[useFileWatcher] Unknown message type:', parsed);
+          return;
+        }
+        const message = parsed;
 
         // Ignore messages for paths we're no longer watching
         // This prevents stale messages from overwriting content after tab switch
@@ -195,7 +207,8 @@ export function useFileWatcher({
         }
       };
 
-      ws.onerror = () => {
+      ws.onerror = (err) => {
+        console.error('[useFileWatcher] WebSocket error:', err);
         // Error handling is done in onclose
         // Clear cached token in case it expired
         clearAuthToken();

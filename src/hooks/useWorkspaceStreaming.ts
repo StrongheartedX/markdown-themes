@@ -161,6 +161,7 @@ export function useWorkspaceStreaming({
             reconnectAttemptRef.current++;
 
             setTimeout(() => {
+              if (!enabled) return;
               if (mountedRef.current && currentPathRef.current) {
                 connect(currentPathRef.current);
               }
@@ -168,7 +169,8 @@ export function useWorkspaceStreaming({
           }
         };
 
-        ws.onerror = () => {
+        ws.onerror = (error) => {
+          console.error('[useWorkspaceStreaming] WebSocket error:', error);
           clearAuthToken();
         };
       } catch (err) {
@@ -182,6 +184,7 @@ export function useWorkspaceStreaming({
           reconnectAttemptRef.current++;
 
           setTimeout(() => {
+            if (!enabled) return;
             if (mountedRef.current && currentPathRef.current) {
               connect(currentPathRef.current);
             }
@@ -189,7 +192,7 @@ export function useWorkspaceStreaming({
         }
       }
     },
-    [handleMessage, subscribeTo]
+    [handleMessage, subscribeTo, enabled]
   );
 
   // Disconnect and cleanup

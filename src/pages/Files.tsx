@@ -27,6 +27,37 @@ import type { ArchivedConversation } from '../context/AppStoreContext';
 
 const API_BASE = 'http://localhost:8129';
 
+// Binary file types that have dedicated viewers fetching their own content
+// Skip file watcher for these to avoid binary data leaking to markdown renderer
+const BINARY_EXTENSIONS = new Set([
+  // Audio
+  'mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'webm', 'wma', 'aiff', 'ape',
+  // Video
+  'mp4', 'ogv', 'mov', 'avi', 'mkv', 'm4v', 'wmv', 'flv',
+  // Images (SVG excluded - it's text content that SvgViewer renders inline)
+  'png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp', 'tiff', 'tif', 'avif',
+  // Documents
+  'pdf',
+]);
+
+// Extensions that are useful to follow during AI streaming mode
+const FOLLOWABLE_EXTENSIONS = new Set([
+  // Code
+  'ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs',
+  'py', 'rb', 'go', 'rs', 'java', 'kt', 'swift',
+  'c', 'cpp', 'h', 'hpp', 'cs',
+  'php', 'vue', 'svelte', 'astro',
+  // Markup/docs
+  'md', 'mdx', 'markdown', 'txt', 'rst',
+  // Styles
+  'css', 'scss', 'sass', 'less',
+  // Config (but not lock files)
+  'json', 'yaml', 'yml', 'toml', 'ini',
+  'xml', 'html', 'htm',
+  // Shell
+  'sh', 'bash', 'zsh',
+]);
+
 /**
  * DiffPane - Fetches and displays a diff for a commit
  */
@@ -286,13 +317,22 @@ export function Files() {
     activeTab: rightActiveTab,
     openTab: openRightTab,
     pinTab: pinRightTab,
-    closeTab: closeRightTab,
+    closeTab: closeRightTabInternal,
     setActiveTab: setRightActiveTab,
   } = useRightPaneTabs({
     initialTabs: filesState.rightPaneTabs,
     initialActiveTabId: filesState.rightActiveTabId,
     onStateChange: handleRightPaneTabsStateChange,
   });
+
+  // Wrap closeRightTab to track recently closed files (prevents circular auto-reopening)
+  const closeRightTab = useCallback((id: string) => {
+    const tab = rightPaneTabs.find(t => t.id === id);
+    if (tab?.path) {
+      recentlyClosedRef.current.set(tab.path, Date.now());
+    }
+    closeRightTabInternal(id);
+  }, [rightPaneTabs, closeRightTabInternal]);
 
   // Close split view when all right pane tabs are closed
   // Follow mode will re-open split when needed (see line ~388)
@@ -303,18 +343,6 @@ export function Files() {
     }
   }, [rightPaneTabs.length, rightPaneContent?.type, isSplit, setRightFile, toggleSplit]);
 
-  // Binary file types that have dedicated viewers fetching their own content
-  // Skip file watcher for these to avoid binary data leaking to markdown renderer
-  const BINARY_EXTENSIONS = new Set([
-    // Audio
-    'mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'webm', 'wma', 'aiff', 'ape',
-    // Video
-    'mp4', 'ogv', 'mov', 'avi', 'mkv', 'm4v', 'wmv', 'flv',
-    // Images (SVG excluded - it's text content that SvgViewer renders inline)
-    'png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp', 'tiff', 'tif', 'avif',
-    // Documents
-    'pdf',
-  ]);
   const currentFileExt = currentFile?.split('.').pop()?.toLowerCase();
   const isCurrentFileBinary = currentFileExt ? BINARY_EXTENSIONS.has(currentFileExt) : false;
 
@@ -437,25 +465,7 @@ export function Files() {
         return;
       }
 
-      // Only follow source code and documentation files
-      const followableExtensions = new Set([
-        // Code
-        'ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs',
-        'py', 'rb', 'go', 'rs', 'java', 'kt', 'swift',
-        'c', 'cpp', 'h', 'hpp', 'cs',
-        'php', 'vue', 'svelte', 'astro',
-        // Markup/docs
-        'md', 'mdx', 'markdown', 'txt', 'rst',
-        // Styles
-        'css', 'scss', 'sass', 'less',
-        // Config (but not lock files)
-        'json', 'yaml', 'yml', 'toml', 'ini',
-        'xml', 'html', 'htm',
-        // Shell
-        'sh', 'bash', 'zsh',
-      ]);
-
-      if (!followableExtensions.has(ext)) {
+      if (!FOLLOWABLE_EXTENSIONS.has(ext)) {
         return;
       }
 
@@ -525,20 +535,7 @@ export function Files() {
         return;
       }
 
-      // Only follow source code and documentation files
-      const followableExtensions = new Set([
-        'ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs',
-        'py', 'rb', 'go', 'rs', 'java', 'kt', 'swift',
-        'c', 'cpp', 'h', 'hpp', 'cs',
-        'php', 'vue', 'svelte', 'astro',
-        'md', 'mdx', 'markdown', 'txt', 'rst',
-        'css', 'scss', 'sass', 'less',
-        'json', 'yaml', 'yml', 'toml', 'ini',
-        'xml', 'html', 'htm',
-        'sh', 'bash', 'zsh',
-      ]);
-
-      if (followableExtensions.has(ext)) {
+      if (FOLLOWABLE_EXTENSIONS.has(ext)) {
         newChangedFiles.push(filePath);
       }
     });
@@ -747,9 +744,22 @@ export function Files() {
   }, [rightPaneContent, isSplit, toggleSplit, setRightFile, setRightPaneWorkingTree]);
 
   // Handle hotkeys button - open HOTKEYS.md in right pane
-  const handleHotkeysClick = useCallback(() => {
+  const handleHotkeysClick = useCallback(async () => {
     if (!workspacePath) return;
     const hotkeysPath = workspacePath + '/HOTKEYS.md';
+
+    // Verify file exists before opening (avoids confusing error state)
+    try {
+      const response = await fetch(`${API_BASE}/api/files/content?path=${encodeURIComponent(hotkeysPath)}`);
+      if (!response.ok) {
+        console.warn(`HOTKEYS.md not found at ${hotkeysPath}`);
+        return;
+      }
+    } catch (err) {
+      console.warn('Failed to check HOTKEYS.md existence:', err);
+      return;
+    }
+
     if (!isSplit) {
       toggleSplit();
     }
@@ -758,8 +768,21 @@ export function Files() {
   }, [workspacePath, isSplit, toggleSplit, setRightPaneFile, openRightTab]);
 
   // Handle view conversation button - open conversation JSONL file
-  const handleViewConversation = useCallback(() => {
+  const handleViewConversation = useCallback(async () => {
     if (!conversation?.conversationPath) return;
+
+    // Verify file exists before opening (conversation may have been deleted)
+    try {
+      const response = await fetch(`${API_BASE}/api/files/content?path=${encodeURIComponent(conversation.conversationPath)}`);
+      if (!response.ok) {
+        console.warn(`Conversation file not found at ${conversation.conversationPath}`);
+        return;
+      }
+    } catch (err) {
+      console.warn('Failed to check conversation file existence:', err);
+      return;
+    }
+
     openTab(conversation.conversationPath, false); // Open as pinned tab
     addRecentFile(conversation.conversationPath);
   }, [conversation, openTab, addRecentFile]);

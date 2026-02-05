@@ -36,6 +36,15 @@ interface UseSubagentWatcherResult {
 type SubagentMessage = SubagentStartMessage | SubagentEndMessage;
 
 /**
+ * Type guard to validate incoming WebSocket data is a SubagentMessage.
+ */
+function isSubagentMessage(data: unknown): data is SubagentMessage {
+  if (typeof data !== 'object' || data === null) return false;
+  const msg = data as Record<string, unknown>;
+  return msg.type === 'subagent-start' || msg.type === 'subagent-end';
+}
+
+/**
  * Construct the conversation file path from session info.
  * Claude Code stores conversations at ~/.claude/projects/{projectHash}/conversations/{sessionId}.jsonl
  */
@@ -102,6 +111,12 @@ export function useSubagentWatcher({
   const onSubagentEndRef = useRef(onSubagentEnd);
   onSubagentEndRef.current = onSubagentEnd;
 
+  // Ref for enabled state to avoid stale closure in reconnect timeouts
+  const enabledRef = useRef(enabled);
+  useEffect(() => {
+    enabledRef.current = enabled;
+  }, [enabled]);
+
   // Subscribe to subagent watching
   const subscribe = useCallback((ws: WebSocket) => {
     if (ws.readyState === WebSocket.OPEN) {
@@ -121,7 +136,9 @@ export function useSubagentWatcher({
     if (!mountedRef.current) return;
 
     try {
-      const message = JSON.parse(event.data) as SubagentMessage;
+      const parsed: unknown = JSON.parse(event.data);
+      if (!isSubagentMessage(parsed)) return;
+      const message = parsed;
 
       if (message.type === 'subagent-start') {
         const conversationPath = buildConversationPath(message.workingDir, message.sessionId);
@@ -200,17 +217,19 @@ export function useSubagentWatcher({
           reconnectAttemptRef.current++;
 
           setTimeout(() => {
-            if (mountedRef.current && enabled) {
+            if (mountedRef.current && enabledRef.current) {
               connect();
             }
           }, delay);
         }
       };
 
-      ws.onerror = () => {
+      ws.onerror = (error) => {
+        console.error('[useSubagentWatcher] WebSocket error:', error);
         clearAuthToken();
       };
-    } catch {
+    } catch (error) {
+      console.error('[useSubagentWatcher] Connection error:', error);
       if (!mountedRef.current) return;
 
       setConnected(false);
@@ -221,13 +240,13 @@ export function useSubagentWatcher({
         reconnectAttemptRef.current++;
 
         setTimeout(() => {
-          if (mountedRef.current && enabled) {
+          if (mountedRef.current && enabledRef.current) {
             connect();
           }
         }, delay);
       }
     }
-  }, [enabled, handleMessage, subscribe]);
+  }, [handleMessage, subscribe]);
 
   // Disconnect and cleanup
   const disconnect = useCallback(() => {
