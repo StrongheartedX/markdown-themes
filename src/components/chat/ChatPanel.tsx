@@ -245,9 +245,17 @@ function ConversationRow({
   const preview = lastMessage?.content?.slice(0, 80) || 'No messages';
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => onSelect(conversation.id)}
-      className="w-full px-3 py-2.5 text-left transition-colors flex items-start gap-2 group hover:bg-[var(--bg-primary)]"
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect(conversation.id);
+        }
+      }}
+      className="w-full px-3 py-2.5 text-left transition-colors flex items-start gap-2 group hover:bg-[var(--bg-primary)] cursor-pointer"
       style={{
         backgroundColor: isActive ? 'var(--bg-primary)' : undefined,
         borderLeft: isActive ? '2px solid var(--accent)' : '2px solid transparent',
@@ -280,7 +288,7 @@ function ConversationRow({
       >
         <Trash2 className="w-3.5 h-3.5" />
       </button>
-    </button>
+    </div>
   );
 }
 
