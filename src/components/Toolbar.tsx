@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Columns, Copy, AtSign, MessageSquare, MessageCircle, Check, GitBranch, GitPullRequestDraft, Keyboard, Crosshair, Loader2, Archive } from 'lucide-react';
+import { Columns, Copy, AtSign, MessageSquare, MessageCircle, Check, GitBranch, GitPullRequestDraft, Keyboard, Crosshair, Loader2, Archive, Users } from 'lucide-react';
 import { queueToChat } from '../lib/api';
 
 interface ToolbarProps {
@@ -18,6 +18,8 @@ interface ToolbarProps {
   conversationLoading?: boolean;
   /** Whether the current file is a conversation file that can be archived */
   isConversationFile?: boolean;
+  /** Number of active subagents being watched */
+  activeSubagentCount?: number;
   onFileSelect: (path: string) => void;
   onFontSizeChange?: (size: number) => void;
   onSplitToggle?: () => void;
@@ -45,6 +47,7 @@ export function Toolbar({
   conversationPath,
   conversationLoading = false,
   isConversationFile = false,
+  activeSubagentCount = 0,
   onFileSelect,
   onFontSizeChange,
   onSplitToggle,
@@ -370,7 +373,7 @@ export function Toolbar({
           <button
             type="button"
             onClick={onFollowModeToggle}
-            className="w-8 h-8 flex items-center justify-center transition-colors"
+            className="w-8 h-8 flex items-center justify-center transition-colors relative"
             style={{
               borderRadius: 'var(--radius)',
               backgroundColor: isFollowMode ? 'var(--accent)' : 'var(--bg-primary)',
@@ -381,6 +384,23 @@ export function Toolbar({
           >
             <Crosshair className="w-4 h-4" />
           </button>
+
+          {/* Active subagents indicator - only shown when Follow mode is on and subagents exist */}
+          {isFollowMode && activeSubagentCount > 0 && (
+            <div
+              className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium"
+              style={{
+                backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                color: '#22c55e',
+                borderRadius: 'var(--radius)',
+                border: '1px solid rgba(34, 197, 94, 0.3)',
+              }}
+              title={`${activeSubagentCount} active subagent${activeSubagentCount > 1 ? 's' : ''}`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>{activeSubagentCount}</span>
+            </div>
+          )}
 
           {/* Git graph toggle */}
           <button

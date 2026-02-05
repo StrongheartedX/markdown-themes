@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileDiff } from 'lucide-react';
+import { FileDiff, Users } from 'lucide-react';
 import type { Tab } from '../hooks/useTabManager';
 import { getFileIconInfo } from '../utils/fileIcons';
 
@@ -26,14 +26,20 @@ function TabItem({ tab, isActive, onSelect, onClose, onPin, pane }: TabItemProps
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  // For diff tabs, show "filename @ abc123", for files show just filename
+  // For diff tabs, show "filename @ abc123"
+  // For conversation tabs, show task description or "Subagent" + sessionId prefix
+  // For files show just filename
   const displayName = tab.type === 'diff' && tab.diffData
     ? `${tab.diffData.file.split('/').pop()} @ ${tab.diffData.base.substring(0, 7)}`
-    : (tab.path.split('/').pop() ?? tab.path.split('\\').pop() ?? tab.path);
+    : tab.type === 'conversation' && tab.conversationData
+      ? tab.conversationData.taskDescription || `Subagent ${tab.conversationData.sessionId.substring(0, 8)}`
+      : (tab.path.split('/').pop() ?? tab.path.split('\\').pop() ?? tab.path);
 
   const tooltipText = tab.type === 'diff' && tab.diffData
     ? `Diff: ${tab.diffData.file} (${tab.diffData.base.substring(0, 7)})`
-    : tab.path;
+    : tab.type === 'conversation' && tab.conversationData
+      ? `Subagent conversation: ${tab.conversationData.sessionId}\nPane: ${tab.conversationData.pane}\nWorking dir: ${tab.conversationData.workingDir}`
+      : tab.path;
 
   const handleDoubleClick = () => {
     if (tab.isPreview) {
@@ -47,7 +53,7 @@ function TabItem({ tab, isActive, onSelect, onClose, onPin, pane }: TabItemProps
   };
 
   const handleDragStart = (e: React.DragEvent) => {
-    // Only allow dragging file tabs, not diff tabs
+    // Only allow dragging file and conversation tabs, not diff tabs
     if (tab.type === 'diff') {
       e.preventDefault();
       return;
@@ -174,6 +180,13 @@ function TabIcon({ tab }: { tab: Tab }) {
     return (
       <span className="w-4 h-4 flex items-center justify-center flex-shrink-0">
         <FileDiff size={14} style={{ color: 'var(--accent)' }} />
+      </span>
+    );
+  }
+  if (tab.type === 'conversation') {
+    return (
+      <span className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+        <Users size={14} style={{ color: '#22c55e' }} />
       </span>
     );
   }

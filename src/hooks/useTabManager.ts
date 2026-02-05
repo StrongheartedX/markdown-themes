@@ -7,9 +7,21 @@ export interface DiffData {
   file: string;  // file path within repo
 }
 
+// Conversation data for subagent conversation tabs
+export interface ConversationData {
+  sessionId: string;
+  workingDir: string;
+  pane: string;
+  taskDescription?: string;
+  /** Auto-close tab when subagent ends */
+  autoClose?: boolean;
+}
+
 export interface TabMetadata {
   /** Tab was auto-opened by Follow AI Edits mode */
   autoOpened?: boolean;
+  /** Tab was auto-opened for subagent conversation */
+  subagentConversation?: boolean;
 }
 
 export interface Tab {
@@ -17,8 +29,9 @@ export interface Tab {
   path: string;
   isPreview: boolean;
   isPinned: boolean;
-  type: 'file' | 'diff';
+  type: 'file' | 'diff' | 'conversation';
   diffData?: DiffData;
+  conversationData?: ConversationData;
   metadata?: TabMetadata;
 }
 
@@ -39,6 +52,8 @@ interface UseTabManagerResult {
   activeTab: Tab | null;
   openTab: (path: string, options?: boolean | OpenTabOptions) => void;
   openDiffTab: (base: string, file: string, head?: string) => void;
+  openConversationTab: (path: string, data: ConversationData) => void;
+  closeConversationTab: (sessionId: string) => void;
   pinTab: (id: string) => void;
   closeTab: (id: string) => void;
   closeTabsWithMetadata: (predicate: (metadata: TabMetadata | undefined) => boolean) => void;
@@ -259,12 +274,68 @@ export function useTabManager(options: UseTabManagerOptions = {}): UseTabManager
     setActiveTabId(newTab.id);
   }, []);
 
+  const openConversationTab = useCallback((path: string, data: ConversationData) => {
+    const currentTabs = tabsRef.current;
+
+    // Check if this conversation is already open (by sessionId)
+    const existingConversationTab = currentTabs.find(
+      (t) => t.type === 'conversation' && t.conversationData?.sessionId === data.sessionId
+    );
+    if (existingConversationTab) {
+      setActiveTabId(existingConversationTab.id);
+      return;
+    }
+
+    // Create new conversation tab (preview mode, can be pinned later)
+    const newTab: Tab = {
+      id: generateTabId(),
+      path,
+      isPreview: true,
+      isPinned: false,
+      type: 'conversation',
+      conversationData: data,
+      metadata: { subagentConversation: true },
+    };
+
+    setTabs((prevTabs) => [...prevTabs, newTab]);
+    setActiveTabId(newTab.id);
+  }, []);
+
+  const closeConversationTab = useCallback((sessionId: string) => {
+    setTabs((prevTabs) => {
+      const tabToClose = prevTabs.find(
+        (t) => t.type === 'conversation' && t.conversationData?.sessionId === sessionId
+      );
+      if (!tabToClose) return prevTabs;
+
+      // Only auto-close if autoClose is enabled
+      if (!tabToClose.conversationData?.autoClose) return prevTabs;
+
+      const tabIndex = prevTabs.findIndex((t) => t.id === tabToClose.id);
+      const newTabs = prevTabs.filter((t) => t.id !== tabToClose.id);
+
+      // Update active tab if we're closing the active one
+      setActiveTabId((currentActiveId) => {
+        if (currentActiveId !== tabToClose.id) return currentActiveId;
+        if (newTabs.length === 0) return null;
+
+        // Prefer the tab to the right, then to the left
+        const nextIndex = Math.min(tabIndex, newTabs.length - 1);
+        return newTabs[nextIndex].id;
+      });
+
+      return newTabs;
+    });
+  }, []);
+
   return {
     tabs,
     activeTabId,
     activeTab,
     openTab,
     openDiffTab,
+    openConversationTab,
+    closeConversationTab,
     pinTab,
     closeTab,
     closeTabsWithMetadata,

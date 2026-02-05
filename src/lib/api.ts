@@ -189,6 +189,32 @@ export type FileWatcherMessage =
   | FileWatchErrorMessage;
 
 /**
+ * WebSocket message types for subagent monitoring
+ */
+export interface SubagentStartMessage {
+  type: 'subagent-start';
+  sessionId: string;
+  workingDir: string;
+  pane: string;
+  parentSessionId?: string;
+  taskDescription?: string;
+}
+
+export interface SubagentEndMessage {
+  type: 'subagent-end';
+  sessionId: string;
+  pane: string;
+  exitCode?: number;
+}
+
+export interface SubagentWatchMessage {
+  type: 'subagent-watch';
+  enabled: boolean;
+}
+
+export type SubagentMessage = SubagentStartMessage | SubagentEndMessage;
+
+/**
  * Queue a command/prompt to the TabzChrome sidepanel chat input.
  * Creates a one-shot WebSocket connection to send the message.
  */

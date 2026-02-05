@@ -4,6 +4,7 @@ import { useFileWatcher } from '../hooks/useFileWatcher';
 import { useWorkspaceStreaming } from '../hooks/useWorkspaceStreaming';
 import { useDiffAutoScroll } from '../hooks/useDiffAutoScroll';
 import { useCurrentConversation } from '../hooks/useCurrentConversation';
+import { useSubagentWatcher, type ActiveSubagent } from '../hooks/useSubagentWatcher';
 import { useWorkspaceContext } from '../context/WorkspaceContext';
 import { usePageState } from '../context/PageStateContext';
 import { useAppStore } from '../hooks/useAppStore';
@@ -176,6 +177,8 @@ export function Files() {
     activeTab,
     openTab,
     openDiffTab,
+    openConversationTab,
+    closeConversationTab,
     pinTab,
     closeTab,
     setActiveTab,
@@ -328,6 +331,29 @@ export function Files() {
   const { streamingFile, changedFiles } = useWorkspaceStreaming({
     workspacePath,
     enabled: true, // Always enabled to track changed files for the Changed filter
+  });
+
+  // Subagent watching - auto-open conversation tabs when subagents start
+  const handleSubagentStart = useCallback((subagent: ActiveSubagent) => {
+    // Open conversation tab in the left pane
+    openConversationTab(subagent.conversationPath, {
+      sessionId: subagent.sessionId,
+      workingDir: subagent.workingDir,
+      pane: subagent.pane,
+      taskDescription: subagent.taskDescription,
+      autoClose: false, // Don't auto-close by default
+    });
+  }, [openConversationTab]);
+
+  const handleSubagentEnd = useCallback((sessionId: string) => {
+    // Optionally close the tab (respects autoClose setting)
+    closeConversationTab(sessionId);
+  }, [closeConversationTab]);
+
+  const { count: activeSubagentCount } = useSubagentWatcher({
+    enabled: appState.followStreamingMode,
+    onSubagentStart: handleSubagentStart,
+    onSubagentEnd: handleSubagentEnd,
   });
 
   // Auto-open streaming file when follow mode is enabled (opens in right pane)
@@ -783,6 +809,7 @@ export function Files() {
         conversationPath={conversation?.conversationPath ?? null}
         conversationLoading={conversationLoading}
         isConversationFile={isConversationFile}
+        activeSubagentCount={activeSubagentCount}
         onFileSelect={handleFileSelect}
         onFontSizeChange={handleFontSizeChange}
         onSplitToggle={toggleSplit}
@@ -844,13 +871,13 @@ export function Files() {
                 onTabPin={pinTab}
               />
 
-              {activeTab?.type !== 'diff' && loading && !content && (
+              {(activeTab?.type === 'file' || activeTab?.type === 'conversation') && loading && !content && (
                 <div className="flex items-center justify-center h-full">
                   <p style={{ color: 'var(--text-secondary)' }}>Loading...</p>
                 </div>
               )}
 
-              {activeTab?.type !== 'diff' && error && (
+              {(activeTab?.type === 'file' || activeTab?.type === 'conversation') && error && (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
                     <p className="text-red-500 mb-2">{error}</p>
@@ -861,7 +888,7 @@ export function Files() {
                 </div>
               )}
 
-              {activeTab?.type !== 'diff' && !loading && !error && !currentFile && (
+              {(activeTab?.type === 'file' || activeTab?.type === 'conversation') && !loading && !error && !currentFile && (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center max-w-md">
                     {recentFilesForEmptyState.length > 0 ? (
@@ -930,8 +957,8 @@ export function Files() {
                 />
               )}
 
-              {/* File tab content */}
-              {activeTab?.type !== 'diff' && !error && currentFile && content && (
+              {/* File and Conversation tab content */}
+              {(activeTab?.type === 'file' || activeTab?.type === 'conversation') && !error && currentFile && content && (
                 <>
                   {isMarkdownFile && frontmatter && <MetadataBar frontmatter={frontmatter} />}
                   <div className="flex-1 overflow-auto" ref={leftScrollContainerRef}>
