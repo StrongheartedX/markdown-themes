@@ -2,8 +2,9 @@ import { useState, useCallback, useEffect } from 'react';
 
 const API_BASE = 'http://localhost:8129';
 
-// Common pane IDs to try when no pane is specified (TabzChrome panes start at 1)
-const DEFAULT_PANES = ['1', '2', '3', '4'];
+// Common pane IDs to try when no pane is specified
+// TabzChrome panes use tmux format %N, which gets sanitized to _N in state files
+const DEFAULT_PANES = ['%1', '%2', '%3', '%4', '%5', '%6', '%7', '%8', '%9', '%10'];
 
 export interface ConversationInfo {
   sessionId: string;
