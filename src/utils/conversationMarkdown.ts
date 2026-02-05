@@ -316,12 +316,13 @@ export function jsonlToMarkdown(content: string, maxEntries: number = 50): strin
 
   const formattedParts: string[] = [];
 
-  // Find the index of the last assistant message to expand its last thinking block
-  let lastAssistantIndex = -1;
-  for (let i = entries.length - 1; i >= 0; i--) {
+  // Find the last 3 assistant messages to expand their thinking blocks
+  const expandThinkingSet = new Set<number>();
+  let foundCount = 0;
+  for (let i = entries.length - 1; i >= 0 && foundCount < 3; i--) {
     if (entries[i].type === 'assistant') {
-      lastAssistantIndex = i;
-      break;
+      expandThinkingSet.add(i);
+      foundCount++;
     }
   }
 
@@ -333,8 +334,8 @@ export function jsonlToMarkdown(content: string, maxEntries: number = 50): strin
         break;
 
       case 'assistant':
-        // Expand last thinking block only in the last assistant message
-        formattedParts.push(formatAssistantMessage(entry as AssistantMessage, i === lastAssistantIndex));
+        // Expand thinking blocks in the last 3 assistant messages
+        formattedParts.push(formatAssistantMessage(entry as AssistantMessage, expandThinkingSet.has(i)));
         break;
 
       case 'summary':

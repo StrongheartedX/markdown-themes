@@ -100,16 +100,20 @@ describe('jsonlToMarkdown', () => {
       expect(result).toContain('<details open>');
     });
 
-    it('only expands the last thinking block when multiple exist', () => {
-      // Two assistant messages with thinking blocks - only the last one should be expanded
+    it('expands thinking blocks in the last 3 assistant messages', () => {
+      // Four assistant messages with thinking blocks - last 3 should be expanded
       const input = `{"type":"assistant","message":{"content":[{"type":"thinking","thinking":"First thought"}]}}
-{"type":"assistant","message":{"content":[{"type":"thinking","thinking":"Second thought"}]}}`;
+{"type":"assistant","message":{"content":[{"type":"thinking","thinking":"Second thought"}]}}
+{"type":"assistant","message":{"content":[{"type":"thinking","thinking":"Third thought"}]}}
+{"type":"assistant","message":{"content":[{"type":"thinking","thinking":"Fourth thought"}]}}`;
       const result = jsonlToMarkdown(input);
 
-      // First thinking block should be collapsed
+      // First thinking block should be collapsed (4th from end)
       expect(result).toContain('<details>\n<summary>Thinking</summary>\n\nFirst thought');
-      // Last thinking block should be expanded
+      // Last 3 thinking blocks should be expanded
       expect(result).toContain('<details open>\n<summary>Thinking</summary>\n\nSecond thought');
+      expect(result).toContain('<details open>\n<summary>Thinking</summary>\n\nThird thought');
+      expect(result).toContain('<details open>\n<summary>Thinking</summary>\n\nFourth thought');
     });
 
     it('expands last thinking block even when followed by text in same message', () => {
