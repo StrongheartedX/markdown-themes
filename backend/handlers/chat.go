@@ -329,6 +329,7 @@ func Chat(w http.ResponseWriter, r *http.Request) {
 
 			// Extract cost/usage from result
 			usage, _ := event["usage"].(map[string]interface{})
+			modelUsage, _ := event["modelUsage"].(map[string]interface{})
 			costUSD, _ := event["total_cost_usd"].(float64)
 			duration, _ := event["duration_ms"].(float64)
 
@@ -337,6 +338,7 @@ func Chat(w http.ResponseWriter, r *http.Request) {
 				"done":            true,
 				"content":         accumulatedContent,
 				"usage":           usage,
+				"modelUsage":      modelUsage,
 				"claudeSessionId": claudeSessionID,
 				"conversationId":  convID,
 				"costUSD":         costUSD,

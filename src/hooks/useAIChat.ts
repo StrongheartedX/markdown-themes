@@ -2,6 +2,24 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 
 const API_BASE = 'http://localhost:8130';
 
+export interface TokenUsage {
+  input_tokens?: number;
+  output_tokens?: number;
+  cache_read_input_tokens?: number;
+  cache_creation_input_tokens?: number;
+}
+
+/** Per-model usage from Claude CLI result event (camelCase keys) */
+export interface ModelUsage {
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheReadInputTokens?: number;
+  cacheCreationInputTokens?: number;
+  contextWindow?: number;
+  maxOutputTokens?: number;
+  costUSD?: number;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -9,7 +27,8 @@ export interface ChatMessage {
   timestamp: number;
   isStreaming?: boolean;
   toolUse?: ToolUseEvent[];
-  usage?: Record<string, unknown>;
+  usage?: TokenUsage;
+  modelUsage?: ModelUsage;
   claudeSessionId?: string;
   costUSD?: number;
   durationMs?: number;
@@ -341,6 +360,15 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
               }
 
               case 'done': {
+                // Extract modelUsage - it's keyed by model name, grab the first entry
+                let modelUsage: Record<string, unknown> | undefined;
+                if (event.modelUsage && typeof event.modelUsage === 'object') {
+                  const values = Object.values(event.modelUsage as Record<string, unknown>);
+                  if (values.length > 0) {
+                    modelUsage = values[0] as Record<string, unknown>;
+                  }
+                }
+
                 setConversations(prev =>
                   prev.map(c =>
                     c.id === currentConvId
@@ -354,6 +382,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
                                   ...m,
                                   isStreaming: false,
                                   usage: event.usage,
+                                  modelUsage: modelUsage as ChatMessage['modelUsage'],
                                   claudeSessionId: event.claudeSessionId,
                                   costUSD: event.costUSD,
                                   durationMs: event.durationMs,

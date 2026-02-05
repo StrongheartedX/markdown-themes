@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { MessageSquarePlus, Trash2, ChevronLeft, Bot, StopCircle } from 'lucide-react';
 import { ChatMessageComponent } from './ChatMessage';
 import { ChatInput } from './ChatInput';
-import { useAIChat, type Conversation } from '../../hooks/useAIChat';
+import { useAIChat, type Conversation, type ModelUsage } from '../../hooks/useAIChat';
 
 interface ChatPanelProps {
   cwd?: string | null;
@@ -11,6 +11,38 @@ interface ChatPanelProps {
   /** Current file content for context */
   currentFileContent?: string | null;
   fontSize?: number;
+}
+
+const DEFAULT_CONTEXT_LIMIT = 200_000;
+
+function getContextPercent(conversation: Conversation | null): number | null {
+  if (!conversation) return null;
+  // Find the latest assistant message with modelUsage data
+  for (let i = conversation.messages.length - 1; i >= 0; i--) {
+    const msg = conversation.messages[i];
+    if (msg.role === 'assistant' && msg.modelUsage) {
+      const mu = msg.modelUsage as ModelUsage;
+      const contextWindow = mu.contextWindow || DEFAULT_CONTEXT_LIMIT;
+      const total = (mu.inputTokens || 0)
+        + (mu.outputTokens || 0)
+        + (mu.cacheReadInputTokens || 0)
+        + (mu.cacheCreationInputTokens || 0);
+      if (total === 0) continue;
+      return Math.min(Math.round((total / contextWindow) * 100), 100);
+    }
+  }
+  return null;
+}
+
+function getContextColor(percent: number): string {
+  if (percent >= 90) return '#ef4444'; // red
+  if (percent >= 70) return '#f97316'; // orange
+  if (percent >= 50) return '#eab308'; // amber
+  return 'var(--text-secondary)';      // default
+}
+
+function getConversationContextPercent(conversation: Conversation): number | null {
+  return getContextPercent(conversation);
 }
 
 export function ChatPanel({ cwd, currentFile, currentFileContent: _currentFileContent, fontSize = 100 }: ChatPanelProps) {
@@ -92,21 +124,7 @@ export function ChatPanel({ cwd, currentFile, currentFileContent: _currentFileCo
     }
   }, [activeConversationId, deleteConversation]);
 
-  // Calculate total usage for the conversation
-  const totalUsage = activeConversation?.messages.reduce(
-    (acc, msg) => {
-      if (msg.usage) {
-        const usage = msg.usage as { input_tokens?: number; output_tokens?: number };
-        acc.inputTokens += usage.input_tokens || 0;
-        acc.outputTokens += usage.output_tokens || 0;
-      }
-      if (msg.costUSD) {
-        acc.costUSD += msg.costUSD;
-      }
-      return acc;
-    },
-    { inputTokens: 0, outputTokens: 0, costUSD: 0 }
-  );
+  const contextPercent = getContextPercent(activeConversation);
 
   const zoom = fontSize / 100;
 
@@ -202,16 +220,17 @@ export function ChatPanel({ cwd, currentFile, currentFileContent: _currentFileCo
           {activeConversation?.title || 'New conversation'}
         </span>
 
-        {/* Token/cost usage display */}
-        {totalUsage && (totalUsage.inputTokens > 0 || totalUsage.costUSD > 0) && (
+        {/* Context usage display */}
+        {contextPercent !== null && (
           <span
-            className="text-xs shrink-0 px-1.5 py-0.5 rounded"
-            style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
-            title={`Input: ${totalUsage.inputTokens.toLocaleString()} tokens, Output: ${totalUsage.outputTokens.toLocaleString()} tokens`}
+            className="text-xs shrink-0 px-1.5 py-0.5 rounded font-mono"
+            style={{
+              color: getContextColor(contextPercent),
+              backgroundColor: 'var(--bg-primary)',
+            }}
+            title={`Context window: ${contextPercent}% of ${(DEFAULT_CONTEXT_LIMIT / 1000).toFixed(0)}k tokens`}
           >
-            {totalUsage.costUSD > 0
-              ? `$${totalUsage.costUSD.toFixed(4)}`
-              : `${((totalUsage.inputTokens + totalUsage.outputTokens) / 1000).toFixed(1)}k`}
+            {contextPercent}%
           </span>
         )}
 
@@ -319,6 +338,7 @@ function ConversationRow({
   const messageCount = conversation.messages.length;
   const lastMessage = conversation.messages[messageCount - 1];
   const preview = lastMessage?.content?.slice(0, 80) || 'No messages';
+  const ctxPercent = getConversationContextPercent(conversation);
 
   return (
     <div
@@ -345,8 +365,18 @@ function ConversationRow({
           >
             {conversation.title}
           </span>
-          <span className="text-xs shrink-0" style={{ color: 'var(--text-secondary)' }}>
-            {formatTime(conversation.updatedAt)}
+          <span className="flex items-center gap-1.5 shrink-0">
+            {ctxPercent !== null && (
+              <span
+                className="text-[10px] font-mono"
+                style={{ color: getContextColor(ctxPercent) }}
+              >
+                {ctxPercent}%
+              </span>
+            )}
+            <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              {formatTime(conversation.updatedAt)}
+            </span>
           </span>
         </div>
         <p

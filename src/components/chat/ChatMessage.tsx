@@ -6,7 +6,7 @@ import { createCssVariablesTheme } from 'shiki';
 import { createMermaidPlugin } from '@streamdown/mermaid';
 import { math } from '@streamdown/math';
 import 'katex/dist/katex.min.css';
-import type { ChatMessage as ChatMessageType } from '../../hooks/useAIChat';
+import type { ChatMessage as ChatMessageType, ModelUsage } from '../../hooks/useAIChat';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -274,11 +274,18 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({ message
               {copied ? 'Copied' : 'Copy'}
             </button>
 
-            {message.costUSD != null && (
-              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                ${message.costUSD.toFixed(4)}
-              </span>
-            )}
+            {message.modelUsage && (() => {
+              const mu = message.modelUsage as ModelUsage;
+              const total = (mu.inputTokens || 0)
+                + (mu.outputTokens || 0)
+                + (mu.cacheReadInputTokens || 0)
+                + (mu.cacheCreationInputTokens || 0);
+              return total > 0 ? (
+                <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  {total >= 1000 ? `${(total / 1000).toFixed(1)}k` : total} tokens
+                </span>
+              ) : null;
+            })()}
 
             {message.durationMs != null && (
               <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
