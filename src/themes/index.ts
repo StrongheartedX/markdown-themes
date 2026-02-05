@@ -12,6 +12,9 @@ import './knolling.css';
 import './industrial.css';
 import './streamline-moderne.css';
 import './pixel-art.css';
+import './circuit-board.css';
+import './byzantine.css';
+import './editorial.css';
 
 export const themes = [
   { id: 'default', name: 'Default', className: '', accent: '#6366f1', font: 'system-ui, sans-serif', bg: '#ffffff' },
@@ -29,6 +32,9 @@ export const themes = [
   { id: 'industrial', name: 'Industrial', className: 'theme-industrial', accent: '#ffb800', font: "'Oswald', sans-serif", bg: '#1a1d1f' },
   { id: 'streamline-moderne', name: 'Streamline Moderne', className: 'theme-streamline-moderne', accent: '#7ebdb4', font: "'Quicksand', sans-serif", bg: '#0f1a2e' },
   { id: 'pixel-art', name: 'Pixel Art', className: 'theme-pixel-art', accent: '#00d4ff', font: "'Press Start 2P', monospace", bg: '#1a1a2e' },
+  { id: 'circuit-board', name: 'Circuit Board', className: 'theme-circuit-board', accent: '#c87533', font: "'JetBrains Mono', monospace", bg: '#0a3d0a' },
+  { id: 'byzantine', name: 'Byzantine', className: 'theme-byzantine', accent: '#d4a012', font: "'Cinzel', serif", bg: '#1a0a2e' },
+  { id: 'editorial', name: 'Editorial', className: 'theme-editorial', accent: '#c41e3a', font: "'Playfair Display', serif", bg: '#faf8f5' },
 ] as const;
 
 export type ThemeId = typeof themes[number]['id'];
