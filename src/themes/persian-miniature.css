@@ -347,7 +347,7 @@
 
 .theme-persian-miniature .prose pre code {
   font-family: var(--font-mono);
-  color: var(--cream);
+  color: #fff8e8;
   background: transparent;
 }
 
@@ -475,20 +475,20 @@
    ======================================== */
 
 .theme-persian-miniature {
-  /* Shiki base colors */
-  --shiki-foreground: var(--cream);
+  /* Shiki base colors - high contrast for dark lapis background */
+  --shiki-foreground: #fff8e8;
   --shiki-background: transparent;
 
-  /* Shiki token colors - Persian jewel tones for readability */
-  --shiki-token-constant: var(--vermillion-light);      /* Vermillion for constants */
-  --shiki-token-string: var(--turquoise-light);         /* Turquoise for strings */
-  --shiki-token-comment: var(--parchment-dark);         /* Muted parchment for comments */
-  --shiki-token-keyword: var(--gold-bright);            /* Gold for keywords */
-  --shiki-token-parameter: var(--saffron-light);        /* Saffron for parameters */
-  --shiki-token-function: var(--gold-leaf);             /* Gold leaf for functions */
-  --shiki-token-string-expression: var(--turquoise-light);
-  --shiki-token-punctuation: var(--parchment);          /* Cream for punctuation */
-  --shiki-token-link: var(--gold-bright);
+  /* Shiki token colors - vivid Persian jewel tones for readability */
+  --shiki-token-constant: #ff7b5a;                      /* Bright vermillion for constants */
+  --shiki-token-string: #6de8e8;                        /* Vivid turquoise for strings */
+  --shiki-token-comment: #a89880;                       /* Muted tan for comments */
+  --shiki-token-keyword: #ffd970;                       /* Bright gold for keywords */
+  --shiki-token-parameter: #ffe4a0;                     /* Light saffron for parameters */
+  --shiki-token-function: #f5c84a;                      /* Rich gold for functions */
+  --shiki-token-string-expression: #6de8e8;
+  --shiki-token-punctuation: #d4c8b0;                   /* Warm cream for punctuation */
+  --shiki-token-link: #ffd970;
 }
 
 /* ========================================
