@@ -316,7 +316,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
           }
         }
 
-        if (cancelled) return;
+        if (cancelled || inFlightRef.current) return;
 
         if (fullConversations.length > 0) {
           setConversations(fullConversations);

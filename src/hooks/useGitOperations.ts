@@ -29,7 +29,12 @@ async function gitOperation(
       body: body ? JSON.stringify(body) : undefined,
     }
   );
-  return res.json();
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { success: false, error: text || `HTTP ${res.status}` };
+  }
 }
 
 export function useGitOperations(repoName: string, projectsDir?: string) {

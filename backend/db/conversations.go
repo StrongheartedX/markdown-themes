@@ -322,7 +322,7 @@ func CreateConversation(conv *Conversation) error {
 	}
 
 	_, err := db.Exec(`
-		INSERT INTO conversations (id, title, created_at, updated_at, cwd, claude_session_id, settings)
+		INSERT OR REPLACE INTO conversations (id, title, created_at, updated_at, cwd, claude_session_id, settings)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`, conv.ID, conv.Title, conv.CreatedAt, conv.UpdatedAt,
 		nullString(conv.Cwd), nullString(conv.ClaudeSessionID), settingsStr)
