@@ -644,9 +644,17 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
               case 'done': {
                 let modelUsage: Record<string, unknown> | undefined;
                 if (event.modelUsage && typeof event.modelUsage === 'object') {
-                  const values = Object.values(event.modelUsage as Record<string, unknown>);
-                  if (values.length > 0) {
-                    modelUsage = values[0] as Record<string, unknown>;
+                  // modelUsage is keyed by model name — pick the primary model
+                  // (largest inputTokens) to avoid inflating context % with subagent tokens
+                  const entries = Object.values(event.modelUsage as Record<string, Record<string, unknown>>);
+                  if (entries.length === 1) {
+                    modelUsage = entries[0];
+                  } else if (entries.length > 1) {
+                    modelUsage = entries.reduce((best, cur) => {
+                      const bestInput = (best?.inputTokens as number) || 0;
+                      const curInput = (cur?.inputTokens as number) || 0;
+                      return curInput > bestInput ? cur : best;
+                    });
                   }
                 }
 

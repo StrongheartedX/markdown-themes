@@ -450,6 +450,16 @@ func Chat(w http.ResponseWriter, r *http.Request) {
 								"id":   toolID,
 							},
 						})
+						// Capture complete input if present (assistant event has full tool_use blocks)
+						if toolInput, ok := blockMap["input"].(map[string]interface{}); ok && len(toolInput) > 0 {
+							inputJSON, err := json.Marshal(toolInput)
+							if err == nil {
+								buf.appendEvent(map[string]interface{}{
+									"type":    "tool_input",
+									"content": string(inputJSON),
+								})
+							}
+						}
 					}
 				}
 
@@ -483,6 +493,8 @@ func Chat(w http.ResponseWriter, r *http.Request) {
 							"content": partialJSON,
 						})
 					}
+				} else if deltaType != "" {
+					log.Printf("[Chat] Unhandled delta type: %s", deltaType)
 				}
 
 			case "content_block_start":
@@ -500,6 +512,16 @@ func Chat(w http.ResponseWriter, r *http.Request) {
 								"id":   toolID,
 							},
 						})
+						// Capture input if already present in content_block_start
+						if toolInput, ok := contentBlock["input"].(map[string]interface{}); ok && len(toolInput) > 0 {
+							inputJSON, err := json.Marshal(toolInput)
+							if err == nil {
+								buf.appendEvent(map[string]interface{}{
+									"type":    "tool_input",
+									"content": string(inputJSON),
+								})
+							}
+						}
 					} else if blockType == "thinking" {
 						buf.appendEvent(map[string]interface{}{
 							"type": "thinking_start",
