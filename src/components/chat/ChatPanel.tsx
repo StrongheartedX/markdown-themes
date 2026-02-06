@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
-import { MessageSquarePlus, Trash2, ChevronLeft, Bot, StopCircle, X } from 'lucide-react';
+import { MessageSquarePlus, Trash2, ChevronLeft, Bot, StopCircle, X, RefreshCw } from 'lucide-react';
 import { ChatMessageComponent } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ChatSettings, getSettingsSummary } from './ChatSettings';
@@ -59,6 +59,7 @@ export function ChatPanel({ currentFile, fontSize = 100 }: ChatPanelProps) {
     activeConversationId,
     isGenerating,
     error,
+    reconnectAttempt,
     sendMessage,
     stopGeneration,
     newConversation,
@@ -446,7 +447,12 @@ export function ChatPanel({ currentFile, fontSize = 100 }: ChatPanelProps) {
           </span>
         )}
 
-        {isGenerating && (
+        {isGenerating && reconnectAttempt > 0 ? (
+          <span className="flex items-center gap-1.5 text-xs" style={{ color: '#f97316' }}>
+            <RefreshCw size={12} className="animate-spin" />
+            Reconnecting ({reconnectAttempt}/5)...
+          </span>
+        ) : isGenerating ? (
           <span className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--accent)' }}>
             <span className="relative flex h-2 w-2">
               <span
@@ -460,7 +466,7 @@ export function ChatPanel({ currentFile, fontSize = 100 }: ChatPanelProps) {
             </span>
             Thinking...
           </span>
-        )}
+        ) : null}
 
         {/* End conversation button - only show if session exists */}
         {activeConversation?.claudeSessionId && !isGenerating && (

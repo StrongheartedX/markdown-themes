@@ -88,6 +88,7 @@ export interface UseAIChatResult {
   activeConversationId: string | null;
   isGenerating: boolean;
   error: string | null;
+  reconnectAttempt: number;
   sendMessage: (content: string) => Promise<void>;
   sendToChat: (content: string) => void;
   stopGeneration: () => void;
@@ -102,6 +103,11 @@ export interface UseAIChatResult {
 const STORAGE_KEY = 'ai-chat-conversations';
 const ACTIVE_CONV_KEY = 'ai-chat-active-conversation';
 const SAVE_DEBOUNCE_MS = 2000;
+
+// SSE reconnection constants
+const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_BACKOFF_BASE_MS = 250;
+const RECONNECT_BACKOFF_CAP_MS = 8000;
 
 /** Load conversations from localStorage as fallback */
 function loadConversationsFromStorage(): Conversation[] {
@@ -199,9 +205,11 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
+  const userAbortedRef = useRef(false);
   const cwdRef = useRef(cwd);
   cwdRef.current = cwd;
 
@@ -419,11 +427,13 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
   const clearError = useCallback(() => setError(null), []);
 
   const stopGeneration = useCallback(() => {
+    userAbortedRef.current = true;
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
     setIsGenerating(false);
+    setReconnectAttempt(0);
     inFlightRef.current = false;
   }, []);
 
@@ -449,9 +459,11 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
   const sendMessage = useCallback(async (content: string) => {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
+    userAbortedRef.current = false;
 
     setError(null);
     setIsGenerating(true);
+    setReconnectAttempt(0);
 
     // Read from refs to avoid stale closures
     let convId = activeConvIdRef.current;
@@ -516,28 +528,269 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
-    try {
-      // Read settings from the latest conversation state
-      const currentSettings = conversationsRef.current.find(c => c.id === currentConvId)?.settings ?? conv?.settings;
+    // Track the last SSE event ID for reconnection
+    let lastEventId = 0;
+    // Track whether the stream completed cleanly (received 'done' or 'error' event)
+    let streamCompleted = false;
 
+    /** Read settings from conversation state */
+    const getSettings = () =>
+      conversationsRef.current.find(c => c.id === currentConvId)?.settings ?? conv?.settings;
+
+    /** Build request body, optionally with lastEventId for reconnection */
+    const buildRequestBody = (reconnectEventId?: number) => {
+      const currentSettings = getSettings();
+      return JSON.stringify({
+        messages: allMessages,
+        conversationId: currentConvId,
+        claudeSessionId: conv?.claudeSessionId,
+        cwd: cwdRef.current ?? undefined,
+        ...(reconnectEventId && reconnectEventId > 0 && { lastEventId: reconnectEventId }),
+        ...(currentSettings?.model && { model: currentSettings.model }),
+        ...(currentSettings?.addDirs?.length && { addDirs: currentSettings.addDirs }),
+        ...(currentSettings?.pluginDirs?.length && { pluginDirs: currentSettings.pluginDirs }),
+        ...(currentSettings?.appendSystemPrompt && { appendSystemPrompt: currentSettings.appendSystemPrompt }),
+        ...(currentSettings?.allowedTools?.length && { allowedTools: currentSettings.allowedTools }),
+        ...(currentSettings?.maxTurns && { maxTurns: currentSettings.maxTurns }),
+        ...(currentSettings?.permissionMode && { permissionMode: currentSettings.permissionMode }),
+        ...(currentSettings?.teammateMode && { teammateMode: currentSettings.teammateMode }),
+        ...(currentSettings?.agent && { agent: currentSettings.agent }),
+      });
+    };
+
+    /** Process a single SSE event */
+    const processEvent = (event: Record<string, unknown>) => {
+      const currentSettings = getSettings();
+
+      switch (event.type) {
+        case 'content': {
+          updateMessage(currentConvId, assistantMsgId, m => {
+            const segments = m.segments ? [...m.segments] : [];
+            const last = segments[segments.length - 1];
+            if (last && last.type === 'text') {
+              segments[segments.length - 1] = { ...last, text: last.text + event.content };
+            } else {
+              segments.push({ type: 'text', text: event.content as string });
+            }
+            return { ...m, content: m.content + event.content, segments };
+          });
+          break;
+        }
+
+        case 'thinking_start': {
+          // Initialize thinking (no-op if already set)
+          break;
+        }
+
+        case 'thinking': {
+          updateMessage(currentConvId, assistantMsgId, m => ({
+            ...m,
+            thinking: (m.thinking || '') + ((event.content as string) || ''),
+          }));
+          break;
+        }
+
+        case 'thinking_end': {
+          // Thinking block complete (no-op)
+          break;
+        }
+
+        case 'tool_start': {
+          const tool = event.tool as Record<string, string> | undefined;
+          const toolEvent: ToolUseEvent = {
+            type: 'start',
+            name: tool?.name,
+            id: tool?.id,
+          };
+          updateMessage(currentConvId, assistantMsgId, m => {
+            const segments = m.segments ? [...m.segments] : [];
+            segments.push({ type: 'tool', name: tool?.name || '', id: tool?.id || '', input: '' });
+            return { ...m, toolUse: [...(m.toolUse || []), toolEvent], segments };
+          });
+          break;
+        }
+
+        case 'tool_input': {
+          updateMessage(currentConvId, assistantMsgId, m => {
+            const segments = m.segments ? [...m.segments] : [];
+            // Find the last tool segment and append input
+            for (let i = segments.length - 1; i >= 0; i--) {
+              if (segments[i].type === 'tool') {
+                const toolSeg = segments[i] as ContentSegment & { type: 'tool' };
+                segments[i] = { ...toolSeg, input: toolSeg.input + ((event.content as string) || '') };
+                break;
+              }
+            }
+            return { ...m, segments };
+          });
+          break;
+        }
+
+        case 'tool_end': {
+          updateMessage(currentConvId, assistantMsgId, m => ({
+            ...m,
+            toolUse: [...(m.toolUse || []), { type: 'end' as const }],
+          }));
+          break;
+        }
+
+        case 'done': {
+          streamCompleted = true;
+
+          let modelUsage: Record<string, unknown> | undefined;
+          if (event.modelUsage && typeof event.modelUsage === 'object') {
+            const usageMap = event.modelUsage as Record<string, Record<string, unknown>>;
+            const modelKeys = Object.keys(usageMap);
+            if (modelKeys.length === 1) {
+              modelUsage = usageMap[modelKeys[0]];
+            } else if (modelKeys.length > 1) {
+              // Match the configured model to avoid picking subagent usage
+              const configuredModel = currentSettings?.model || '';
+              const matched = modelKeys.find(k =>
+                k === configuredModel || k.includes(configuredModel)
+              );
+              if (matched) {
+                modelUsage = usageMap[matched];
+              } else {
+                // Fallback: pick the model with the largest contextWindow (primary model)
+                modelUsage = Object.values(usageMap).reduce((best, cur) => {
+                  const bestCtx = (best?.contextWindow as number) || 0;
+                  const curCtx = (cur?.contextWindow as number) || 0;
+                  return curCtx > bestCtx ? cur : best;
+                });
+              }
+            }
+          }
+
+          let updatedConvSnapshot: Conversation | undefined;
+          setConversations(prev => {
+            const convIdx = prev.findIndex(c => c.id === currentConvId);
+            if (convIdx === -1) return prev;
+            const c = prev[convIdx];
+            const msgIdx = c.messages.findIndex(m => m.id === assistantMsgId);
+            if (msgIdx === -1) return prev;
+
+            // Only set fields that are present -- backend may send
+            // multiple 'done' events (message_stop + result) and we
+            // must not overwrite good data with undefined
+            const newMsg = {
+              ...c.messages[msgIdx],
+              isStreaming: false,
+              ...(event.usage != null ? { usage: event.usage as TokenUsage } : {}),
+              ...(modelUsage != null ? { modelUsage: modelUsage as ChatMessage['modelUsage'] } : {}),
+              ...(event.claudeSessionId ? { claudeSessionId: event.claudeSessionId as string } : {}),
+              ...(event.costUSD != null ? { costUSD: event.costUSD as number } : {}),
+              ...(event.durationMs != null ? { durationMs: event.durationMs as number } : {}),
+            };
+            const newMessages = c.messages.slice();
+            newMessages[msgIdx] = newMsg;
+
+            const updatedConv = {
+              ...c,
+              claudeSessionId: (event.claudeSessionId as string) || c.claudeSessionId,
+              updatedAt: Date.now(),
+              messages: newMessages,
+            };
+            updatedConvSnapshot = updatedConv;
+
+            const newConvs = prev.slice();
+            newConvs[convIdx] = updatedConv;
+            return newConvs;
+          });
+
+          // Flush localStorage save immediately on completion
+          saveDirtyRef.current = true;
+          flushSave();
+
+          // Persist completed conversation to backend using the
+          // snapshot captured inside the state updater, since
+          // conversationsRef may be stale before the next render.
+          if (updatedConvSnapshot) {
+            saveToBackend(updatedConvSnapshot);
+          }
+          break;
+        }
+
+        case 'error': {
+          streamCompleted = true;
+          setError((event.error as string) || 'Unknown error from Claude');
+          updateMessage(currentConvId, assistantMsgId, m => ({
+            ...m,
+            isStreaming: false,
+            content: m.content || '(Error occurred)',
+          }));
+          break;
+        }
+      }
+    };
+
+    /**
+     * Read an SSE stream from a fetch Response, parsing id: and data: lines.
+     * Returns 'completed' if stream ended cleanly (received done/error event),
+     * 'interrupted' if connection dropped before completion.
+     */
+    const readSSEStream = async (response: Response): Promise<'completed' | 'interrupted'> => {
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response body');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let pendingEventId = 0;
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            // Track event IDs from the SSE stream (format: "id: <number>")
+            if (line.startsWith('id: ')) {
+              const id = parseInt(line.slice(4).trim(), 10);
+              if (!isNaN(id)) {
+                pendingEventId = id;
+              }
+              continue;
+            }
+
+            if (!line.startsWith('data: ')) continue;
+
+            const jsonStr = line.slice(6).trim();
+            if (!jsonStr) continue;
+
+            try {
+              const event = JSON.parse(jsonStr);
+              processEvent(event);
+              // Update lastEventId after successfully processing the event
+              if (pendingEventId > 0) {
+                lastEventId = pendingEventId;
+              }
+            } catch (parseErr) {
+              console.warn('[useAIChat] Failed to parse SSE event:', jsonStr, parseErr);
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+
+      return streamCompleted ? 'completed' : 'interrupted';
+    };
+
+    /**
+     * Connect (or reconnect) to the SSE stream.
+     * On initial call, reconnectEventId is undefined.
+     * On retry, it carries the last successfully received event ID.
+     */
+    const connectSSE = async (reconnectEventId?: number): Promise<'completed' | 'interrupted'> => {
       const response = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: allMessages,
-          conversationId: currentConvId,
-          claudeSessionId: conv?.claudeSessionId,
-          cwd: cwdRef.current ?? undefined,
-          ...(currentSettings?.model && { model: currentSettings.model }),
-          ...(currentSettings?.addDirs?.length && { addDirs: currentSettings.addDirs }),
-          ...(currentSettings?.pluginDirs?.length && { pluginDirs: currentSettings.pluginDirs }),
-          ...(currentSettings?.appendSystemPrompt && { appendSystemPrompt: currentSettings.appendSystemPrompt }),
-          ...(currentSettings?.allowedTools?.length && { allowedTools: currentSettings.allowedTools }),
-          ...(currentSettings?.maxTurns && { maxTurns: currentSettings.maxTurns }),
-          ...(currentSettings?.permissionMode && { permissionMode: currentSettings.permissionMode }),
-          ...(currentSettings?.teammateMode && { teammateMode: currentSettings.teammateMode }),
-          ...(currentSettings?.agent && { agent: currentSettings.agent }),
-        }),
+        body: buildRequestBody(reconnectEventId),
         signal: abortController.signal,
       });
 
@@ -546,191 +799,65 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
         throw new Error(errorData.error || `Chat request failed: ${response.status}`);
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No response body');
+      return readSSEStream(response);
+    };
 
-      const decoder = new TextDecoder();
-      let buffer = '';
+    try {
+      let result = await connectSSE();
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      // If the stream was interrupted (not completed cleanly), attempt reconnection
+      // with exponential backoff, unless the user explicitly aborted
+      let attempt = 0;
+      while (result === 'interrupted' && !userAbortedRef.current && attempt < MAX_RECONNECT_ATTEMPTS) {
+        attempt++;
+        const delay = Math.min(
+          RECONNECT_BACKOFF_BASE_MS * Math.pow(2, attempt - 1),
+          RECONNECT_BACKOFF_CAP_MS,
+        );
+        console.log(
+          `[useAIChat] Stream interrupted, reconnecting (attempt ${attempt}/${MAX_RECONNECT_ATTEMPTS}) after ${delay}ms, lastEventId=${lastEventId}`,
+        );
+        setReconnectAttempt(attempt);
 
-        buffer += decoder.decode(value, { stream: true });
+        // Wait for the backoff delay, but bail out if the user aborts
+        await new Promise<void>(resolve => {
+          const timer = setTimeout(resolve, delay);
+          const onAbort = () => {
+            clearTimeout(timer);
+            resolve();
+          };
+          abortController.signal.addEventListener('abort', onAbort, { once: true });
+        });
 
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+        if (userAbortedRef.current || abortController.signal.aborted) break;
 
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-
-          const jsonStr = line.slice(6).trim();
-          if (!jsonStr) continue;
-
-          try {
-            const event = JSON.parse(jsonStr);
-
-            switch (event.type) {
-              case 'content': {
-                updateMessage(currentConvId, assistantMsgId, m => {
-                  const segments = m.segments ? [...m.segments] : [];
-                  const last = segments[segments.length - 1];
-                  if (last && last.type === 'text') {
-                    segments[segments.length - 1] = { ...last, text: last.text + event.content };
-                  } else {
-                    segments.push({ type: 'text', text: event.content });
-                  }
-                  return { ...m, content: m.content + event.content, segments };
-                });
-                break;
-              }
-
-              case 'thinking_start': {
-                // Initialize thinking (no-op if already set)
-                break;
-              }
-
-              case 'thinking': {
-                updateMessage(currentConvId, assistantMsgId, m => ({
-                  ...m,
-                  thinking: (m.thinking || '') + (event.content || ''),
-                }));
-                break;
-              }
-
-              case 'thinking_end': {
-                // Thinking block complete (no-op)
-                break;
-              }
-
-              case 'tool_start': {
-                const toolEvent: ToolUseEvent = {
-                  type: 'start',
-                  name: event.tool?.name,
-                  id: event.tool?.id,
-                };
-                updateMessage(currentConvId, assistantMsgId, m => {
-                  const segments = m.segments ? [...m.segments] : [];
-                  segments.push({ type: 'tool', name: event.tool?.name || '', id: event.tool?.id || '', input: '' });
-                  return { ...m, toolUse: [...(m.toolUse || []), toolEvent], segments };
-                });
-                break;
-              }
-
-              case 'tool_input': {
-                updateMessage(currentConvId, assistantMsgId, m => {
-                  const segments = m.segments ? [...m.segments] : [];
-                  // Find the last tool segment and append input
-                  for (let i = segments.length - 1; i >= 0; i--) {
-                    if (segments[i].type === 'tool') {
-                      const toolSeg = segments[i] as ContentSegment & { type: 'tool' };
-                      segments[i] = { ...toolSeg, input: toolSeg.input + (event.content || '') };
-                      break;
-                    }
-                  }
-                  return { ...m, segments };
-                });
-                break;
-              }
-
-              case 'tool_end': {
-                updateMessage(currentConvId, assistantMsgId, m => ({
-                  ...m,
-                  toolUse: [...(m.toolUse || []), { type: 'end' as const }],
-                }));
-                break;
-              }
-
-              case 'done': {
-                let modelUsage: Record<string, unknown> | undefined;
-                if (event.modelUsage && typeof event.modelUsage === 'object') {
-                  const usageMap = event.modelUsage as Record<string, Record<string, unknown>>;
-                  const modelKeys = Object.keys(usageMap);
-                  if (modelKeys.length === 1) {
-                    modelUsage = usageMap[modelKeys[0]];
-                  } else if (modelKeys.length > 1) {
-                    // Match the configured model to avoid picking subagent usage
-                    const configuredModel = currentSettings?.model || '';
-                    const matched = modelKeys.find(k =>
-                      k === configuredModel || k.includes(configuredModel)
-                    );
-                    if (matched) {
-                      modelUsage = usageMap[matched];
-                    } else {
-                      // Fallback: pick the model with the largest contextWindow (primary model)
-                      modelUsage = Object.values(usageMap).reduce((best, cur) => {
-                        const bestCtx = (best?.contextWindow as number) || 0;
-                        const curCtx = (cur?.contextWindow as number) || 0;
-                        return curCtx > bestCtx ? cur : best;
-                      });
-                    }
-                  }
-                }
-
-                let updatedConvSnapshot: Conversation | undefined;
-                setConversations(prev => {
-                  const convIdx = prev.findIndex(c => c.id === currentConvId);
-                  if (convIdx === -1) return prev;
-                  const c = prev[convIdx];
-                  const msgIdx = c.messages.findIndex(m => m.id === assistantMsgId);
-                  if (msgIdx === -1) return prev;
-
-                  // Only set fields that are present -- backend may send
-                  // multiple 'done' events (message_stop + result) and we
-                  // must not overwrite good data with undefined
-                  const newMsg = {
-                    ...c.messages[msgIdx],
-                    isStreaming: false,
-                    ...(event.usage != null && { usage: event.usage }),
-                    ...(modelUsage != null && { modelUsage: modelUsage as ChatMessage['modelUsage'] }),
-                    ...(event.claudeSessionId && { claudeSessionId: event.claudeSessionId }),
-                    ...(event.costUSD != null && { costUSD: event.costUSD }),
-                    ...(event.durationMs != null && { durationMs: event.durationMs }),
-                  };
-                  const newMessages = c.messages.slice();
-                  newMessages[msgIdx] = newMsg;
-
-                  const updatedConv = {
-                    ...c,
-                    claudeSessionId: event.claudeSessionId || c.claudeSessionId,
-                    updatedAt: Date.now(),
-                    messages: newMessages,
-                  };
-                  updatedConvSnapshot = updatedConv;
-
-                  const newConvs = prev.slice();
-                  newConvs[convIdx] = updatedConv;
-                  return newConvs;
-                });
-
-                // Flush localStorage save immediately on completion
-                saveDirtyRef.current = true;
-                flushSave();
-
-                // Persist completed conversation to backend using the
-                // snapshot captured inside the state updater, since
-                // conversationsRef may be stale before the next render.
-                if (updatedConvSnapshot) {
-                  saveToBackend(updatedConvSnapshot);
-                }
-                break;
-              }
-
-              case 'error': {
-                setError(event.error || 'Unknown error from Claude');
-                updateMessage(currentConvId, assistantMsgId, m => ({
-                  ...m,
-                  isStreaming: false,
-                  content: m.content || '(Error occurred)',
-                }));
-                break;
-              }
-            }
-          } catch (parseErr) {
-            console.warn('[useAIChat] Failed to parse SSE event:', jsonStr, parseErr);
+        try {
+          result = await connectSSE(lastEventId);
+        } catch (retryErr) {
+          // If this retry itself fails with a user abort, propagate it
+          if (retryErr instanceof Error && retryErr.name === 'AbortError') {
+            throw retryErr;
+          }
+          console.warn(`[useAIChat] Reconnect attempt ${attempt} failed:`, retryErr);
+          // On last attempt, propagate the error
+          if (attempt >= MAX_RECONNECT_ATTEMPTS) {
+            throw retryErr;
           }
         }
       }
+
+      // If we exhausted retries without completing, show an error
+      if (result === 'interrupted' && !userAbortedRef.current) {
+        const errorMsg = `Connection lost after ${attempt} reconnection attempt${attempt !== 1 ? 's' : ''}`;
+        setError(errorMsg);
+        updateMessage(currentConvId, assistantMsgId, m => ({
+          ...m,
+          isStreaming: false,
+          content: m.content || `(Error: ${errorMsg})`,
+        }));
+      }
+
+      setReconnectAttempt(0);
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
         updateMessage(currentConvId, assistantMsgId, m => ({
@@ -749,6 +876,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
       }
     } finally {
       setIsGenerating(false);
+      setReconnectAttempt(0);
       inFlightRef.current = false;
       abortControllerRef.current = null;
       // Flush localStorage save when streaming ends
@@ -782,6 +910,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
     activeConversationId,
     isGenerating,
     error,
+    reconnectAttempt,
     sendMessage,
     sendToChat,
     stopGeneration,
@@ -797,6 +926,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
     activeConversationId,
     isGenerating,
     error,
+    reconnectAttempt,
     sendMessage,
     sendToChat,
     stopGeneration,
