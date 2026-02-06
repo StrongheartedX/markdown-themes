@@ -221,6 +221,26 @@ body {
   background-clip: unset !important;
 }
 
+/* Force mermaid SVG text elements to inherit from themeVariables.
+   Mermaid generates internal <style> tags with class selectors (e.g. .nodeLabel,
+   .classLabel, .stateLabel) that may conflict with theme CSS. These high-specificity
+   rules ensure text inside SVGs respects the fill/color set by themeVariables. */
+[data-streamdown="mermaid-block"] foreignObject div,
+[data-streamdown="mermaid-block"] foreignObject span,
+[data-streamdown="mermaid-block"] foreignObject p {
+  background: none !important;
+  background-image: none !important;
+  color: inherit !important;
+}
+
+/* Ensure mermaid-generated text inside SVG (non-foreignObject path) is visible.
+   Some diagram types (pie labels, journey text, git graph) use SVG <text> elements
+   directly rather than foreignObject. Theme gradient effects don't affect these,
+   but ensure they have a sane fill. */
+[data-streamdown="mermaid-block"] svg text {
+  fill: currentColor;
+}
+
 /* Chat message prose - smaller, tighter styles for chat context */
 .chat-message-prose .prose {
   font-size: 0.875rem;

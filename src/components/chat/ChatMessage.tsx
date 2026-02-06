@@ -176,7 +176,12 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({ message
     const textSecondary = cssColorToHex(getCssVar(element, '--text-secondary') || '#a0a0a0', bgPrimary);
     const accent = cssColorToHex(getCssVar(element, '--accent') || '#3b82f6', bgPrimary);
     const border = cssColorToHex(getCssVar(element, '--border') || '#404040', bgPrimary);
+    const fontBody = getCssVar(element, '--font-body') || 'system-ui, sans-serif';
     const isDark = isDarkColor(bgPrimary);
+
+    // Generate contrasting text color for colored pie/journey slices.
+    // On dark themes, light text; on light themes, dark text.
+    const contrastText = isDark ? '#ffffff' : '#000000';
 
     return createMermaidPlugin({
       config: {
@@ -190,7 +195,10 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({ message
           secondaryColor: bgSecondary,
           tertiaryColor: bgPrimary,
 
-          // Text
+          // Text — set textColor explicitly so diagram types that reference it
+          // (journey, pie, gantt, kanban, git) get the correct value rather
+          // than relying on Mermaid's invert(background) derivation.
+          textColor: textPrimary,
           primaryTextColor: textPrimary,
           secondaryTextColor: textSecondary,
           tertiaryTextColor: textSecondary,
@@ -228,7 +236,10 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({ message
           sequenceNumberColor: textPrimary,
 
           // State diagram — stateBkg falls back to mainBkg,
-          // stateLabelColor is the actual text var (stateTextColor doesn't exist in v11)
+          // stateLabelColor is the actual text var (stateTextColor doesn't exist in v11).
+          // IMPORTANT: stateLabelColor must be set because Mermaid's base theme
+          // derives it as (stateLabelColor || stateBkg || primaryTextColor) —
+          // if unset, it would pick up stateBkg (a background color) as text.
           stateBkg: bgSecondary,
           stateLabelColor: textPrimary,
           labelColor: textPrimary,
@@ -236,17 +247,71 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({ message
           transitionColor: textSecondary,
           transitionLabelColor: textPrimary,
           specialStateColor: accent,
+          compositeBackground: bgPrimary,
+          compositeTitleBackground: bgSecondary,
+          compositeBorder: border,
+          labelBackgroundColor: bgSecondary,
+          innerEndBackground: border,
+          errorBkgColor: bgSecondary,
+          errorTextColor: textPrimary,
 
           // Class diagram — classText is the text color,
           // node fill comes from mainBkg (set above)
           classText: textPrimary,
+
+          // Pie chart — without these, pie colors derive from primaryColor via
+          // hue-rotation which produces invisible dark slices on dark themes.
+          // pieTitleTextColor/pieLegendTextColor fall back to taskTextDarkColor
+          // which can be wrong, so set them all explicitly.
+          pie1: accent,
+          pie2: textSecondary,
+          pie3: border,
+          pie4: bgSecondary,
+          pieTitleTextColor: textPrimary,
+          pieSectionTextColor: contrastText,
+          pieLegendTextColor: textPrimary,
+          pieStrokeColor: bgPrimary,
+          pieOuterStrokeColor: bgPrimary,
+
+          // Gantt — task text colors fall back to textColor which we now set,
+          // but set explicitly for safety
+          taskTextColor: textPrimary,
+          taskTextOutsideColor: textPrimary,
+          taskTextLightColor: textPrimary,
+          taskTextDarkColor: textPrimary,
+          taskTextClickableColor: accent,
+          taskBkgColor: bgSecondary,
+          taskBorderColor: accent,
+          activeTaskBkgColor: bgSecondary,
+          activeTaskBorderColor: accent,
+          doneTaskBkgColor: bgPrimary,
+          doneTaskBorderColor: border,
+          sectionBkgColor: bgSecondary,
+          sectionBkgColor2: bgPrimary,
+          altSectionBkgColor: bgPrimary,
+          gridColor: border,
+          todayLineColor: accent,
+
+          // ER diagram — attributeBackgroundColor defaults to hardcoded white
+          attributeBackgroundColorOdd: bgSecondary,
+          attributeBackgroundColorEven: bgPrimary,
+          relationLabelBackground: bgSecondary,
+          relationLabelColor: textPrimary,
+
+          // Requirement diagram
+          requirementBackground: bgSecondary,
+          requirementBorderColor: accent,
+          requirementTextColor: textPrimary,
+          relationColor: textSecondary,
 
           // Notes
           noteBkgColor: bgSecondary,
           noteTextColor: textPrimary,
           noteBorderColor: accent,
 
-          fontFamily: 'inherit',
+          // Explicit font so mermaid measures node sizes with the correct font,
+          // not a fallback — 'inherit' resolves to default during SVG measurement.
+          fontFamily: fontBody,
         },
       },
     });
