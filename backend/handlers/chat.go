@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +19,7 @@ type ChatRequest struct {
 	ClaudeSessionID string        `json:"claudeSessionId,omitempty"`
 	Model           string        `json:"model,omitempty"`
 	Cwd             string        `json:"cwd,omitempty"`
+	AllowedTools    []string      `json:"allowedTools,omitempty"`
 }
 
 // ChatMessage represents a single message in the conversation
@@ -74,11 +73,28 @@ func Chat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Default tools safe for headless -p mode (no interactive approval)
+	defaultAllowedTools := []string{
+		"Read", "Write", "Edit",
+		"Bash", "Glob", "Grep",
+		"WebFetch", "WebSearch",
+	}
+
+	allowedTools := defaultAllowedTools
+	if len(req.AllowedTools) > 0 {
+		allowedTools = req.AllowedTools
+	}
+
 	// Build the Claude CLI command
 	args := []string{
 		"--output-format", "stream-json",
 		"--verbose",
 		"-p", lastUserMessage,
+	}
+
+	// Add allowed tools so Claude can actually use them in non-interactive mode
+	for _, tool := range allowedTools {
+		args = append(args, "--allowedTools", tool)
 	}
 
 	// Add model if explicitly specified
@@ -89,15 +105,6 @@ func Chat(w http.ResponseWriter, r *http.Request) {
 	// Add session resumption if provided
 	if req.ClaudeSessionID != "" {
 		args = append(args, "--resume", req.ClaudeSessionID)
-	}
-
-	// Add MCP config if available
-	if home, err := os.UserHomeDir(); err == nil {
-		mcpConfigPath := filepath.Join(home, ".claude", "mcp.json")
-		if _, err := os.Stat(mcpConfigPath); err == nil {
-			args = append([]string{"--mcp-config", mcpConfigPath}, args...)
-			log.Printf("[Chat] Using MCP config: %s", mcpConfigPath)
-		}
 	}
 
 	cmd := exec.Command("claude", args...)
@@ -330,6 +337,13 @@ func Chat(w http.ResponseWriter, r *http.Request) {
 			// Extract cost/usage from result
 			usage, _ := event["usage"].(map[string]interface{})
 			modelUsage, _ := event["modelUsage"].(map[string]interface{})
+			log.Printf("[Chat] result event - modelUsage present: %v, keys: %v", modelUsage != nil, func() []string {
+				keys := make([]string, 0)
+				for k := range modelUsage {
+					keys = append(keys, k)
+				}
+				return keys
+			}())
 			costUSD, _ := event["total_cost_usd"].(float64)
 			duration, _ := event["duration_ms"].(float64)
 

@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import { AppStoreProvider } from "./context/AppStoreContext";
 import { WorkspaceProvider } from "./context/WorkspaceContext";
 import { PageStateProvider } from "./context/PageStateContext";
+import { AIChatProvider } from "./context/AIChatContext";
 import App from "./App";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
@@ -11,9 +12,11 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <BrowserRouter>
       <AppStoreProvider>
         <WorkspaceProvider>
-          <PageStateProvider>
-            <App />
-          </PageStateProvider>
+          <AIChatProvider>
+            <PageStateProvider>
+              <App />
+            </PageStateProvider>
+          </AIChatProvider>
         </WorkspaceProvider>
       </AppStoreProvider>
     </BrowserRouter>

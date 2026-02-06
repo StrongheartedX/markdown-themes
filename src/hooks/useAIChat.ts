@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 
 const API_BASE = 'http://localhost:8130';
 
@@ -54,7 +54,7 @@ interface UseAIChatOptions {
   cwd?: string | null;
 }
 
-interface UseAIChatResult {
+export interface UseAIChatResult {
   conversations: Conversation[];
   activeConversation: Conversation | null;
   activeConversationId: string | null;
@@ -71,6 +71,7 @@ interface UseAIChatResult {
 
 const STORAGE_KEY = 'ai-chat-conversations';
 const ACTIVE_CONV_KEY = 'ai-chat-active-conversation';
+const SAVE_DEBOUNCE_MS = 2000;
 
 function loadConversations(): Conversation[] {
   try {
@@ -81,16 +82,11 @@ function loadConversations(): Conversation[] {
   }
 }
 
-function saveConversations(convs: Conversation[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(convs));
-}
-
 function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
 function generateTitle(content: string): string {
-  // Use first line, truncated to 50 chars
   const firstLine = content.split('\n')[0].trim();
   return firstLine.length > 50 ? firstLine.slice(0, 47) + '...' : firstLine;
 }
@@ -107,11 +103,57 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
+  const cwdRef = useRef(cwd);
+  cwdRef.current = cwd;
 
-  // Persist conversations when they change
+  // Keep a ref to conversations so sendMessage doesn't need it as a dependency
+  const conversationsRef = useRef(conversations);
+  conversationsRef.current = conversations;
+
+  // Keep a ref to activeConversationId for the same reason
+  const activeConvIdRef = useRef(activeConversationId);
+  activeConvIdRef.current = activeConversationId;
+
+  // Debounced localStorage persistence
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveDirtyRef = useRef(false);
+
+  const flushSave = useCallback(() => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    if (saveDirtyRef.current) {
+      saveDirtyRef.current = false;
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(conversationsRef.current));
+      } catch (err) {
+        console.warn('[useAIChat] Failed to save conversations:', err);
+      }
+    }
+  }, []);
+
+  // Schedule a debounced save whenever conversations change
   useEffect(() => {
-    saveConversations(conversations);
-  }, [conversations]);
+    saveDirtyRef.current = true;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(flushSave, SAVE_DEBOUNCE_MS);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [conversations, flushSave]);
+
+  // Flush on unmount and on visibility change (tab switch / close)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) flushSave();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      flushSave();
+    };
+  }, [flushSave]);
 
   // Persist active conversation ID
   useEffect(() => {
@@ -122,7 +164,10 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
     }
   }, [activeConversationId]);
 
-  const activeConversation = conversations.find(c => c.id === activeConversationId) ?? null;
+  const activeConversation = useMemo(
+    () => conversations.find(c => c.id === activeConversationId) ?? null,
+    [conversations, activeConversationId]
+  );
 
   const newConversation = useCallback(() => {
     const conv: Conversation = {
@@ -131,12 +176,12 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
       messages: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      cwd: cwd ?? undefined,
+      cwd: cwdRef.current ?? undefined,
     };
     setConversations(prev => [conv, ...prev]);
     setActiveConversationId(conv.id);
     return conv;
-  }, [cwd]);
+  }, []);
 
   const setActiveConversation = useCallback((id: string) => {
     setActiveConversationId(id);
@@ -148,15 +193,13 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
   }, []);
 
   const endConversation = useCallback(async (id: string) => {
-    // Stop any active generation first
-    if (abortControllerRef.current && activeConversationId === id) {
+    if (abortControllerRef.current && activeConvIdRef.current === id) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setIsGenerating(false);
       inFlightRef.current = false;
     }
 
-    // Kill the Claude process on the backend
     try {
       await fetch(`${API_BASE}/api/chat/process?conversationId=${encodeURIComponent(id)}`, {
         method: 'DELETE',
@@ -165,15 +208,12 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
       console.warn('[useAIChat] Failed to kill backend process:', err);
     }
 
-    // Clear the claudeSessionId so next message starts a fresh session
     setConversations(prev =>
       prev.map(c =>
-        c.id === id
-          ? { ...c, claudeSessionId: undefined }
-          : c
+        c.id === id ? { ...c, claudeSessionId: undefined } : c
       )
     );
-  }, [activeConversationId]);
+  }, []);
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -186,6 +226,25 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
     inFlightRef.current = false;
   }, []);
 
+  // Helper to update a single message in a single conversation without O(n*m) full scan
+  const updateMessage = useCallback((convId: string, msgId: string, updater: (msg: ChatMessage) => ChatMessage) => {
+    setConversations(prev => {
+      const convIdx = prev.findIndex(c => c.id === convId);
+      if (convIdx === -1) return prev;
+      const conv = prev[convIdx];
+      const msgIdx = conv.messages.findIndex(m => m.id === msgId);
+      if (msgIdx === -1) return prev;
+
+      const newMsg = updater(conv.messages[msgIdx]);
+      const newMessages = conv.messages.slice();
+      newMessages[msgIdx] = newMsg;
+
+      const newConvs = prev.slice();
+      newConvs[convIdx] = { ...conv, messages: newMessages };
+      return newConvs;
+    });
+  }, []);
+
   const sendMessage = useCallback(async (content: string) => {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
@@ -193,9 +252,9 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
     setError(null);
     setIsGenerating(true);
 
-    // Find or create conversation
-    let convId = activeConversationId;
-    let conv = conversations.find(c => c.id === convId);
+    // Read from refs to avoid stale closures
+    let convId = activeConvIdRef.current;
+    let conv = conversationsRef.current.find(c => c.id === convId);
 
     if (!conv) {
       const newConv: Conversation = {
@@ -204,7 +263,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
         messages: [],
         createdAt: Date.now(),
         updatedAt: Date.now(),
-        cwd: cwd ?? undefined,
+        cwd: cwdRef.current ?? undefined,
       };
       convId = newConv.id;
       conv = newConv;
@@ -212,7 +271,6 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
       setActiveConversationId(newConv.id);
     }
 
-    // Add user message
     const userMessage: ChatMessage = {
       id: generateId(),
       role: 'user',
@@ -220,7 +278,6 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
       timestamp: Date.now(),
     };
 
-    // Create placeholder assistant message
     const assistantMessage: ChatMessage = {
       id: generateId(),
       role: 'assistant',
@@ -231,6 +288,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
     };
 
     const currentConvId = convId!;
+    const assistantMsgId = assistantMessage.id;
 
     setConversations(prev =>
       prev.map(c =>
@@ -245,7 +303,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
       )
     );
 
-    // Prepare messages for API (all conversation history)
+    // Prepare messages for API
     const allMessages = [...(conv?.messages || []), userMessage].map(m => ({
       role: m.role,
       content: m.content,
@@ -262,7 +320,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
           messages: allMessages,
           conversationId: currentConvId,
           claudeSessionId: conv?.claudeSessionId,
-          cwd: cwd ?? undefined,
+          cwd: cwdRef.current ?? undefined,
         }),
         signal: abortController.signal,
       });
@@ -284,9 +342,8 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
 
         buffer += decoder.decode(value, { stream: true });
 
-        // Process complete SSE events
         const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+        buffer = lines.pop() || '';
 
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
@@ -299,21 +356,10 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
 
             switch (event.type) {
               case 'content': {
-                // Append text to assistant message
-                setConversations(prev =>
-                  prev.map(c =>
-                    c.id === currentConvId
-                      ? {
-                          ...c,
-                          messages: c.messages.map(m =>
-                            m.id === assistantMessage.id
-                              ? { ...m, content: m.content + event.content }
-                              : m
-                          ),
-                        }
-                      : c
-                  )
-                );
+                updateMessage(currentConvId, assistantMsgId, m => ({
+                  ...m,
+                  content: m.content + event.content,
+                }));
                 break;
               }
 
@@ -323,44 +369,22 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
                   name: event.tool?.name,
                   id: event.tool?.id,
                 };
-                setConversations(prev =>
-                  prev.map(c =>
-                    c.id === currentConvId
-                      ? {
-                          ...c,
-                          messages: c.messages.map(m =>
-                            m.id === assistantMessage.id
-                              ? { ...m, toolUse: [...(m.toolUse || []), toolEvent] }
-                              : m
-                          ),
-                        }
-                      : c
-                  )
-                );
+                updateMessage(currentConvId, assistantMsgId, m => ({
+                  ...m,
+                  toolUse: [...(m.toolUse || []), toolEvent],
+                }));
                 break;
               }
 
               case 'tool_end': {
-                const toolEndEvent: ToolUseEvent = { type: 'end' };
-                setConversations(prev =>
-                  prev.map(c =>
-                    c.id === currentConvId
-                      ? {
-                          ...c,
-                          messages: c.messages.map(m =>
-                            m.id === assistantMessage.id
-                              ? { ...m, toolUse: [...(m.toolUse || []), toolEndEvent] }
-                              : m
-                          ),
-                        }
-                      : c
-                  )
-                );
+                updateMessage(currentConvId, assistantMsgId, m => ({
+                  ...m,
+                  toolUse: [...(m.toolUse || []), { type: 'end' as const }],
+                }));
                 break;
               }
 
               case 'done': {
-                // Extract modelUsage - it's keyed by model name, grab the first entry
                 let modelUsage: Record<string, unknown> | undefined;
                 if (event.modelUsage && typeof event.modelUsage === 'object') {
                   const values = Object.values(event.modelUsage as Record<string, unknown>);
@@ -369,49 +393,51 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
                   }
                 }
 
-                setConversations(prev =>
-                  prev.map(c =>
-                    c.id === currentConvId
-                      ? {
-                          ...c,
-                          claudeSessionId: event.claudeSessionId || c.claudeSessionId,
-                          updatedAt: Date.now(),
-                          messages: c.messages.map(m =>
-                            m.id === assistantMessage.id
-                              ? {
-                                  ...m,
-                                  isStreaming: false,
-                                  usage: event.usage,
-                                  modelUsage: modelUsage as ChatMessage['modelUsage'],
-                                  claudeSessionId: event.claudeSessionId,
-                                  costUSD: event.costUSD,
-                                  durationMs: event.durationMs,
-                                }
-                              : m
-                          ),
-                        }
-                      : c
-                  )
-                );
+                setConversations(prev => {
+                  const convIdx = prev.findIndex(c => c.id === currentConvId);
+                  if (convIdx === -1) return prev;
+                  const c = prev[convIdx];
+                  const msgIdx = c.messages.findIndex(m => m.id === assistantMsgId);
+                  if (msgIdx === -1) return prev;
+
+                  // Only set fields that are present -- backend may send
+                  // multiple 'done' events (message_stop + result) and we
+                  // must not overwrite good data with undefined
+                  const newMsg = {
+                    ...c.messages[msgIdx],
+                    isStreaming: false,
+                    ...(event.usage != null && { usage: event.usage }),
+                    ...(modelUsage != null && { modelUsage: modelUsage as ChatMessage['modelUsage'] }),
+                    ...(event.claudeSessionId && { claudeSessionId: event.claudeSessionId }),
+                    ...(event.costUSD != null && { costUSD: event.costUSD }),
+                    ...(event.durationMs != null && { durationMs: event.durationMs }),
+                  };
+                  const newMessages = c.messages.slice();
+                  newMessages[msgIdx] = newMsg;
+
+                  const newConvs = prev.slice();
+                  newConvs[convIdx] = {
+                    ...c,
+                    claudeSessionId: event.claudeSessionId || c.claudeSessionId,
+                    updatedAt: Date.now(),
+                    messages: newMessages,
+                  };
+                  return newConvs;
+                });
+
+                // Flush save immediately on completion
+                saveDirtyRef.current = true;
+                flushSave();
                 break;
               }
 
               case 'error': {
                 setError(event.error || 'Unknown error from Claude');
-                setConversations(prev =>
-                  prev.map(c =>
-                    c.id === currentConvId
-                      ? {
-                          ...c,
-                          messages: c.messages.map(m =>
-                            m.id === assistantMessage.id
-                              ? { ...m, isStreaming: false, content: m.content || '(Error occurred)' }
-                              : m
-                          ),
-                        }
-                      : c
-                  )
-                );
+                updateMessage(currentConvId, assistantMsgId, m => ({
+                  ...m,
+                  isStreaming: false,
+                  content: m.content || '(Error occurred)',
+                }));
                 break;
               }
             }
@@ -422,48 +448,31 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
       }
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
-        // User cancelled - mark message as not streaming
-        setConversations(prev =>
-          prev.map(c =>
-            c.id === currentConvId
-              ? {
-                  ...c,
-                  messages: c.messages.map(m =>
-                    m.id === assistantMessage.id
-                      ? { ...m, isStreaming: false, content: m.content || '(Cancelled)' }
-                      : m
-                  ),
-                }
-              : c
-          )
-        );
+        updateMessage(currentConvId, assistantMsgId, m => ({
+          ...m,
+          isStreaming: false,
+          content: m.content || '(Cancelled)',
+        }));
       } else {
         const errorMsg = err instanceof Error ? err.message : 'Failed to send message';
         setError(errorMsg);
-        // Mark message as errored
-        setConversations(prev =>
-          prev.map(c =>
-            c.id === currentConvId
-              ? {
-                  ...c,
-                  messages: c.messages.map(m =>
-                    m.id === assistantMessage.id
-                      ? { ...m, isStreaming: false, content: m.content || `(Error: ${errorMsg})` }
-                      : m
-                  ),
-                }
-              : c
-          )
-        );
+        updateMessage(currentConvId, assistantMsgId, m => ({
+          ...m,
+          isStreaming: false,
+          content: m.content || `(Error: ${errorMsg})`,
+        }));
       }
     } finally {
       setIsGenerating(false);
       inFlightRef.current = false;
       abortControllerRef.current = null;
+      // Flush save when streaming ends
+      saveDirtyRef.current = true;
+      flushSave();
     }
-  }, [activeConversationId, conversations, cwd]);
+  }, [updateMessage, flushSave]);
 
-  return {
+  return useMemo(() => ({
     conversations,
     activeConversation,
     activeConversationId,
@@ -476,5 +485,18 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
     deleteConversation,
     endConversation,
     clearError,
-  };
+  }), [
+    conversations,
+    activeConversation,
+    activeConversationId,
+    isGenerating,
+    error,
+    sendMessage,
+    stopGeneration,
+    newConversation,
+    setActiveConversation,
+    deleteConversation,
+    endConversation,
+    clearError,
+  ]);
 }

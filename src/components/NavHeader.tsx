@@ -1,7 +1,8 @@
-import { NavLink } from 'react-router-dom';
-import { Home, Folder, BookOpen } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { Home, Folder, BookOpen, Bot } from 'lucide-react';
 import { ThemeSelector } from './ThemeSelector';
 import { ProjectSelector } from './ProjectSelector';
+import { useAIChatContext } from '../context/AIChatContext';
 import type { ThemeId } from '../themes';
 
 interface NavHeaderProps {
@@ -34,6 +35,9 @@ export function NavHeader({
   onFolderSelect,
   onCloseWorkspace,
 }: NavHeaderProps) {
+  const { isGenerating } = useAIChatContext();
+  const navigate = useNavigate();
+
   return (
     <header
       className="h-12 flex items-center justify-between px-4 select-none shrink-0"
@@ -71,8 +75,31 @@ export function NavHeader({
         })}
       </nav>
 
-      {/* Right: Project selector and Theme selector */}
+      {/* Right: AI status, Project selector and Theme selector */}
       <div className="flex items-center gap-3">
+        {isGenerating && (
+          <button
+            onClick={() => navigate('/files')}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors hover:opacity-80"
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)',
+              color: 'var(--accent)',
+            }}
+            title="AI is generating — click to view"
+          >
+            <Bot className="w-3.5 h-3.5" />
+            <span className="relative flex h-2 w-2">
+              <span
+                className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                style={{ backgroundColor: 'var(--accent)' }}
+              />
+              <span
+                className="relative inline-flex rounded-full h-2 w-2"
+                style={{ backgroundColor: 'var(--accent)' }}
+              />
+            </span>
+          </button>
+        )}
         <ProjectSelector
           currentPath={workspacePath}
           recentFolders={recentFolders}

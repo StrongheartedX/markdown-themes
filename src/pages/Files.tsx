@@ -1252,9 +1252,7 @@ export function Files() {
               style={{ width: `${chatPanelWidth}px`, flexShrink: 0 }}
             >
               <ChatPanel
-                cwd={workspacePath}
                 currentFile={currentFile}
-                currentFileContent={content}
                 fontSize={appState.fontSize}
               />
             </div>

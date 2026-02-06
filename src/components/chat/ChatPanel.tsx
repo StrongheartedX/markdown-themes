@@ -2,14 +2,12 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { MessageSquarePlus, Trash2, ChevronLeft, Bot, StopCircle } from 'lucide-react';
 import { ChatMessageComponent } from './ChatMessage';
 import { ChatInput } from './ChatInput';
-import { useAIChat, type Conversation, type ModelUsage } from '../../hooks/useAIChat';
+import { useAIChatContext, type Conversation } from '../../context/AIChatContext';
+import type { ModelUsage } from '../../hooks/useAIChat';
 
 interface ChatPanelProps {
-  cwd?: string | null;
   /** Current file path for context */
   currentFile?: string | null;
-  /** Current file content for context */
-  currentFileContent?: string | null;
   fontSize?: number;
 }
 
@@ -45,7 +43,7 @@ function getConversationContextPercent(conversation: Conversation): number | nul
   return getContextPercent(conversation);
 }
 
-export function ChatPanel({ cwd, currentFile, currentFileContent: _currentFileContent, fontSize = 100 }: ChatPanelProps) {
+export function ChatPanel({ currentFile, fontSize = 100 }: ChatPanelProps) {
   const {
     conversations,
     activeConversation,
@@ -59,7 +57,7 @@ export function ChatPanel({ cwd, currentFile, currentFileContent: _currentFileCo
     deleteConversation,
     endConversation,
     clearError,
-  } = useAIChat({ cwd });
+  } = useAIChatContext();
 
   const [showList, setShowList] = useState(!activeConversationId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -165,7 +163,7 @@ export function ChatPanel({ cwd, currentFile, currentFileContent: _currentFileCo
               </p>
               {currentFile && (
                 <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  Working in: {cwd || 'current directory'}
+                  Context: {currentFile.split('/').pop()}
                 </p>
               )}
             </div>
