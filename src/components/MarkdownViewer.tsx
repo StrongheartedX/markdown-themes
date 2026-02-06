@@ -151,7 +151,7 @@ export const MarkdownViewer = forwardRef<MarkdownViewerHandle, MarkdownViewerPro
   // Uses 'base' theme with darkMode for maximum control — dark/default hardcode
   // internal defaults that override themeVariables for class/state diagrams.
   const mermaidPlugin = useMemo(() => {
-    const themeEl = document.querySelector(`.${themeClassName}`) || document.body;
+    const themeEl = (themeClassName ? document.querySelector(`.${themeClassName}`) : null) || document.body;
     const bgPrimary = cssColorToHex(getCssVar(themeEl, '--bg-primary') || '#1a1a1a');
     const bgSecondary = cssColorToHex(getCssVar(themeEl, '--bg-secondary') || '#2a2a2a', bgPrimary);
     const textPrimary = cssColorToHex(getCssVar(themeEl, '--text-primary') || '#e0e0e0', bgPrimary);
