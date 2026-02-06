@@ -145,6 +145,12 @@ export function useDiffAutoScroll({
       return;
     }
 
+    // Ignore empty content transitions (truncation artifacts from atomic writes)
+    // Don't update prevContentRef so the diff chain is preserved
+    if (!content && prevContentRef.current) {
+      return;
+    }
+
     const prevContent = prevContentRef.current;
     prevContentRef.current = content;
 

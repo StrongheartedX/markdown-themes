@@ -27,6 +27,8 @@ interface UseSplitViewResult {
   // Convenience getter for backward compatibility
   rightFile: string | null;
   toggleSplit: () => void;
+  openSplit: () => void;
+  closeSplit: () => void;
   setSplitRatio: (ratio: number) => void;
   setLeftFile: (path: string | null) => void;
   // Legacy setter (still works for files)
@@ -68,6 +70,14 @@ export function useSplitView(options: UseSplitViewOptions = {}): UseSplitViewRes
 
   const toggleSplit = useCallback(() => {
     setIsSplit((prev) => !prev);
+  }, []);
+
+  const openSplit = useCallback(() => {
+    setIsSplit(true);
+  }, []);
+
+  const closeSplit = useCallback(() => {
+    setIsSplit(false);
   }, []);
 
   const setSplitRatio = useCallback((ratio: number) => {
@@ -120,6 +130,8 @@ export function useSplitView(options: UseSplitViewOptions = {}): UseSplitViewRes
     rightPaneContent,
     rightFile,
     toggleSplit,
+    openSplit,
+    closeSplit,
     setSplitRatio,
     setLeftFile,
     setRightFile,

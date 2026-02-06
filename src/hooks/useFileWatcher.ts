@@ -123,6 +123,13 @@ export function useFileWatcher({
 
           case 'file-change':
             // File was modified
+
+            // Skip empty content during streaming - this is a truncation artifact
+            // from atomic writes (editors/tools truncate then write, fsnotify fires both)
+            if (!message.content && message.timeSinceLastChange < streamingTimeout) {
+              break;
+            }
+
             setContent(message.content);
             setContentPath(currentPathRef.current);
             setError(null);

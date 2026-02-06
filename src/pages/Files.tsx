@@ -347,6 +347,8 @@ export function Files() {
     rightPaneContent,
     rightFile,
     toggleSplit,
+    openSplit,
+    closeSplit,
     setSplitRatio,
     setRightFile,
     setRightPaneFile,
@@ -397,9 +399,9 @@ export function Files() {
   useEffect(() => {
     if (rightPaneTabs.length === 0 && rightPaneContent?.type === 'file' && isSplit) {
       setRightFile(null);
-      toggleSplit();
+      closeSplit();
     }
-  }, [rightPaneTabs.length, rightPaneContent?.type, isSplit, setRightFile, toggleSplit]);
+  }, [rightPaneTabs.length, rightPaneContent?.type, isSplit, setRightFile, closeSplit]);
 
   // Chat panel state (third column, independent of split view)
   const [chatPanelOpen, setChatPanelOpen] = useState(filesState.chatPanelOpen);
@@ -487,14 +489,17 @@ export function Files() {
     path: isCurrentFileBinary ? null : currentFile,
   });
 
-  // File watcher for right pane (only active when split view is enabled)
+  // File watcher for right pane - subscribe whenever we have a file path.
+  // Don't gate on isSplit: the watcher needs to be active before the split view renders
+  // so content is ready immediately, and Follow mode can detect streaming.
+  const rightWatcherPath = !isRightFileBinary ? rightPaneFilePath : null;
   const {
     content: rightContent,
     error: rightError,
     loading: rightLoading,
     isStreaming: rightIsStreaming,
   } = useFileWatcher({
-    path: isSplit && !isRightFileBinary ? rightPaneFilePath : null,
+    path: rightWatcherPath,
   });
 
   // Workspace streaming detection for follow mode and changed files tracking
@@ -534,28 +539,25 @@ export function Files() {
   useEffect(() => {
     if (!appState.followStreamingMode || !streamingFile) return;
 
-    // Only auto-open if the streaming file is different from current right pane file
-    // Also skip if it's already open as a tab in the right pane
+    // Auto-open if:
+    // 1. Streaming file is different from current right pane file, OR
+    // 2. Right pane matches but split view isn't open (persisted state from previous session)
+    // Also skip if it's already open as a visible tab in the right pane
     const alreadyOpenAsTab = rightPaneTabs.some((t) => t.path === streamingFile);
-    if (streamingFile !== rightPaneFilePath && !alreadyOpenAsTab) {
+    const alreadyVisible = isSplit && (streamingFile === rightPaneFilePath || alreadyOpenAsTab);
+    if (!alreadyVisible) {
       // Filter out noisy files that aren't useful to watch
-      if (!shouldFollowFile(streamingFile)) {
-        return;
-      }
+      if (!shouldFollowFile(streamingFile)) return;
 
       // Don't reopen files that were recently closed by the user
-      if (wasRecentlyClosed(streamingFile)) {
-        return;
-      }
+      if (wasRecentlyClosed(streamingFile)) return;
 
       // Deduplicate: skip if another effect already opened this file recently
-      if (!shouldAutoOpen(streamingFile)) {
-        return;
-      }
+      if (!shouldAutoOpen(streamingFile)) return;
 
       // Open streaming file in right pane tabs (enables split if needed)
       if (!isSplit) {
-        toggleSplit();
+        openSplit();
       }
       // Use setRightPaneFile to ensure rightPaneContent is set to file mode
       setRightPaneFile(streamingFile);
@@ -563,7 +565,7 @@ export function Files() {
       openRightTab(streamingFile, { preview: true, addNew: true });
       addRecentFile(streamingFile);
     }
-  }, [appState.followStreamingMode, streamingFile, rightPaneFilePath, rightPaneTabs, isSplit, toggleSplit, setRightPaneFile, openRightTab, addRecentFile, wasRecentlyClosed, shouldAutoOpen]);
+  }, [appState.followStreamingMode, streamingFile, rightPaneFilePath, rightPaneTabs, isSplit, openSplit, setRightPaneFile, openRightTab, addRecentFile, wasRecentlyClosed, shouldAutoOpen]);
 
   // Track files that have been auto-opened as tabs (to avoid re-opening)
   const autoOpenedFilesRef = useRef<Set<string>>(new Set());
@@ -596,7 +598,7 @@ export function Files() {
 
     // Auto-enable split view when there are new changed files to open
     if (!isSplit) {
-      toggleSplit();
+      openSplit();
     }
 
     // Open new tabs in the right pane as preview tabs
@@ -608,7 +610,7 @@ export function Files() {
       autoOpenedFilesRef.current.add(filePath);
       openRightTab(filePath, true); // preview mode
     });
-  }, [appState.followStreamingMode, isSplit, changedFiles, rightPaneTabs, openRightTab, shouldAutoOpen, toggleSplit]);
+  }, [appState.followStreamingMode, isSplit, changedFiles, rightPaneTabs, openRightTab, shouldAutoOpen, openSplit]);
 
   // Handle commit success - close tabs for committed files (review queue cleanup)
   // Right pane tabs act as a review queue; committed files are "done" and removed
@@ -794,11 +796,11 @@ export function Files() {
     } else {
       // Open split view with git graph
       if (!isSplit) {
-        toggleSplit();
+        openSplit();
       }
       setRightPaneGitGraph();
     }
-  }, [rightPaneContent, isSplit, toggleSplit, setRightFile, setRightPaneGitGraph]);
+  }, [rightPaneContent, isSplit, openSplit, setRightFile, setRightPaneGitGraph]);
 
   // Handle working tree toggle
   const handleWorkingTreeToggle = useCallback(() => {
@@ -808,11 +810,11 @@ export function Files() {
     } else {
       // Open split view with working tree
       if (!isSplit) {
-        toggleSplit();
+        openSplit();
       }
       setRightPaneWorkingTree();
     }
-  }, [rightPaneContent, isSplit, toggleSplit, setRightFile, setRightPaneWorkingTree]);
+  }, [rightPaneContent, isSplit, openSplit, setRightFile, setRightPaneWorkingTree]);
 
   // Handle chat panel toggle (now a separate third column)
   const handleChatPanelToggle = useCallback(() => {
@@ -837,11 +839,11 @@ export function Files() {
     }
 
     if (!isSplit) {
-      toggleSplit();
+      openSplit();
     }
     setRightPaneFile(hotkeysPath);
     openRightTab(hotkeysPath, false); // Open as pinned tab
-  }, [workspacePath, isSplit, toggleSplit, setRightPaneFile, openRightTab]);
+  }, [workspacePath, isSplit, openSplit, setRightPaneFile, openRightTab]);
 
   // Handle view conversation button - open conversation JSONL file
   const handleViewConversation = useCallback(() => {
