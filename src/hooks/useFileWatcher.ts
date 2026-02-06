@@ -67,7 +67,7 @@ export function useFileWatcher({
 
   // Subscribe to a file path on the existing connection
   const subscribeTo = useCallback((ws: WebSocket, filePath: string) => {
-    if (ws.readyState === WebSocket.OPEN) {
+    if (ws.readyState === WebSocket.OPEN && filePath.startsWith('/') && !filePath.includes('\n')) {
       ws.send(
         JSON.stringify({
           type: 'file-watch',

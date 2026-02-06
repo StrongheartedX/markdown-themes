@@ -4,10 +4,19 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/gorilla/websocket"
 )
+
+// isValidPath rejects paths that contain newlines or are unreasonably long.
+// Guards against the frontend accidentally sending file content as a path
+// (e.g. during HMR state glitches).
+func isValidPath(p string) bool {
+	return len(p) <= 4096 && !strings.ContainsAny(p, "\n\r") && filepath.IsAbs(p)
+}
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
@@ -182,10 +191,10 @@ func (c *Client) writePump() {
 func (c *Client) handleMessage(msg IncomingMessage) {
 	switch msg.Type {
 	case "file-watch":
-		if msg.Path == "" {
+		if msg.Path == "" || !isValidPath(msg.Path) {
 			c.hub.SendToClient(c, map[string]interface{}{
 				"type":  "file-watch-error",
-				"error": "path required",
+				"error": "invalid path",
 			})
 			return
 		}
@@ -204,10 +213,10 @@ func (c *Client) handleMessage(msg IncomingMessage) {
 		c.hub.watcher.RemoveFileWatch(msg.Path, c)
 
 	case "workspace-watch":
-		if msg.Path == "" {
+		if msg.Path == "" || !isValidPath(msg.Path) {
 			c.hub.SendToClient(c, map[string]interface{}{
 				"type":  "workspace-watch-error",
-				"error": "path required",
+				"error": "invalid path",
 			})
 			return
 		}
