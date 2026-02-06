@@ -50,6 +50,8 @@ interface SidebarProps {
   searchInputRef?: React.RefObject<HTMLInputElement | null>;
   /** Set of files changed via WebSocket during this session (for "Changed" filter) */
   changedFiles?: Set<string>;
+  /** Counter that increments after git operations (commit, stage, etc.) to trigger git status refresh */
+  gitStatusVersion?: number;
   /** Callback to send content to AI Chat */
   onSendToChat?: (content: string) => void;
 }
@@ -488,7 +490,7 @@ function filterTreeBySearch<T extends FileTreeNode>(nodes: T[], query: string): 
 const MIN_SIDEBAR_WIDTH = 150;
 const MAX_SIDEBAR_WIDTH = 400;
 
-export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSplit, width = 250, onWidthChange, onWidthChangeEnd, onFileSelect, onFileDoubleClick, onRightFileSelect, favorites, toggleFavorite, isFavorite, searchInputRef, changedFiles, onSendToChat }: SidebarProps) {
+export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSplit, width = 250, onWidthChange, onWidthChangeEnd, onFileSelect, onFileDoubleClick, onRightFileSelect, favorites, toggleFavorite, isFavorite, searchInputRef, changedFiles, gitStatusVersion, onSendToChat }: SidebarProps) {
   const workspaceName = workspacePath?.split('/').pop() ?? workspacePath?.split('\\').pop() ?? 'Workspace';
 
   // Get lazy loading state from workspace context
@@ -532,7 +534,7 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
     }).catch(() => {
       setGitStatus({});
     });
-  }, [workspacePath, fileTree]); // Re-fetch when fileTree changes (file added/removed)
+  }, [workspacePath, fileTree, gitStatusVersion]); // Re-fetch when fileTree changes (file added/removed) or after git operations
 
   // Get the most important git status for files under a folder
   const getFolderGitStatus = useCallback((folderPath: string): GitStatus | null => {

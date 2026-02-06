@@ -14,6 +14,8 @@ interface UseWorkspaceStreamingResult {
   changedFiles: Set<string>;
   /** Clear the changed files set */
   clearChangedFiles: () => void;
+  /** Remove specific files from the changed files set (e.g., after commit) */
+  removeChangedFiles: (paths: string[]) => void;
 }
 
 interface WorkspaceFileChangeMessage {
@@ -53,6 +55,18 @@ export function useWorkspaceStreaming({
   // Clear changed files (e.g., when switching workspaces or manually clearing)
   const clearChangedFiles = useCallback(() => {
     setChangedFiles(new Set());
+  }, []);
+
+  // Remove specific files from the changed files set (e.g., after commit)
+  const removeChangedFiles = useCallback((paths: string[]) => {
+    setChangedFiles((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      for (const p of paths) {
+        if (next.delete(p)) changed = true;
+      }
+      return changed ? next : prev;
+    });
   }, []);
 
   // Clear streaming timer
@@ -257,5 +271,6 @@ export function useWorkspaceStreaming({
     connected,
     changedFiles,
     clearChangedFiles,
+    removeChangedFiles,
   };
 }

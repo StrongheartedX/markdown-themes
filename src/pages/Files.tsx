@@ -61,6 +61,48 @@ const FOLLOWABLE_EXTENSIONS = new Set([
 ]);
 
 /**
+ * Check whether a file should be auto-opened in Follow mode.
+ * Filters out noisy/internal files that aren't useful to watch.
+ */
+function shouldFollowFile(filePath: string): boolean {
+  const fileName = filePath.split('/').pop() || '';
+  const ext = fileName.split('.').pop()?.toLowerCase() || '';
+
+  // Skip internal/generated files
+  if (
+    filePath.includes('/.beads/') ||
+    filePath.includes('/node_modules/') ||
+    filePath.includes('/.git/') ||
+    filePath.includes('/coverage/') ||
+    filePath.includes('/.nyc_output/') ||
+    filePath.includes('/dist/') ||
+    filePath.includes('/build/') ||
+    fileName.startsWith('.') ||
+    fileName === 'package-lock.json' ||
+    fileName === 'yarn.lock' ||
+    fileName === 'pnpm-lock.yaml' ||
+    fileName === 'composer.lock' ||
+    ext === 'log' ||
+    // Skip test result files
+    fileName.includes('.test-result') ||
+    fileName.includes('.junit') ||
+    (ext === 'json' && (
+      fileName.includes('test') ||
+      fileName.includes('result') ||
+      fileName.includes('report') ||
+      fileName.includes('coverage')
+    )) ||
+    // Skip JSONL data files (often logs or large datasets)
+    ext === 'jsonl' ||
+    ext === 'ndjson'
+  ) {
+    return false;
+  }
+
+  return FOLLOWABLE_EXTENSIONS.has(ext);
+}
+
+/**
  * DiffPane - Fetches and displays a diff for a commit
  */
 interface DiffPaneProps {
@@ -243,6 +285,9 @@ export function Files() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const leftScrollContainerRef = useRef<HTMLDivElement>(null);
   const rightScrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Counter incremented after git operations (commit, stage, etc.) to trigger Sidebar git status refresh
+  const [gitStatusVersion, setGitStatusVersion] = useState(0);
 
   // Track recently closed files to prevent circular auto-reopening (path -> close timestamp)
   const recentlyClosedRef = useRef<Map<string, number>>(new Map());
@@ -453,7 +498,7 @@ export function Files() {
   });
 
   // Workspace streaming detection for follow mode and changed files tracking
-  const { streamingFile, changedFiles } = useWorkspaceStreaming({
+  const { streamingFile, changedFiles, removeChangedFiles } = useWorkspaceStreaming({
     workspacePath,
     enabled: true, // Always enabled to track changed files for the Changed filter
   });
@@ -494,41 +539,7 @@ export function Files() {
     const alreadyOpenAsTab = rightPaneTabs.some((t) => t.path === streamingFile);
     if (streamingFile !== rightPaneFilePath && !alreadyOpenAsTab) {
       // Filter out noisy files that aren't useful to watch
-      const fileName = streamingFile.split('/').pop() || '';
-      const ext = fileName.split('.').pop()?.toLowerCase() || '';
-
-      // Skip internal/generated files
-      if (
-        streamingFile.includes('/.beads/') ||
-        streamingFile.includes('/node_modules/') ||
-        streamingFile.includes('/.git/') ||
-        streamingFile.includes('/coverage/') ||
-        streamingFile.includes('/.nyc_output/') ||
-        streamingFile.includes('/dist/') ||
-        streamingFile.includes('/build/') ||
-        fileName.startsWith('.') ||
-        fileName === 'package-lock.json' ||
-        fileName === 'yarn.lock' ||
-        fileName === 'pnpm-lock.yaml' ||
-        fileName === 'composer.lock' ||
-        ext === 'log' ||
-        // Skip test result files
-        fileName.includes('.test-result') ||
-        fileName.includes('.junit') ||
-        (ext === 'json' && (
-          fileName.includes('test') ||
-          fileName.includes('result') ||
-          fileName.includes('report') ||
-          fileName.includes('coverage')
-        )) ||
-        // Skip JSONL data files (often logs or large datasets)
-        ext === 'jsonl' ||
-        ext === 'ndjson'
-      ) {
-        return;
-      }
-
-      if (!FOLLOWABLE_EXTENSIONS.has(ext)) {
+      if (!shouldFollowFile(streamingFile)) {
         return;
       }
 
@@ -557,9 +568,14 @@ export function Files() {
   // Track files that have been auto-opened as tabs (to avoid re-opening)
   const autoOpenedFilesRef = useRef<Set<string>>(new Set());
 
+  // Clear auto-opened tracking when workspace changes (prevents stale paths from old workspace)
+  useEffect(() => {
+    autoOpenedFilesRef.current.clear();
+  }, [workspacePath]);
+
   // Auto-open changed files as tabs in the RIGHT pane when Follow mode is active
   useEffect(() => {
-    if (!appState.followStreamingMode || !isSplit) return;
+    if (!appState.followStreamingMode) return;
 
     // Find new changed files that haven't been auto-opened yet
     const newChangedFiles: string[] = [];
@@ -570,43 +586,18 @@ export function Files() {
       const existingTab = rightPaneTabs.find((t) => t.path === filePath);
       if (existingTab) return;
 
-      // Apply the same filtering as the streaming file follow logic
-      const fileName = filePath.split('/').pop() || '';
-      const ext = fileName.split('.').pop()?.toLowerCase() || '';
+      // Apply the shared file filtering logic
+      if (!shouldFollowFile(filePath)) return;
 
-      // Skip internal/generated files
-      if (
-        filePath.includes('/.beads/') ||
-        filePath.includes('/node_modules/') ||
-        filePath.includes('/.git/') ||
-        filePath.includes('/coverage/') ||
-        filePath.includes('/.nyc_output/') ||
-        filePath.includes('/dist/') ||
-        filePath.includes('/build/') ||
-        fileName.startsWith('.') ||
-        fileName === 'package-lock.json' ||
-        fileName === 'yarn.lock' ||
-        fileName === 'pnpm-lock.yaml' ||
-        fileName === 'composer.lock' ||
-        ext === 'log' ||
-        fileName.includes('.test-result') ||
-        fileName.includes('.junit') ||
-        (ext === 'json' && (
-          fileName.includes('test') ||
-          fileName.includes('result') ||
-          fileName.includes('report') ||
-          fileName.includes('coverage')
-        )) ||
-        ext === 'jsonl' ||
-        ext === 'ndjson'
-      ) {
-        return;
-      }
-
-      if (FOLLOWABLE_EXTENSIONS.has(ext)) {
-        newChangedFiles.push(filePath);
-      }
+      newChangedFiles.push(filePath);
     });
+
+    if (newChangedFiles.length === 0) return;
+
+    // Auto-enable split view when there are new changed files to open
+    if (!isSplit) {
+      toggleSplit();
+    }
 
     // Open new tabs in the right pane as preview tabs
     newChangedFiles.forEach((filePath) => {
@@ -617,7 +608,7 @@ export function Files() {
       autoOpenedFilesRef.current.add(filePath);
       openRightTab(filePath, true); // preview mode
     });
-  }, [appState.followStreamingMode, isSplit, changedFiles, rightPaneTabs, openRightTab, shouldAutoOpen]);
+  }, [appState.followStreamingMode, isSplit, changedFiles, rightPaneTabs, openRightTab, shouldAutoOpen, toggleSplit]);
 
   // Handle commit success - close tabs for committed files (review queue cleanup)
   // Right pane tabs act as a review queue; committed files are "done" and removed
@@ -630,7 +621,13 @@ export function Files() {
 
     // Remove from auto-opened tracking ref
     committedFiles.forEach((f) => autoOpenedFilesRef.current.delete(f));
-  }, [rightPaneTabs, closeRightTab]);
+
+    // Remove committed files from the changedFiles set so the "Changed" sidebar filter updates
+    removeChangedFiles(committedFiles);
+
+    // Bump git status version so Sidebar re-fetches git status
+    setGitStatusVersion((v) => v + 1);
+  }, [rightPaneTabs, closeRightTab, removeChangedFiles]);
 
   const themeClass = themes.find((t) => t.id === appState.theme)?.className ?? '';
 
@@ -991,6 +988,7 @@ export function Files() {
             isFavorite={isFavorite}
             searchInputRef={searchInputRef}
             changedFiles={changedFiles}
+            gitStatusVersion={gitStatusVersion}
             onSendToChat={handleSendToChat}
           />
         )}
