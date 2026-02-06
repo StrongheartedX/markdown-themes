@@ -29,6 +29,10 @@ export interface ModelUsage {
   costUSD?: number;
 }
 
+export type ContentSegment =
+  | { type: 'text'; text: string }
+  | { type: 'tool'; name: string; id: string; input: string };
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -42,6 +46,7 @@ export interface ChatMessage {
   claudeSessionId?: string;
   costUSD?: number;
   durationMs?: number;
+  segments?: ContentSegment[];
 }
 
 export interface ToolUseEvent {
@@ -147,6 +152,7 @@ function toStoredMessage(conversationId: string, m: ChatMessage): StoredMessage 
     claudeSessionId: m.claudeSessionId,
     costUSD: m.costUSD,
     durationMs: m.durationMs,
+    segments: m.segments as unknown[] | undefined,
   };
 }
 
@@ -179,6 +185,7 @@ function fromStoredMessage(m: StoredMessage): ChatMessage {
     claudeSessionId: m.claudeSessionId,
     costUSD: m.costUSD,
     durationMs: m.durationMs,
+    segments: m.segments as ContentSegment[] | undefined,
   };
 }
 
@@ -481,6 +488,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
       timestamp: Date.now(),
       isStreaming: true,
       toolUse: [],
+      segments: [],
     };
 
     const currentConvId = convId!;
@@ -564,10 +572,16 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
 
             switch (event.type) {
               case 'content': {
-                updateMessage(currentConvId, assistantMsgId, m => ({
-                  ...m,
-                  content: m.content + event.content,
-                }));
+                updateMessage(currentConvId, assistantMsgId, m => {
+                  const segments = m.segments ? [...m.segments] : [];
+                  const last = segments[segments.length - 1];
+                  if (last && last.type === 'text') {
+                    segments[segments.length - 1] = { ...last, text: last.text + event.content };
+                  } else {
+                    segments.push({ type: 'text', text: event.content });
+                  }
+                  return { ...m, content: m.content + event.content, segments };
+                });
                 break;
               }
 
@@ -595,10 +609,27 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
                   name: event.tool?.name,
                   id: event.tool?.id,
                 };
-                updateMessage(currentConvId, assistantMsgId, m => ({
-                  ...m,
-                  toolUse: [...(m.toolUse || []), toolEvent],
-                }));
+                updateMessage(currentConvId, assistantMsgId, m => {
+                  const segments = m.segments ? [...m.segments] : [];
+                  segments.push({ type: 'tool', name: event.tool?.name || '', id: event.tool?.id || '', input: '' });
+                  return { ...m, toolUse: [...(m.toolUse || []), toolEvent], segments };
+                });
+                break;
+              }
+
+              case 'tool_input': {
+                updateMessage(currentConvId, assistantMsgId, m => {
+                  const segments = m.segments ? [...m.segments] : [];
+                  // Find the last tool segment and append input
+                  for (let i = segments.length - 1; i >= 0; i--) {
+                    if (segments[i].type === 'tool') {
+                      const toolSeg = segments[i] as ContentSegment & { type: 'tool' };
+                      segments[i] = { ...toolSeg, input: toolSeg.input + (event.content || '') };
+                      break;
+                    }
+                  }
+                  return { ...m, segments };
+                });
                 break;
               }
 

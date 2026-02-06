@@ -492,6 +492,7 @@ export interface StoredMessage {
   claudeSessionId?: string;
   costUSD?: number;
   durationMs?: number;
+  segments?: unknown[];
 }
 
 /**

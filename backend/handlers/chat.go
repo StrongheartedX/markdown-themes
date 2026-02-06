@@ -464,6 +464,14 @@ func Chat(w http.ResponseWriter, r *http.Request) {
 							"content": thinking,
 						})
 					}
+				} else if deltaType == "input_json_delta" {
+					partialJSON, _ := delta["partial_json"].(string)
+					if partialJSON != "" {
+						buf.appendEvent(map[string]interface{}{
+							"type":    "tool_input",
+							"content": partialJSON,
+						})
+					}
 				}
 
 			case "content_block_start":

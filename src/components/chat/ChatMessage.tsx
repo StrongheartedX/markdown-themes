@@ -6,7 +6,7 @@ import { createCssVariablesTheme } from 'shiki';
 import { createMermaidPlugin } from '@streamdown/mermaid';
 import { math } from '@streamdown/math';
 import 'katex/dist/katex.min.css';
-import type { ChatMessage as ChatMessageType, ModelUsage } from '../../hooks/useAIChat';
+import type { ChatMessage as ChatMessageType, ModelUsage, ContentSegment } from '../../hooks/useAIChat';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -51,6 +51,64 @@ const codePlugin = createCodePlugin({
   themes: [cssVarsTheme, cssVarsTheme],
 });
 
+/** Inline collapsible tool card */
+function ToolCard({ segment, isRunning }: { segment: ContentSegment & { type: 'tool' }; isRunning?: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasInput = segment.input.length > 0;
+
+  let formattedInput = segment.input;
+  if (hasInput) {
+    try {
+      formattedInput = JSON.stringify(JSON.parse(segment.input), null, 2);
+    } catch {
+      // partial or invalid JSON — show raw
+    }
+  }
+
+  return (
+    <div
+      className="text-xs"
+      style={{
+        backgroundColor: 'var(--bg-secondary)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius)',
+      }}
+    >
+      <button
+        onClick={() => hasInput && setExpanded(!expanded)}
+        className="flex items-center gap-1.5 w-full px-3 py-1.5 text-left"
+        style={{ color: 'var(--text-secondary)', cursor: hasInput ? 'pointer' : 'default' }}
+      >
+        <Wrench className="w-3 h-3 shrink-0" />
+        <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{segment.name}</span>
+        {isRunning && (
+          <span className="ml-auto animate-pulse" style={{ color: 'var(--accent)' }}>Running...</span>
+        )}
+        {hasInput && !isRunning && (
+          expanded
+            ? <ChevronDown className="w-3 h-3 ml-auto shrink-0" />
+            : <ChevronRight className="w-3 h-3 ml-auto shrink-0" />
+        )}
+      </button>
+      {expanded && hasInput && (
+        <pre
+          className="px-3 py-2 overflow-x-auto font-mono"
+          style={{
+            borderTop: '1px solid var(--border)',
+            color: 'var(--text-secondary)',
+            maxHeight: '300px',
+            overflowY: 'auto',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-all',
+          }}
+        >
+          {formattedInput}
+        </pre>
+      )}
+    </div>
+  );
+}
+
 export const ChatMessageComponent = memo(function ChatMessageComponent({ message }: ChatMessageProps) {
   const [copied, setCopied] = useState(false);
   const [toolsExpanded, setToolsExpanded] = useState(false);
@@ -59,11 +117,14 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({ message
 
   const isUser = message.role === 'user';
 
-  // Count tool uses
+  // Count tool uses (for fallback rendering of old messages)
   const toolUseCount = useMemo(() => {
     if (!message.toolUse) return 0;
     return message.toolUse.filter(t => t.type === 'start').length;
   }, [message.toolUse]);
+
+  // Use segments for inline rendering when available
+  const hasSegments = !!(message.segments && message.segments.length > 0);
 
   // Get current theme class from body
   const themeClassName = useMemo(() => {
@@ -239,65 +300,111 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({ message
           </div>
         )}
 
-        {/* Tool use indicator */}
-        {toolUseCount > 0 && (
-          <button
-            onClick={() => setToolsExpanded(!toolsExpanded)}
-            className="flex items-center gap-1.5 mb-2 text-xs transition-colors hover:opacity-80"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            <Wrench className="w-3 h-3" />
-            <span>{toolUseCount} tool{toolUseCount > 1 ? 's' : ''} used</span>
-            {toolsExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-          </button>
-        )}
-
-        {toolsExpanded && message.toolUse && (
-          <div
-            className="mb-2 px-3 py-2 text-xs font-mono space-y-0.5"
-            style={{
-              backgroundColor: 'var(--bg-secondary)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            {message.toolUse
-              .filter(t => t.type === 'start' && t.name)
-              .map((t, i) => (
-                <div key={i} className="flex items-center gap-1.5">
-                  <Wrench className="w-3 h-3" />
-                  <span>{t.name}</span>
-                </div>
-              ))}
+        {/* Inline segments rendering (new: text + tools interleaved) */}
+        {hasSegments ? (
+          <div className="space-y-2">
+            {message.segments!.map((seg, i) => {
+              if (seg.type === 'text') {
+                const isLastSegment = i === message.segments!.length - 1;
+                const isStreamingText = message.isStreaming && isLastSegment;
+                return (
+                  <div key={i} className="prose prose-sm max-w-none chat-message-prose">
+                    {isStreamingText ? (
+                      <Streamdown
+                        key={mermaidKey}
+                        isAnimating={true}
+                        caret="block"
+                        parseIncompleteMarkdown={true}
+                        plugins={{ code: codePlugin, mermaid: mermaidPlugin, math }}
+                        controls={{ mermaid: { fullscreen: false } }}
+                      >
+                        {seg.text || ' '}
+                      </Streamdown>
+                    ) : (
+                      <Streamdown
+                        key={mermaidKey}
+                        isAnimating={false}
+                        parseIncompleteMarkdown={false}
+                        plugins={{ code: codePlugin, mermaid: mermaidPlugin, math }}
+                        controls={{ mermaid: { fullscreen: false } }}
+                      >
+                        {seg.text}
+                      </Streamdown>
+                    )}
+                  </div>
+                );
+              }
+              if (seg.type === 'tool') {
+                const isLastSegment = i === message.segments!.length - 1;
+                const isRunning = message.isStreaming && isLastSegment;
+                return <ToolCard key={i} segment={seg} isRunning={isRunning} />;
+              }
+              return null;
+            })}
           </div>
-        )}
+        ) : (
+          <>
+            {/* Fallback: old tool use indicator (for messages without segments) */}
+            {toolUseCount > 0 && (
+              <button
+                onClick={() => setToolsExpanded(!toolsExpanded)}
+                className="flex items-center gap-1.5 mb-2 text-xs transition-colors hover:opacity-80"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                <Wrench className="w-3 h-3" />
+                <span>{toolUseCount} tool{toolUseCount > 1 ? 's' : ''} used</span>
+                {toolsExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+              </button>
+            )}
 
-        {/* Message content */}
-        <div className="prose prose-sm max-w-none chat-message-prose">
-          {message.isStreaming ? (
-            <Streamdown
-              key={mermaidKey}
-              isAnimating={true}
-              caret="block"
-              parseIncompleteMarkdown={true}
-              plugins={{ code: codePlugin, mermaid: mermaidPlugin, math }}
-              controls={{ mermaid: { fullscreen: false } }}
-            >
-              {message.content || ' '}
-            </Streamdown>
-          ) : (
-            <Streamdown
-              key={mermaidKey}
-              isAnimating={false}
-              parseIncompleteMarkdown={false}
-              plugins={{ code: codePlugin, mermaid: mermaidPlugin, math }}
-              controls={{ mermaid: { fullscreen: false } }}
-            >
-              {message.content}
-            </Streamdown>
-          )}
-        </div>
+            {toolsExpanded && message.toolUse && (
+              <div
+                className="mb-2 px-3 py-2 text-xs font-mono space-y-0.5"
+                style={{
+                  backgroundColor: 'var(--bg-secondary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius)',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                {message.toolUse
+                  .filter(t => t.type === 'start' && t.name)
+                  .map((t, i) => (
+                    <div key={i} className="flex items-center gap-1.5">
+                      <Wrench className="w-3 h-3" />
+                      <span>{t.name}</span>
+                    </div>
+                  ))}
+              </div>
+            )}
+
+            {/* Fallback: Message content */}
+            <div className="prose prose-sm max-w-none chat-message-prose">
+              {message.isStreaming ? (
+                <Streamdown
+                  key={mermaidKey}
+                  isAnimating={true}
+                  caret="block"
+                  parseIncompleteMarkdown={true}
+                  plugins={{ code: codePlugin, mermaid: mermaidPlugin, math }}
+                  controls={{ mermaid: { fullscreen: false } }}
+                >
+                  {message.content || ' '}
+                </Streamdown>
+              ) : (
+                <Streamdown
+                  key={mermaidKey}
+                  isAnimating={false}
+                  parseIncompleteMarkdown={false}
+                  plugins={{ code: codePlugin, mermaid: mermaidPlugin, math }}
+                  controls={{ mermaid: { fullscreen: false } }}
+                >
+                  {message.content}
+                </Streamdown>
+              )}
+            </div>
+          </>
+        )}
 
         {/* Actions row - visible on hover */}
         {!message.isStreaming && message.content && (
