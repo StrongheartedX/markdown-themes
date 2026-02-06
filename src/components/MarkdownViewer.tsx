@@ -165,9 +165,41 @@ export const MarkdownViewer = forwardRef<MarkdownViewerHandle, MarkdownViewerPro
     // On dark themes, light text; on light themes, dark text.
     const contrastText = isDark ? '#ffffff' : '#000000';
 
+    // Inject CSS directly into mermaid's SVG <style> tag via themeCSS.
+    // Mermaid scopes all styles with #svgId (mermaid.esm.mjs:1318), so themeCSS
+    // gets the same ID-level specificity. !important ensures these beat the
+    // base theme styles AND rough.js fill attributes on the SVG elements.
+    const themeCSS = `
+      /* Class/State/Flowchart node fills */
+      .node rect, .node path, .node circle, .node polygon, .node ellipse { fill: ${bgSecondary} !important; stroke: ${accent} !important; }
+      .basic.label-container { fill: ${bgSecondary} !important; stroke: ${accent} !important; }
+      g.classGroup rect { fill: ${bgSecondary} !important; stroke: ${accent} !important; }
+      g.classGroup text { fill: ${textPrimary} !important; }
+      .classLabel .box { fill: ${bgSecondary} !important; }
+      .classLabel .label { fill: ${textPrimary} !important; }
+      .nodeLabel { color: ${textPrimary} !important; }
+      .edgeLabel { color: ${textPrimary} !important; }
+      .edgeLabel .label rect { fill: ${bgSecondary} !important; }
+      .edgeLabel .label span { background: ${bgSecondary} !important; }
+      .cluster-label { color: ${textPrimary} !important; }
+      .statediagram-state rect.basic { fill: ${bgSecondary} !important; stroke: ${accent} !important; }
+      .statediagram-cluster rect { fill: ${bgPrimary} !important; stroke: ${accent} !important; }
+      .divider line, .divider path { stroke: ${border} !important; }
+
+      /* Journey diagram — override hardcoded .label text { fill: #333 } and
+         .face { fill: #FFF8DC }, .mouth/.task-line { stroke: #666 } */
+      .label text { fill: ${textPrimary} !important; }
+      .label { color: ${textPrimary} !important; }
+      .face { fill: ${bgSecondary} !important; stroke: ${textSecondary} !important; }
+      .mouth { stroke: ${textSecondary} !important; }
+      .task-line { stroke: ${textSecondary} !important; }
+      .legend { fill: ${textPrimary} !important; }
+    `;
+
     return createMermaidPlugin({
       config: {
         theme: 'base',
+        themeCSS,
         themeVariables: {
           darkMode: isDark,
 
@@ -290,6 +322,18 @@ export const MarkdownViewer = forwardRef<MarkdownViewerHandle, MarkdownViewerPro
           noteBkgColor: bgSecondary,
           noteTextColor: textPrimary,
           noteBorderColor: accent,
+
+          // Journey/Gantt fillTypes — used for .section-type-N and .task-type-N CSS.
+          // Without these, base theme derives via hue-rotation from primaryColor
+          // which can produce invisible/clashing colors on custom palettes.
+          fillType0: bgSecondary,
+          fillType1: accent,
+          fillType2: border,
+          fillType3: bgPrimary,
+          fillType4: bgSecondary,
+          fillType5: accent,
+          fillType6: border,
+          fillType7: bgPrimary,
 
           // Explicit font so mermaid measures node sizes with the correct font,
           // not a fallback — 'inherit' resolves to default during SVG measurement.

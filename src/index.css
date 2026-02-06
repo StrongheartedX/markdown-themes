@@ -241,6 +241,108 @@ body {
   fill: currentColor;
 }
 
+/* Nuclear override for mermaid node fills and text.
+
+   Mermaid v11 scopes ALL internal styles with `#svgId { ... }` (mermaid.esm.mjs:1318),
+   giving them ID-level specificity. Combined with rough.js setting fill as SVG
+   presentation attributes (roughjs/bin/svg.js:36) and the classBox/stateBox renderers
+   potentially applying inline style attributes (chunk-ZRZ2AMKI.mjs:5522-5529),
+   themeVariables alone don't reliably control node appearance on all themes.
+
+   These !important rules beat the #svgId-scoped selectors because CSS !important
+   always wins over non-!important regardless of specificity. Mermaid's base theme
+   styles (getStyles functions) do NOT use !important — only classDef user styles do.
+
+   Uses CSS custom properties (--bg-secondary, --text-primary, --accent) so the
+   overrides automatically adapt to every theme. */
+
+/* Node fills — class diagrams, state diagrams, flowcharts */
+[data-streamdown="mermaid-block"] .node > rect,
+[data-streamdown="mermaid-block"] .node > circle,
+[data-streamdown="mermaid-block"] .node > polygon,
+[data-streamdown="mermaid-block"] .node > path,
+[data-streamdown="mermaid-block"] .basic.label-container,
+[data-streamdown="mermaid-block"] g.classGroup rect {
+  fill: var(--bg-secondary) !important;
+  stroke: var(--accent) !important;
+}
+
+/* Class diagram text — uses SVG text elements with fill */
+[data-streamdown="mermaid-block"] g.classGroup text {
+  fill: var(--text-primary) !important;
+}
+
+/* Class label (title) box and text */
+[data-streamdown="mermaid-block"] .classLabel .box {
+  fill: var(--bg-secondary) !important;
+}
+[data-streamdown="mermaid-block"] .classLabel .label {
+  fill: var(--text-primary) !important;
+}
+
+/* Divider lines in class boxes */
+[data-streamdown="mermaid-block"] .divider line,
+[data-streamdown="mermaid-block"] .divider path {
+  stroke: var(--border) !important;
+}
+
+/* State diagram node fills */
+[data-streamdown="mermaid-block"] .statediagram-state rect.basic {
+  fill: var(--bg-secondary) !important;
+  stroke: var(--accent) !important;
+}
+
+/* Cluster/composite state backgrounds */
+[data-streamdown="mermaid-block"] .statediagram-cluster rect {
+  fill: var(--bg-primary) !important;
+  stroke: var(--accent) !important;
+}
+
+/* HTML labels inside foreignObject (nodeLabel, cluster-label) */
+[data-streamdown="mermaid-block"] .nodeLabel {
+  color: var(--text-primary) !important;
+}
+[data-streamdown="mermaid-block"] .cluster-label {
+  color: var(--text-primary) !important;
+}
+[data-streamdown="mermaid-block"] .edgeLabel {
+  color: var(--text-primary) !important;
+}
+[data-streamdown="mermaid-block"] .edgeLabel .label rect {
+  fill: var(--bg-secondary) !important;
+}
+[data-streamdown="mermaid-block"] .edgeLabel .label span {
+  background: var(--bg-secondary) !important;
+}
+
+/* State diagram text */
+[data-streamdown="mermaid-block"] .stateLabel {
+  color: var(--text-primary) !important;
+}
+
+/* Journey diagram — override hardcoded colors:
+   .label text { fill: #333 }, .face { fill: #FFF8DC },
+   .mouth { stroke: #666 }, .task-line { stroke: #666 } */
+[data-streamdown="mermaid-block"] .label text {
+  fill: var(--text-primary) !important;
+}
+[data-streamdown="mermaid-block"] .label {
+  color: var(--text-primary) !important;
+}
+[data-streamdown="mermaid-block"] .face {
+  fill: var(--bg-secondary) !important;
+  stroke: var(--text-secondary) !important;
+}
+[data-streamdown="mermaid-block"] .mouth {
+  stroke: var(--text-secondary) !important;
+}
+[data-streamdown="mermaid-block"] .task-line {
+  stroke: var(--text-secondary) !important;
+}
+[data-streamdown="mermaid-block"] .legend {
+  fill: var(--text-primary) !important;
+}
+
 /* Chat message prose - smaller, tighter styles for chat context */
 .chat-message-prose .prose {
   font-size: 0.875rem;
