@@ -271,6 +271,16 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({ message
       config: {
         theme: 'base',
         themeCSS,
+        // Gantt diagram sizing — explicit values prevent near-zero-height
+        // rendering that occurs when the SVG collapses inside flex containers.
+        gantt: {
+          barHeight: 24,
+          barGap: 6,
+          topPadding: 50,
+          sectionFontSize: 14,
+          fontSize: 12,
+          useMaxWidth: true,
+        },
         themeVariables: {
           darkMode: isDark,
 

@@ -204,10 +204,25 @@ body {
   width: 100%;
 }
 
-/* Allow mermaid SVG to scale naturally */
+/* Allow mermaid SVG to scale naturally.
+   Use height: auto (without !important) so that if mermaid sets an explicit
+   height attribute on the SVG, it can take effect. The !important was causing
+   gantt charts to collapse because their SVG relies on viewBox + intrinsic
+   aspect ratio inside a flex container — !important prevented the browser
+   from resolving height correctly in some layout contexts. */
 [data-streamdown="mermaid-block"] svg {
   max-width: 100%;
-  height: auto !important;
+  height: auto;
+}
+
+/* Gantt chart SVGs need their intrinsic height preserved.
+   Mermaid gantt renderer sets viewBox but uses width="100%" without an explicit
+   height attribute, relying on the SVG aspect ratio. Inside the PanZoom flex
+   wrapper (items-center + flex-1), the SVG can collapse to near-zero height.
+   Setting a min-height ensures the chart remains visible, and aspect-ratio: auto
+   tells the browser to use the viewBox for sizing. */
+[data-streamdown="mermaid-block"] svg[id^="mermaid-"] {
+  min-height: 100px;
 }
 
 /* Reset gradient text effects inside mermaid diagram labels.
