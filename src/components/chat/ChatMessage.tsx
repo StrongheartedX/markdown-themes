@@ -19,6 +19,28 @@ function getCssVar(element: Element, varName: string): string {
   return getComputedStyle(element).getPropertyValue(varName).trim();
 }
 
+// Convert css color (hex, rgb, rgba) to a solid hex string.
+// Mermaid applies themeVariables as SVG fill attributes, which don't support rgba.
+function cssColorToHex(color: string, bgHex?: string): string {
+  if (color.startsWith('#') && color.length >= 7) return color;
+  const match = color.match(/rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\s*\)/);
+  if (!match) return color;
+  let r = Number(match[1]), g = Number(match[2]), b = Number(match[3]);
+  const a = match[4] !== undefined ? Number(match[4]) : 1;
+  if (a < 1 && bgHex) {
+    const bgMatch = bgHex.match(/^#([0-9a-f]{6})$/i);
+    if (bgMatch) {
+      const bgR = parseInt(bgMatch[1].slice(0, 2), 16);
+      const bgG = parseInt(bgMatch[1].slice(2, 4), 16);
+      const bgB = parseInt(bgMatch[1].slice(4, 6), 16);
+      r = Math.round(r * a + bgR * (1 - a));
+      g = Math.round(g * a + bgG * (1 - a));
+      b = Math.round(b * a + bgB * (1 - a));
+    }
+  }
+  return '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('');
+}
+
 // Helper to determine if a color is dark
 function isDarkColor(color: string): boolean {
   // Handle hex colors
@@ -142,58 +164,53 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({ message
     return bodyClasses.find(c => c.startsWith('theme-')) || '';
   }, []);
 
-  // Create mermaid plugin with theme-aware colors
+  // Create mermaid plugin with theme-aware colors.
+  // Uses 'base' theme with darkMode for maximum control — dark/default hardcode
+  // internal defaults that override themeVariables for class/state diagrams.
   const mermaidPlugin = useMemo(() => {
-    // Find theme element to read CSS variables
     const themeEl = themeClassName ? document.querySelector(`.${themeClassName}`) : document.body;
     const element = themeEl || document.body;
-
-    const bgPrimary = getCssVar(element, '--bg-primary') || '#1a1a1a';
-    const bgSecondary = getCssVar(element, '--bg-secondary') || '#2a2a2a';
-    const textPrimary = getCssVar(element, '--text-primary') || '#e0e0e0';
-    const textSecondary = getCssVar(element, '--text-secondary') || '#a0a0a0';
-    const accent = getCssVar(element, '--accent') || '#3b82f6';
-    const border = getCssVar(element, '--border') || '#404040';
-
+    const bgPrimary = cssColorToHex(getCssVar(element, '--bg-primary') || '#1a1a1a');
+    const bgSecondary = cssColorToHex(getCssVar(element, '--bg-secondary') || '#2a2a2a', bgPrimary);
+    const textPrimary = cssColorToHex(getCssVar(element, '--text-primary') || '#e0e0e0', bgPrimary);
+    const textSecondary = cssColorToHex(getCssVar(element, '--text-secondary') || '#a0a0a0', bgPrimary);
+    const accent = cssColorToHex(getCssVar(element, '--accent') || '#3b82f6', bgPrimary);
+    const border = cssColorToHex(getCssVar(element, '--border') || '#404040', bgPrimary);
     const isDark = isDarkColor(bgPrimary);
 
     return createMermaidPlugin({
       config: {
         theme: 'base',
         themeVariables: {
-          // Background colors
-          background: bgSecondary,
-          primaryColor: bgSecondary,
-          secondaryColor: isDark ? '#3a3a3a' : '#f0f0f0',
-          tertiaryColor: isDark ? '#2a2a2a' : '#fafafa',
+          darkMode: isDark,
 
-          // Text colors - explicit for all diagram types
+          // Base colors — explicit to prevent mermaid's hue-rotation derivation
+          background: bgPrimary,
+          primaryColor: bgSecondary,
+          secondaryColor: bgSecondary,
+          tertiaryColor: bgPrimary,
+
+          // Text
           primaryTextColor: textPrimary,
           secondaryTextColor: textSecondary,
           tertiaryTextColor: textSecondary,
           nodeTextColor: textPrimary,
+          titleColor: textPrimary,
 
-          // Border/line colors
-          primaryBorderColor: border,
+          // Borders & lines
+          // Note: nodeBorder intentionally omitted — mermaid v11 uses
+          // (nodeBorder || classText) for class diagram text, so setting
+          // nodeBorder to accent would override classText with accent color.
+          primaryBorderColor: accent,
           secondaryBorderColor: border,
           tertiaryBorderColor: border,
           lineColor: textSecondary,
 
-          // Accent colors for nodes
-          nodeBorder: accent,
-          clusterBorder: accent,
-          clusterBkg: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-
-          // Note styling
-          noteBkgColor: isDark ? '#3a3a3a' : '#fffde7',
-          noteTextColor: textPrimary,
-          noteBorderColor: accent,
-
-          // Flowchart specific
+          // Flowchart — mainBkg drives node fills for class diagrams too
           mainBkg: bgSecondary,
-          nodeBkg: bgSecondary,
           edgeLabelBackground: bgSecondary,
-          titleColor: textPrimary,
+          clusterBkg: bgPrimary,
+          clusterBorder: accent,
 
           // Sequence diagram
           actorBkg: bgSecondary,
@@ -210,49 +227,26 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({ message
           activationBorderColor: accent,
           sequenceNumberColor: textPrimary,
 
-          // Pie chart
-          pie1: accent,
-          pie2: isDark ? '#4ade80' : '#22c55e',
-          pie3: isDark ? '#f472b6' : '#ec4899',
-          pie4: isDark ? '#facc15' : '#eab308',
-          pie5: isDark ? '#60a5fa' : '#3b82f6',
-          pie6: isDark ? '#a78bfa' : '#8b5cf6',
-          pie7: isDark ? '#fb923c' : '#f97316',
-          pieStrokeColor: bgPrimary,
-          pieOuterStrokeColor: bgPrimary,
-          pieTitleTextColor: textPrimary,
-          pieSectionTextColor: textPrimary,
-          pieLegendTextColor: textPrimary,
-
-          // State diagram
-          labelColor: textPrimary,
-          altBackground: isDark ? '#2a2a2a' : '#f5f5f5',
-          transitionColor: textSecondary,
+          // State diagram — stateBkg falls back to mainBkg,
+          // stateLabelColor is the actual text var (stateTextColor doesn't exist in v11)
           stateBkg: bgSecondary,
-          stateTextColor: textPrimary,
           stateLabelColor: textPrimary,
+          labelColor: textPrimary,
+          altBackground: bgSecondary,
+          transitionColor: textSecondary,
+          transitionLabelColor: textPrimary,
+          specialStateColor: accent,
 
-          // Class diagram
+          // Class diagram — classText is the text color,
+          // node fill comes from mainBkg (set above)
           classText: textPrimary,
 
-          // Gantt chart
-          sectionBkgColor: bgSecondary,
-          taskTextColor: textPrimary,
-          taskTextOutsideColor: textPrimary,
-          gridColor: border,
-          doneTaskBkgColor: isDark ? '#3a3a3a' : '#e0e0e0',
+          // Notes
+          noteBkgColor: bgSecondary,
+          noteTextColor: textPrimary,
+          noteBorderColor: accent,
 
-          // Git graph
-          git0: accent,
-          gitBranchLabel0: textPrimary,
-
-          // Requirement diagram
-          requirementBackground: bgSecondary,
-          requirementTextColor: textPrimary,
-
-          // Font
           fontFamily: 'inherit',
-          fontSize: '14px',
         },
       },
     });

@@ -196,99 +196,29 @@ body {
   transition: background-color 0.3s ease-out;
 }
 
-/* Mermaid diagram sizing - ensure diagrams have proper vertical space */
-.prose .mermaid,
-.streamdown-content .mermaid {
-  min-height: 200px;
+/* Mermaid diagram container - ensure known background for text contrast.
+   Do NOT override display/flex/align here — Streamdown manages its own
+   layout (toolbar on top, pan-zoom wrapper below). */
+[data-streamdown="mermaid-block"] {
+  background: var(--bg-primary);
   width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
 }
 
-/* Allow mermaid SVG to expand to natural height */
-.prose .mermaid svg,
-.streamdown-content .mermaid svg {
+/* Allow mermaid SVG to scale naturally */
+[data-streamdown="mermaid-block"] svg {
   max-width: 100%;
   height: auto !important;
-  min-height: 150px;
 }
 
-/* Conversation viewer specific mermaid fixes */
-.conversation-viewer .mermaid {
-  min-height: 250px;
-  margin: 1rem 0;
-}
-
-.conversation-viewer .mermaid svg {
-  min-height: 200px;
-}
-
-/* Mermaid text visibility - CSS fallbacks for theme compatibility
-   Mermaid's base theme internally derives some colors (e.g. node fills)
-   that can clash with theme text colors. These rules ensure text inside
-   SVG nodes, labels, and edges always uses theme-aware colors. */
-.mermaid svg text,
-.mermaid svg .nodeLabel,
-.mermaid svg .label,
-.mermaid svg .edgeLabel,
-.mermaid svg .cluster-label {
-  fill: var(--text-primary) !important;
-  color: var(--text-primary) !important;
-}
-
-.mermaid svg .node rect,
-.mermaid svg .node circle,
-.mermaid svg .node ellipse,
-.mermaid svg .node polygon,
-.mermaid svg .node path {
-  fill: var(--bg-secondary) !important;
-  stroke: var(--accent) !important;
-}
-
-/* Edge/arrow labels get secondary background so they sit above lines */
-.mermaid svg .edgeLabel rect,
-.mermaid svg .labelBkg {
-  fill: var(--bg-secondary) !important;
-  opacity: 0.85;
-}
-
-/* Cluster (subgraph) backgrounds - subtle differentiation */
-.mermaid svg .cluster rect {
-  fill: color-mix(in srgb, var(--bg-secondary) 80%, transparent) !important;
-  stroke: var(--border) !important;
-}
-
-/* Sequence diagram actors */
-.mermaid svg .actor {
-  fill: var(--bg-secondary) !important;
-  stroke: var(--accent) !important;
-}
-
-/* Ensure marker arrows (arrowheads) use theme line color */
-.mermaid svg .arrowheadPath,
-.mermaid svg marker path {
-  fill: var(--text-secondary) !important;
-}
-
-/* Edge lines */
-.mermaid svg .flowchart-link,
-.mermaid svg .messageLine0,
-.mermaid svg .messageLine1 {
-  stroke: var(--text-secondary) !important;
-}
-
-/* State diagram fills */
-.mermaid svg .statediagram-state rect {
-  fill: var(--bg-secondary) !important;
-  stroke: var(--accent) !important;
-}
-
-/* Pie chart legend and title text */
-.mermaid svg .pieTitleText,
-.mermaid svg .slice,
-.mermaid svg .legend text {
-  fill: var(--text-primary) !important;
+/* Reset gradient text effects inside mermaid diagram labels.
+   Themes use -webkit-text-fill-color: transparent + background-clip: text
+   for gradient headings/links (cosmic, glassmorphism, parchment, frutiger-aero),
+   but this makes text invisible inside SVG foreignObject where mermaid renders
+   HTML labels. Target foreignObject content specifically to avoid affecting SVG. */
+[data-streamdown="mermaid-block"] foreignObject * {
+  -webkit-text-fill-color: unset !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
 }
 
 /* Chat message prose - smaller, tighter styles for chat context */
