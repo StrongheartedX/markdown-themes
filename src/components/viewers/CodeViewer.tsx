@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback, type MouseEvent as ReactMouseEvent } from 'react';
 import { codeToHtml, bundledLanguages } from 'shiki';
 import { createCssVariablesTheme } from 'shiki';
 import { useGitDiff, type GitDiffLineType, type DeletedLine } from '../../hooks/useGitDiff';
@@ -358,7 +358,8 @@ export function CodeViewer({ content, filePath, fontSize = 100, isStreaming = fa
   }
 
   return (
-    <div className="code-viewer h-full" style={{ zoom: fontSize / 100 }}>
+    <div className="code-viewer h-full" style={{ zoom: fontSize / 100, position: 'relative' }}>
+      <ScrollbarMarkers changedLines={gitChangedLines} deletedLines={gitDeletedLines} totalLines={lineCount} />
       <div className="flex">
         <div
           className="line-numbers select-none text-right pr-4 pl-4 py-4 sticky left-0"
@@ -439,6 +440,96 @@ export function CodeViewer({ content, filePath, fontSize = 100, isStreaming = fa
           <HighlightedCode html={highlightedHtml} lineHighlights={lineHighlights} deletedLines={gitDeletedLines} />
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Scrollbar-style diff markers overlay.
+ * Renders colored tick marks on the right edge of the code viewer
+ * showing where diffs are located, like VS Code's minimap markers.
+ */
+function ScrollbarMarkers({
+  changedLines,
+  deletedLines,
+  totalLines,
+}: {
+  changedLines: Map<number, GitDiffLineType>;
+  deletedLines: DeletedLine[];
+  totalLines: number;
+}) {
+  const handleClick = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
+    const lineNum = e.currentTarget.dataset.markerLine;
+    if (!lineNum) return;
+    const target = document.querySelector(`[data-line="${lineNum}"]`);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, []);
+
+  // Build marker entries from changedLines and deletedLines
+  const markers = useMemo(() => {
+    const result: Array<{ line: number; type: 'added' | 'modified' | 'deleted' }> = [];
+
+    for (const [lineNum, diffType] of changedLines) {
+      result.push({ line: lineNum, type: diffType });
+    }
+
+    for (const del of deletedLines) {
+      // Position deleted line markers at the afterLine position (or line 1 if at start)
+      const markerLine = del.afterLine > 0 ? del.afterLine : 1;
+      result.push({ line: markerLine, type: 'deleted' });
+    }
+
+    return result;
+  }, [changedLines, deletedLines]);
+
+  if (markers.length === 0 || totalLines === 0) return null;
+
+  return (
+    <div
+      className="scrollbar-markers"
+      style={{
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        width: '8px',
+        height: '100%',
+        pointerEvents: 'none',
+        zIndex: 10,
+      }}
+    >
+      {markers.map((marker, idx) => {
+        const topPercent = ((marker.line - 1) / totalLines) * 100;
+        let color: string;
+        if (marker.type === 'added') {
+          color = 'rgba(34, 197, 94, 0.75)';
+        } else if (marker.type === 'modified') {
+          color = 'rgba(250, 204, 21, 0.75)';
+        } else {
+          color = 'rgba(239, 68, 68, 0.75)';
+        }
+
+        return (
+          <div
+            key={`${marker.type}-${marker.line}-${idx}`}
+            data-marker-line={marker.line}
+            onClick={handleClick}
+            style={{
+              position: 'absolute',
+              top: `${topPercent}%`,
+              right: 0,
+              width: '8px',
+              height: '3px',
+              backgroundColor: color,
+              borderRadius: '1px',
+              pointerEvents: 'auto',
+              cursor: 'pointer',
+            }}
+            title={`Line ${marker.line} (${marker.type})`}
+          />
+        );
+      })}
     </div>
   );
 }
