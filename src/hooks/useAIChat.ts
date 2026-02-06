@@ -667,6 +667,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
                   }
                 }
 
+                let updatedConvSnapshot: Conversation | undefined;
                 setConversations(prev => {
                   const convIdx = prev.findIndex(c => c.id === currentConvId);
                   if (convIdx === -1) return prev;
@@ -689,13 +690,16 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
                   const newMessages = c.messages.slice();
                   newMessages[msgIdx] = newMsg;
 
-                  const newConvs = prev.slice();
-                  newConvs[convIdx] = {
+                  const updatedConv = {
                     ...c,
                     claudeSessionId: event.claudeSessionId || c.claudeSessionId,
                     updatedAt: Date.now(),
                     messages: newMessages,
                   };
+                  updatedConvSnapshot = updatedConv;
+
+                  const newConvs = prev.slice();
+                  newConvs[convIdx] = updatedConv;
                   return newConvs;
                 });
 
@@ -703,10 +707,11 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
                 saveDirtyRef.current = true;
                 flushSave();
 
-                // Persist completed conversation to backend
-                const updatedConv = conversationsRef.current.find(c => c.id === currentConvId);
-                if (updatedConv) {
-                  saveToBackend(updatedConv);
+                // Persist completed conversation to backend using the
+                // snapshot captured inside the state updater, since
+                // conversationsRef may be stale before the next render.
+                if (updatedConvSnapshot) {
+                  saveToBackend(updatedConvSnapshot);
                 }
                 break;
               }
