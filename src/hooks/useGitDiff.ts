@@ -183,17 +183,25 @@ export function useGitDiff({
 
       const data = await response.json();
 
-      // API returns { success: true, data: { diff: "..." } } or { success: false, error: "..." }
-      if (!data.success) {
-        // No diff or error - just clear highlights
+      // API returns { data: { diff: "...", filePath, status } } or { error: "..." }
+      if (data.error) {
         setChangedLines(new Map());
         setDeletedLines([]);
-        setError(data.error || null);
+        setError(data.error);
         setLoading(false);
         return;
       }
 
-      const result = extractLineChanges(data.data?.diff || '');
+      const diff = data.data?.diff || '';
+      if (!diff) {
+        // No diff - file has no changes
+        setChangedLines(new Map());
+        setDeletedLines([]);
+        setLoading(false);
+        return;
+      }
+
+      const result = extractLineChanges(diff);
       setChangedLines(result.changedLines);
       setDeletedLines(result.deletedLines);
       setLoading(false);

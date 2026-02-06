@@ -481,7 +481,9 @@ export function Files() {
     if (!appState.followStreamingMode || !streamingFile) return;
 
     // Only auto-open if the streaming file is different from current right pane file
-    if (streamingFile !== rightPaneFilePath) {
+    // Also skip if it's already open as a tab in the right pane
+    const alreadyOpenAsTab = rightPaneTabs.some((t) => t.path === streamingFile);
+    if (streamingFile !== rightPaneFilePath && !alreadyOpenAsTab) {
       // Filter out noisy files that aren't useful to watch
       const fileName = streamingFile.split('/').pop() || '';
       const ext = fileName.split('.').pop()?.toLowerCase() || '';
@@ -541,7 +543,7 @@ export function Files() {
       openRightTab(streamingFile, { preview: true, addNew: true });
       addRecentFile(streamingFile);
     }
-  }, [appState.followStreamingMode, streamingFile, rightPaneFilePath, isSplit, toggleSplit, setRightPaneFile, openRightTab, addRecentFile, wasRecentlyClosed, shouldAutoOpen]);
+  }, [appState.followStreamingMode, streamingFile, rightPaneFilePath, rightPaneTabs, isSplit, toggleSplit, setRightPaneFile, openRightTab, addRecentFile, wasRecentlyClosed, shouldAutoOpen]);
 
   // Track files that have been auto-opened as tabs (to avoid re-opening)
   const autoOpenedFilesRef = useRef<Set<string>>(new Set());
