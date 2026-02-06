@@ -322,8 +322,14 @@ func CreateConversation(conv *Conversation) error {
 	}
 
 	_, err := db.Exec(`
-		INSERT OR REPLACE INTO conversations (id, title, created_at, updated_at, cwd, claude_session_id, settings)
+		INSERT INTO conversations (id, title, created_at, updated_at, cwd, claude_session_id, settings)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			title = excluded.title,
+			updated_at = excluded.updated_at,
+			cwd = excluded.cwd,
+			claude_session_id = excluded.claude_session_id,
+			settings = excluded.settings
 	`, conv.ID, conv.Title, conv.CreatedAt, conv.UpdatedAt,
 		nullString(conv.Cwd), nullString(conv.ClaudeSessionID), settingsStr)
 

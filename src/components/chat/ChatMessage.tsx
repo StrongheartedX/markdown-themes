@@ -1,5 +1,5 @@
 import { memo, useState, useMemo, useEffect } from 'react';
-import { Copy, Check, Wrench, ChevronDown, ChevronRight } from 'lucide-react';
+import { Copy, Check, Wrench, BrainCircuit, ChevronDown, ChevronRight } from 'lucide-react';
 import { Streamdown } from 'streamdown';
 import { createCodePlugin } from '@streamdown/code';
 import { createCssVariablesTheme } from 'shiki';
@@ -54,6 +54,7 @@ const codePlugin = createCodePlugin({
 export const ChatMessageComponent = memo(function ChatMessageComponent({ message }: ChatMessageProps) {
   const [copied, setCopied] = useState(false);
   const [toolsExpanded, setToolsExpanded] = useState(false);
+  const [thinkingExpanded, setThinkingExpanded] = useState(false);
   const [mermaidKey, setMermaidKey] = useState(0);
 
   const isUser = message.role === 'user';
@@ -198,6 +199,46 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({ message
   return (
     <div className="mb-4 px-4 group">
       <div className="max-w-full">
+        {/* Thinking indicator */}
+        {message.thinking && (
+          <button
+            onClick={() => setThinkingExpanded(!thinkingExpanded)}
+            className="flex items-center gap-1.5 mb-2 text-xs transition-colors hover:opacity-80"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            <BrainCircuit className="w-3 h-3" />
+            <span>Thinking</span>
+            {thinkingExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+          </button>
+        )}
+
+        {thinkingExpanded && message.thinking && (
+          <div
+            className="mb-2 px-3 py-2 text-xs whitespace-pre-wrap"
+            style={{
+              backgroundColor: 'var(--bg-secondary)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)',
+              color: 'var(--text-secondary)',
+              maxHeight: '300px',
+              overflowY: 'auto',
+            }}
+          >
+            {message.thinking}
+          </div>
+        )}
+
+        {/* Streaming thinking indicator (thinking is happening but no text content yet) */}
+        {message.isStreaming && message.thinking && !message.content && (
+          <div
+            className="flex items-center gap-1.5 mb-2 text-xs animate-pulse"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            <BrainCircuit className="w-3 h-3" />
+            <span>Thinking...</span>
+          </div>
+        )}
+
         {/* Tool use indicator */}
         {toolUseCount > 0 && (
           <button

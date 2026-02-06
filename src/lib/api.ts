@@ -486,6 +486,7 @@ export interface StoredMessage {
   timestamp: number;
   isStreaming?: boolean;
   toolUse?: unknown[];
+  thinking?: string;
   usage?: Record<string, unknown>;
   modelUsage?: Record<string, unknown>;
   claudeSessionId?: string;

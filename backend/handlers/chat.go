@@ -372,6 +372,7 @@ func Chat(w http.ResponseWriter, r *http.Request) {
 
 		var claudeSessionID string
 		var accumulatedContent string
+		var currentBlockType string // tracks "text", "thinking", "tool_use"
 
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -417,6 +418,17 @@ func Chat(w http.ResponseWriter, r *http.Request) {
 								"done":    false,
 							})
 						}
+					} else if blockType == "thinking" {
+						thinking, _ := blockMap["thinking"].(string)
+						buf.appendEvent(map[string]interface{}{
+							"type": "thinking_start",
+						})
+						if thinking != "" {
+							buf.appendEvent(map[string]interface{}{
+								"type":    "thinking",
+								"content": thinking,
+							})
+						}
 					} else if blockType == "tool_use" {
 						toolName, _ := blockMap["name"].(string)
 						toolID, _ := blockMap["id"].(string)
@@ -444,12 +456,21 @@ func Chat(w http.ResponseWriter, r *http.Request) {
 						"content": text,
 						"done":    false,
 					})
+				} else if deltaType == "thinking_delta" {
+					thinking, _ := delta["thinking"].(string)
+					if thinking != "" {
+						buf.appendEvent(map[string]interface{}{
+							"type":    "thinking",
+							"content": thinking,
+						})
+					}
 				}
 
 			case "content_block_start":
 				contentBlock, ok := event["content_block"].(map[string]interface{})
 				if ok {
 					blockType, _ := contentBlock["type"].(string)
+					currentBlockType = blockType
 					if blockType == "tool_use" {
 						toolName, _ := contentBlock["name"].(string)
 						toolID, _ := contentBlock["id"].(string)
@@ -460,13 +481,24 @@ func Chat(w http.ResponseWriter, r *http.Request) {
 								"id":   toolID,
 							},
 						})
+					} else if blockType == "thinking" {
+						buf.appendEvent(map[string]interface{}{
+							"type": "thinking_start",
+						})
 					}
 				}
 
 			case "content_block_stop":
-				buf.appendEvent(map[string]interface{}{
-					"type": "tool_end",
-				})
+				if currentBlockType == "thinking" {
+					buf.appendEvent(map[string]interface{}{
+						"type": "thinking_end",
+					})
+				} else if currentBlockType == "tool_use" {
+					buf.appendEvent(map[string]interface{}{
+						"type": "tool_end",
+					})
+				}
+				currentBlockType = ""
 
 			case "message_start":
 				message, ok := event["message"].(map[string]interface{})

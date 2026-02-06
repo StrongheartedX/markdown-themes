@@ -36,6 +36,7 @@ export interface ChatMessage {
   timestamp: number;
   isStreaming?: boolean;
   toolUse?: ToolUseEvent[];
+  thinking?: string;
   usage?: TokenUsage;
   modelUsage?: ModelUsage;
   claudeSessionId?: string;
@@ -140,6 +141,7 @@ function toStoredMessage(conversationId: string, m: ChatMessage): StoredMessage 
     timestamp: m.timestamp,
     isStreaming: m.isStreaming,
     toolUse: m.toolUse as unknown[] | undefined,
+    thinking: m.thinking,
     usage: m.usage as Record<string, unknown> | undefined,
     modelUsage: m.modelUsage as Record<string, unknown> | undefined,
     claudeSessionId: m.claudeSessionId,
@@ -171,6 +173,7 @@ function fromStoredMessage(m: StoredMessage): ChatMessage {
     timestamp: m.timestamp,
     isStreaming: m.isStreaming,
     toolUse: m.toolUse as ToolUseEvent[] | undefined,
+    thinking: m.thinking,
     usage: m.usage as TokenUsage | undefined,
     modelUsage: m.modelUsage as ModelUsage | undefined,
     claudeSessionId: m.claudeSessionId,
@@ -565,6 +568,24 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
                   ...m,
                   content: m.content + event.content,
                 }));
+                break;
+              }
+
+              case 'thinking_start': {
+                // Initialize thinking (no-op if already set)
+                break;
+              }
+
+              case 'thinking': {
+                updateMessage(currentConvId, assistantMsgId, m => ({
+                  ...m,
+                  thinking: (m.thinking || '') + (event.content || ''),
+                }));
+                break;
+              }
+
+              case 'thinking_end': {
+                // Thinking block complete (no-op)
                 break;
               }
 
