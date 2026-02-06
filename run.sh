@@ -97,7 +97,8 @@ run_dev() {
     echo ""
 
     # Run backend in background (subshell so cd doesn't affect main shell)
-    (cd backend && ./markdown-themes-backend) &
+    # Logs go to backend/server.log (tail -f backend/server.log to view)
+    (cd backend && ./markdown-themes-backend 2>&1 | tee server.log) &
     BACKEND_PID=$!
 
     # Trap to kill backend when script exits

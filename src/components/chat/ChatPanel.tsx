@@ -23,10 +23,8 @@ function getContextPercent(conversation: Conversation | null): number | null {
     if (msg.role === 'assistant' && msg.modelUsage) {
       const mu = msg.modelUsage as ModelUsage;
       const contextWindow = mu.contextWindow || DEFAULT_CONTEXT_LIMIT;
-      const total = (mu.inputTokens || 0)
-        + (mu.outputTokens || 0)
-        + (mu.cacheReadInputTokens || 0)
-        + (mu.cacheCreationInputTokens || 0);
+      // inputTokens includes cache reads + cache creation (they're a breakdown, not additive)
+      const total = (mu.inputTokens || 0) + (mu.outputTokens || 0);
       if (total === 0) continue;
       return Math.min(Math.round((total / contextWindow) * 100), 100);
     }

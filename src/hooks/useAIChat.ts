@@ -644,17 +644,26 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
               case 'done': {
                 let modelUsage: Record<string, unknown> | undefined;
                 if (event.modelUsage && typeof event.modelUsage === 'object') {
-                  // modelUsage is keyed by model name — pick the primary model
-                  // (largest inputTokens) to avoid inflating context % with subagent tokens
-                  const entries = Object.values(event.modelUsage as Record<string, Record<string, unknown>>);
-                  if (entries.length === 1) {
-                    modelUsage = entries[0];
-                  } else if (entries.length > 1) {
-                    modelUsage = entries.reduce((best, cur) => {
-                      const bestInput = (best?.inputTokens as number) || 0;
-                      const curInput = (cur?.inputTokens as number) || 0;
-                      return curInput > bestInput ? cur : best;
-                    });
+                  const usageMap = event.modelUsage as Record<string, Record<string, unknown>>;
+                  const modelKeys = Object.keys(usageMap);
+                  if (modelKeys.length === 1) {
+                    modelUsage = usageMap[modelKeys[0]];
+                  } else if (modelKeys.length > 1) {
+                    // Match the configured model to avoid picking subagent usage
+                    const configuredModel = currentSettings?.model || '';
+                    const matched = modelKeys.find(k =>
+                      k === configuredModel || k.includes(configuredModel)
+                    );
+                    if (matched) {
+                      modelUsage = usageMap[matched];
+                    } else {
+                      // Fallback: pick the model with the largest contextWindow (primary model)
+                      modelUsage = Object.values(usageMap).reduce((best, cur) => {
+                        const bestCtx = (best?.contextWindow as number) || 0;
+                        const curCtx = (cur?.contextWindow as number) || 0;
+                        return curCtx > bestCtx ? cur : best;
+                      });
+                    }
                   }
                 }
 

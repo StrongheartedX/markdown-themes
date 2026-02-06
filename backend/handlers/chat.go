@@ -569,13 +569,6 @@ func Chat(w http.ResponseWriter, r *http.Request) {
 				}
 				usage, _ := event["usage"].(map[string]interface{})
 				modelUsage, _ := event["modelUsage"].(map[string]interface{})
-				log.Printf("[Chat] result event - modelUsage present: %v, keys: %v", modelUsage != nil, func() []string {
-					keys := make([]string, 0)
-					for k := range modelUsage {
-						keys = append(keys, k)
-					}
-					return keys
-				}())
 				costUSD, _ := event["total_cost_usd"].(float64)
 				duration, _ := event["duration_ms"].(float64)
 
