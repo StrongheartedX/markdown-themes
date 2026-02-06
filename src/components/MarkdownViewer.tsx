@@ -335,9 +335,6 @@ export const MarkdownViewer = forwardRef<MarkdownViewerHandle, MarkdownViewerPro
           fillType6: border,
           fillType7: bgPrimary,
 
-          // Explicit font so mermaid measures node sizes with the correct font,
-          // not a fallback — 'inherit' resolves to default during SVG measurement.
-          fontFamily: fontBody,
         },
       },
     });
