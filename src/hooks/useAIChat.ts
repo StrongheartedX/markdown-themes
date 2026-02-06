@@ -75,7 +75,7 @@ export interface UseAIChatResult {
   error: string | null;
   sendMessage: (content: string) => Promise<void>;
   stopGeneration: () => void;
-  newConversation: () => void;
+  newConversation: () => Conversation;
   setActiveConversation: (id: string) => void;
   deleteConversation: (id: string) => void;
   endConversation: (id: string) => Promise<void>;

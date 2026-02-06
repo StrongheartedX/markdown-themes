@@ -22,6 +22,9 @@ interface FilesPageState {
   // Chat panel state (third column)
   chatPanelOpen: boolean;
   chatPanelWidth: number;
+  // Chat tab state (multi-conversation tabs)
+  chatTabs: string[];
+  activeChatTabId: string | null;
 }
 
 export type { RightPaneTab };
@@ -57,6 +60,8 @@ const defaultState: PageState = {
     rightActiveTabId: null,
     chatPanelOpen: false,
     chatPanelWidth: 400,
+    chatTabs: [],
+    activeChatTabId: null,
   },
   prompts: {
     currentFile: null,
@@ -81,6 +86,8 @@ function loadPageState(): PageState {
         rightActiveTabId: parsed.files?.rightActiveTabId ?? defaultState.files.rightActiveTabId,
         chatPanelOpen: parsed.files?.chatPanelOpen ?? defaultState.files.chatPanelOpen,
         chatPanelWidth: parsed.files?.chatPanelWidth ?? defaultState.files.chatPanelWidth,
+        chatTabs: parsed.files?.chatTabs ?? defaultState.files.chatTabs,
+        activeChatTabId: parsed.files?.activeChatTabId ?? defaultState.files.activeChatTabId,
       },
       prompts: {
         currentFile: parsed.prompts?.currentFile ?? defaultState.prompts.currentFile,
