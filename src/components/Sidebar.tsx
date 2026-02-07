@@ -841,6 +841,10 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
   const currentFileRef = useRef(currentFile);
   currentFileRef.current = currentFile;
 
+  // Ref for focusedPath so ArrowLeft/Right/Enter can read it without closure staleness
+  const focusedPathRef = useRef(focusedPath);
+  focusedPathRef.current = focusedPath;
+
   // Scroll the focused item into view
   useEffect(() => {
     if (!focusedPath || !treeContainerRef.current) return;
@@ -912,50 +916,46 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
       }
       case 'ArrowRight': {
         e.preventDefault();
-        setFocusedPath(prev => {
-          if (!prev) return prev;
-          const node = findNode(prev, searchFilteredFiles);
-          if (!node) return prev;
-          if (node.isDirectory || node.isScopeHeader) {
-            if (!expandedPaths.has(prev)) {
-              toggleExpandPath(prev);
-            } else if (node.children && node.children.length > 0) {
-              return node.children[0].path;
-            }
+        const cur = focusedPathRef.current;
+        if (!cur) break;
+        const node = findNode(cur, searchFilteredFiles);
+        if (!node) break;
+        if (node.isDirectory || node.isScopeHeader) {
+          if (!expandedPaths.has(cur)) {
+            toggleExpandPath(cur);
+          } else if (node.children && node.children.length > 0) {
+            setFocusedPath(node.children[0].path);
           }
-          return prev;
-        });
+        }
         break;
       }
       case 'ArrowLeft': {
         e.preventDefault();
-        setFocusedPath(prev => {
-          if (!prev) return prev;
-          const node = findNode(prev, searchFilteredFiles);
-          if (!node) return prev;
-          if ((node.isDirectory || node.isScopeHeader) && expandedPaths.has(prev)) {
-            toggleExpandPath(prev);
-          } else {
-            const parentPath = findParentPath(prev, searchFilteredFiles, expandedPaths);
-            if (parentPath) return parentPath;
+        const cur = focusedPathRef.current;
+        if (!cur) break;
+        const node = findNode(cur, searchFilteredFiles);
+        if (!node) break;
+        if ((node.isDirectory || node.isScopeHeader) && expandedPaths.has(cur)) {
+          toggleExpandPath(cur);
+        } else {
+          const parentPath = findParentPath(cur, searchFilteredFiles, expandedPaths);
+          if (parentPath) {
+            setFocusedPath(parentPath);
           }
-          return prev;
-        });
+        }
         break;
       }
       case 'Enter': {
         e.preventDefault();
-        setFocusedPath(prev => {
-          if (!prev) return prev;
-          const node = findNode(prev, searchFilteredFiles);
-          if (!node) return prev;
-          if (node.isDirectory || node.isScopeHeader) {
-            toggleExpandPath(prev);
-          } else {
-            onFileSelect(prev);
-          }
-          return prev;
-        });
+        const cur = focusedPathRef.current;
+        if (!cur) break;
+        const node = findNode(cur, searchFilteredFiles);
+        if (!node) break;
+        if (node.isDirectory || node.isScopeHeader) {
+          toggleExpandPath(cur);
+        } else {
+          onFileSelect(cur);
+        }
         break;
       }
       case 'Home': {
