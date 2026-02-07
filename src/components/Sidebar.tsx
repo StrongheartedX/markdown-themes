@@ -830,6 +830,10 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
     return flattenVisiblePaths(searchFilteredFiles, expandedPaths);
   }, [searchFilteredFiles, expandedPaths]);
 
+  // Ref for visiblePaths so keyboard handler can access latest without re-creating
+  const visiblePathsRef = useRef(visiblePaths);
+  visiblePathsRef.current = visiblePaths;
+
   // Scroll the focused item into view
   useEffect(() => {
     if (!focusedPath || !treeContainerRef.current) return;
@@ -858,99 +862,104 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
     return null;
   }, []);
 
-  // Keyboard handler for the tree container
+  // Keyboard handler for the tree container.
+  // Uses functional setFocusedPath(prev => ...) + visiblePathsRef so rapid
+  // key-repeat events each see the result of the previous update.
   const handleTreeKeyDown = useCallback((e: React.KeyboardEvent) => {
     // Ignore if focus is in search input
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
       return;
     }
 
-    const currentIndex = focusedPath ? visiblePaths.indexOf(focusedPath) : -1;
-
     switch (e.key) {
       case 'ArrowDown': {
         e.preventDefault();
-        if (visiblePaths.length === 0) return;
-        if (currentIndex === -1) {
-          // Nothing focused yet, focus first item
-          setFocusedPath(visiblePaths[0]);
-        } else if (currentIndex < visiblePaths.length - 1) {
-          setFocusedPath(visiblePaths[currentIndex + 1]);
-        }
+        setFocusedPath(prev => {
+          const paths = visiblePathsRef.current;
+          if (paths.length === 0) return prev;
+          const idx = prev ? paths.indexOf(prev) : -1;
+          if (idx === -1) return paths[0];
+          return idx < paths.length - 1 ? paths[idx + 1] : prev;
+        });
         break;
       }
       case 'ArrowUp': {
         e.preventDefault();
-        if (visiblePaths.length === 0) return;
-        if (currentIndex === -1) {
-          // Nothing focused yet, focus last item
-          setFocusedPath(visiblePaths[visiblePaths.length - 1]);
-        } else if (currentIndex > 0) {
-          setFocusedPath(visiblePaths[currentIndex - 1]);
-        }
+        setFocusedPath(prev => {
+          const paths = visiblePathsRef.current;
+          if (paths.length === 0) return prev;
+          const idx = prev ? paths.indexOf(prev) : -1;
+          if (idx === -1) return paths[paths.length - 1];
+          return idx > 0 ? paths[idx - 1] : prev;
+        });
         break;
       }
       case 'ArrowRight': {
         e.preventDefault();
-        if (!focusedPath) return;
-        const node = findNode(focusedPath, searchFilteredFiles);
-        if (!node) return;
-        if (node.isDirectory || node.isScopeHeader) {
-          if (!expandedPaths.has(focusedPath)) {
-            // Expand the folder
-            toggleExpandPath(focusedPath);
-          } else if (node.children && node.children.length > 0) {
-            // Already expanded, move to first child
-            setFocusedPath(node.children[0].path);
+        setFocusedPath(prev => {
+          if (!prev) return prev;
+          const node = findNode(prev, searchFilteredFiles);
+          if (!node) return prev;
+          if (node.isDirectory || node.isScopeHeader) {
+            if (!expandedPaths.has(prev)) {
+              toggleExpandPath(prev);
+            } else if (node.children && node.children.length > 0) {
+              return node.children[0].path;
+            }
           }
-        }
+          return prev;
+        });
         break;
       }
       case 'ArrowLeft': {
         e.preventDefault();
-        if (!focusedPath) return;
-        const node = findNode(focusedPath, searchFilteredFiles);
-        if (!node) return;
-        if ((node.isDirectory || node.isScopeHeader) && expandedPaths.has(focusedPath)) {
-          // Collapse the folder
-          toggleExpandPath(focusedPath);
-        } else {
-          // Move to parent folder
-          const parentPath = findParentPath(focusedPath, searchFilteredFiles, expandedPaths);
-          if (parentPath) {
-            setFocusedPath(parentPath);
+        setFocusedPath(prev => {
+          if (!prev) return prev;
+          const node = findNode(prev, searchFilteredFiles);
+          if (!node) return prev;
+          if ((node.isDirectory || node.isScopeHeader) && expandedPaths.has(prev)) {
+            toggleExpandPath(prev);
+          } else {
+            const parentPath = findParentPath(prev, searchFilteredFiles, expandedPaths);
+            if (parentPath) return parentPath;
           }
-        }
+          return prev;
+        });
         break;
       }
       case 'Enter': {
         e.preventDefault();
-        if (!focusedPath) return;
-        const node = findNode(focusedPath, searchFilteredFiles);
-        if (!node) return;
-        if (node.isDirectory || node.isScopeHeader) {
-          toggleExpandPath(focusedPath);
-        } else {
-          onFileSelect(focusedPath);
-        }
+        setFocusedPath(prev => {
+          if (!prev) return prev;
+          const node = findNode(prev, searchFilteredFiles);
+          if (!node) return prev;
+          if (node.isDirectory || node.isScopeHeader) {
+            toggleExpandPath(prev);
+          } else {
+            onFileSelect(prev);
+          }
+          return prev;
+        });
         break;
       }
       case 'Home': {
         e.preventDefault();
-        if (visiblePaths.length > 0) {
-          setFocusedPath(visiblePaths[0]);
-        }
+        setFocusedPath(() => {
+          const paths = visiblePathsRef.current;
+          return paths.length > 0 ? paths[0] : null;
+        });
         break;
       }
       case 'End': {
         e.preventDefault();
-        if (visiblePaths.length > 0) {
-          setFocusedPath(visiblePaths[visiblePaths.length - 1]);
-        }
+        setFocusedPath(() => {
+          const paths = visiblePathsRef.current;
+          return paths.length > 0 ? paths[paths.length - 1] : null;
+        });
         break;
       }
     }
-  }, [focusedPath, visiblePaths, expandedPaths, searchFilteredFiles, findNode, toggleExpandPath, onFileSelect]);
+  }, [expandedPaths, searchFilteredFiles, findNode, toggleExpandPath, onFileSelect]);
 
   return (
     <aside
