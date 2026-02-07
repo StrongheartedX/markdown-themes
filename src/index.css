@@ -34,6 +34,17 @@
   /* Recent edit indicator - accent-colored border that fades */
   --recent-edit-border: var(--accent);
 
+  /* Tailwind/shadcn CSS variable bridge — Streamdown's UI components use
+     these Tailwind v4 convention variables (--color-*). Map them to our
+     app's CSS variables so buttons, modals, and menus render correctly. */
+  --color-background: var(--bg-primary);
+  --color-foreground: var(--text-primary);
+  --color-muted: var(--bg-secondary);
+  --color-muted-foreground: var(--text-secondary);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--text-primary);
+
   /* Shiki CSS Variables - Default theme (light) */
   --shiki-foreground: #1a1a2e;
   --shiki-background: #f8f9fa;
@@ -542,67 +553,10 @@ body {
   fill: var(--text-primary) !important;
 }
 
-/* Mermaid diagram controls - Streamdown uses Tailwind/shadcn CSS variables
-   (--color-muted-foreground, --color-foreground, --color-background, --color-border,
-   --color-muted) which are not defined in this project. Override button/dropdown
-   styles to use the app's CSS variables (--text-secondary, --text-primary, etc.) */
+/* Mermaid block border — uses Tailwind's border-border which now resolves
+   via --color-border, but add explicit override for specificity */
 [data-streamdown="mermaid-block"] {
   border-color: var(--border) !important;
-}
-
-/* Control bar buttons (download, copy, fullscreen) */
-[data-streamdown="mermaid-block"] > div > button,
-[data-streamdown="mermaid-block"] > div > div > button {
-  color: var(--text-secondary) !important;
-}
-
-[data-streamdown="mermaid-block"] > div > button:hover,
-[data-streamdown="mermaid-block"] > div > div > button:hover {
-  color: var(--text-primary) !important;
-}
-
-/* Download/copy dropdown menu */
-[data-streamdown="mermaid-block"] > div > div > div[class*="absolute"] {
-  background-color: var(--bg-primary) !important;
-  border-color: var(--border) !important;
-  color: var(--text-primary) !important;
-}
-
-[data-streamdown="mermaid-block"] > div > div > div[class*="absolute"] button {
-  color: var(--text-primary) !important;
-}
-
-[data-streamdown="mermaid-block"] > div > div > div[class*="absolute"] button:hover {
-  background-color: var(--bg-secondary) !important;
-}
-
-/* Pan/zoom floating controls */
-[data-streamdown="mermaid-block"] [data-streamdown="mermaid"] > div[class*="absolute"] {
-  background-color: var(--bg-primary) !important;
-  border-color: var(--border) !important;
-}
-
-[data-streamdown="mermaid-block"] [data-streamdown="mermaid"] > div[class*="absolute"] button {
-  color: var(--text-secondary) !important;
-}
-
-[data-streamdown="mermaid-block"] [data-streamdown="mermaid"] > div[class*="absolute"] button:hover {
-  background-color: var(--bg-secondary) !important;
-  color: var(--text-primary) !important;
-}
-
-/* Fullscreen modal overlay */
-[data-streamdown="mermaid-block"] > div[class*="fixed"] {
-  background-color: color-mix(in srgb, var(--bg-primary) 95%, transparent) !important;
-}
-
-[data-streamdown="mermaid-block"] > div[class*="fixed"] > button {
-  color: var(--text-secondary) !important;
-}
-
-[data-streamdown="mermaid-block"] > div[class*="fixed"] > button:hover {
-  background-color: var(--bg-secondary) !important;
-  color: var(--text-primary) !important;
 }
 
 /* Chat message prose - smaller, tighter styles for chat context */
