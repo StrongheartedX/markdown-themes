@@ -1115,7 +1115,7 @@ export function Files() {
               )}
 
               {/* File and Conversation tab content */}
-              {(activeTab?.type === 'file' || activeTab?.type === 'conversation') && !loading && !error && currentFile && content && (
+              {(activeTab?.type === 'file' || activeTab?.type === 'conversation') && !loading && !error && currentFile && (content || isCurrentFileBinary) && (
                 <>
                   {isMarkdownFile && frontmatter && <MetadataBar frontmatter={frontmatter} />}
                   <div className="flex-1 overflow-auto" ref={leftScrollContainerRef}>

@@ -424,7 +424,32 @@ export const MarkdownViewer = forwardRef<MarkdownViewerHandle, MarkdownViewerPro
     },
   }), []);
 
-  if (!content) {
+  // Rewrite local image paths in markdown to go through the backend API.
+  // Handles both relative paths (resolved against the markdown file's directory)
+  // and absolute filesystem paths.
+  const processedContent = useMemo(() => {
+    if (!content || !filePath) return content;
+
+    const fileDir = filePath.replace(/\/[^/]+$/, '');
+    const imageExts = /\.(png|jpg|jpeg|gif|webp|svg|bmp|ico)$/i;
+
+    return content.replace(
+      /!\[([^\]]*)\]\(([^)]+)\)/g,
+      (match, alt, src) => {
+        // Skip external URLs and data URIs
+        if (/^https?:\/\/|^data:/.test(src)) return match;
+        // Skip non-image extensions
+        if (!imageExts.test(src)) return match;
+
+        // Resolve path: absolute paths stay as-is, relative paths resolve from file dir
+        const resolved = src.startsWith('/') ? src : `${fileDir}/${src}`;
+        const apiUrl = `http://localhost:8130/api/files/raw?path=${encodeURIComponent(resolved)}`;
+        return `![${alt}](${apiUrl})`;
+      }
+    );
+  }, [content, filePath]);
+
+  if (!processedContent) {
     return (
       <div className="flex items-center justify-center h-full" style={{ color: 'var(--text-secondary)' }}>
         <p>Open a markdown file to get started</p>
@@ -456,7 +481,7 @@ export const MarkdownViewer = forwardRef<MarkdownViewerHandle, MarkdownViewerPro
         plugins={{ code: codePlugin, mermaid: mermaidPlugin, math }}
         controls={{ mermaid: { fullscreen: false } }}
       >
-        {content}
+        {processedContent}
       </Streamdown>
     </article>
   );

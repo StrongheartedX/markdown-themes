@@ -46,7 +46,7 @@ func main() {
 	// JSON content type for API responses (except WebSocket and SSE endpoints)
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path != "/ws" && !(r.URL.Path == "/api/chat" && r.Method == "POST") {
+			if r.URL.Path != "/ws" && r.URL.Path != "/api/files/raw" && !(r.URL.Path == "/api/chat" && r.Method == "POST") {
 				w.Header().Set("Content-Type", "application/json")
 			}
 			next.ServeHTTP(w, r)
@@ -66,6 +66,10 @@ func main() {
 		r.Get("/files/tree", handlers.FileTree)
 		r.Get("/files/content", handlers.FileContent)
 		r.Get("/files/git-status", handlers.GitStatus)
+		r.Get("/files/image", handlers.FileMedia)
+		r.Get("/files/video", handlers.FileMedia)
+		r.Get("/files/audio", handlers.FileMedia)
+		r.Get("/files/raw", handlers.FileRaw)
 
 		// Claude
 		r.Get("/claude/session", handlers.ClaudeSession)

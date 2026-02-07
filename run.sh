@@ -84,10 +84,8 @@ run_dev() {
     stop_backend
     stop_frontend
 
-    # Check if backend is built
-    if [[ ! -f backend/markdown-themes-backend ]]; then
-        build_backend
-    fi
+    # Always rebuild backend to pick up code changes
+    build_backend
 
     echo -e "${GREEN}Starting markdown-themes...${NC}"
     echo -e "  Backend:  http://localhost:8130"

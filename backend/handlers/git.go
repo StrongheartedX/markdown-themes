@@ -560,14 +560,30 @@ func GitDiff(w http.ResponseWriter, r *http.Request) {
 
 	path = filepath.Clean(path)
 
+	base := r.URL.Query().Get("base") // Commit hash or "HEAD"
+	file := r.URL.Query().Get("file") // Optional specific file
+
 	gitRoot := findGitRoot(path)
+
+	// If path itself isn't inside a git repo but a file param was given,
+	// try finding the git root from the full file path (handles workspace
+	// roots that contain multiple sub-repos).
+	if gitRoot == "" && file != "" {
+		fullFilePath := filepath.Join(path, file)
+		gitRoot = findGitRoot(fullFilePath)
+		if gitRoot != "" {
+			// Recalculate the relative file path from the discovered git root
+			rel, err := filepath.Rel(gitRoot, fullFilePath)
+			if err == nil {
+				file = rel
+			}
+		}
+	}
+
 	if gitRoot == "" {
 		http.Error(w, `{"error": "not a git repository"}`, http.StatusBadRequest)
 		return
 	}
-
-	base := r.URL.Query().Get("base") // Commit hash or "HEAD"
-	file := r.URL.Query().Get("file") // Optional specific file
 
 	var args []string
 	args = append(args, "-C", gitRoot, "diff")

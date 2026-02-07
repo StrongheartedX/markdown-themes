@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -300,4 +301,122 @@ func parseGitStatus(output string, gitRoot string) map[string]models.GitStatusIn
 	}
 
 	return files
+}
+
+// FileRaw handles GET /api/files/raw - serves files directly with correct Content-Type.
+// Used for inline markdown images and other embedded media.
+func FileRaw(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "path parameter required", http.StatusBadRequest)
+		return
+	}
+
+	// Expand home directory
+	if strings.HasPrefix(path, "~") {
+		home, err := os.UserHomeDir()
+		if err == nil {
+			path = filepath.Join(home, path[1:])
+		}
+	}
+
+	path = filepath.Clean(path)
+
+	info, err := os.Stat(path)
+	if err != nil {
+		http.Error(w, "file not found", http.StatusNotFound)
+		return
+	}
+
+	if info.IsDir() {
+		http.Error(w, "path is a directory", http.StatusBadRequest)
+		return
+	}
+
+	// Read file and write bytes directly (avoid http.ServeFile redirect behavior)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		http.Error(w, "failed to read file", http.StatusInternalServerError)
+		return
+	}
+
+	ext := filepath.Ext(path)
+	mime := mimeTypeFromExt(ext)
+
+	w.Header().Set("Content-Type", mime)
+	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	w.Write(data)
+}
+
+// mimeTypeFromExt returns the MIME type for common media file extensions.
+func mimeTypeFromExt(ext string) string {
+	types := map[string]string{
+		".png":  "image/png",
+		".jpg":  "image/jpeg",
+		".jpeg": "image/jpeg",
+		".gif":  "image/gif",
+		".webp": "image/webp",
+		".svg":  "image/svg+xml",
+		".bmp":  "image/bmp",
+		".ico":  "image/x-icon",
+		".mp4":  "video/mp4",
+		".webm": "video/webm",
+		".mov":  "video/quicktime",
+		".avi":  "video/x-msvideo",
+		".mp3":  "audio/mpeg",
+		".wav":  "audio/wav",
+		".ogg":  "audio/ogg",
+		".flac": "audio/flac",
+	}
+	if mime, ok := types[strings.ToLower(ext)]; ok {
+		return mime
+	}
+	return "application/octet-stream"
+}
+
+// FileMedia handles GET /api/files/media - serves images, video, audio as base64 data URIs
+func FileMedia(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, `{"error": "path parameter required"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Expand home directory
+	if strings.HasPrefix(path, "~") {
+		home, err := os.UserHomeDir()
+		if err == nil {
+			path = filepath.Join(home, path[1:])
+		}
+	}
+
+	path = filepath.Clean(path)
+
+	info, err := os.Stat(path)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "file not found: %s"}`, err.Error()), http.StatusNotFound)
+		return
+	}
+
+	if info.IsDir() {
+		http.Error(w, `{"error": "path is a directory"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Read file
+	data, err := os.ReadFile(path)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "failed to read file: %s"}`, err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	// Build data URI
+	ext := filepath.Ext(path)
+	mime := mimeTypeFromExt(ext)
+	dataUri := fmt.Sprintf("data:%s;base64,%s", mime, base64.StdEncoding.EncodeToString(data))
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"dataUri": dataUri,
+	})
 }
