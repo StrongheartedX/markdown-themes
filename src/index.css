@@ -542,6 +542,69 @@ body {
   fill: var(--text-primary) !important;
 }
 
+/* Mermaid diagram controls - Streamdown uses Tailwind/shadcn CSS variables
+   (--color-muted-foreground, --color-foreground, --color-background, --color-border,
+   --color-muted) which are not defined in this project. Override button/dropdown
+   styles to use the app's CSS variables (--text-secondary, --text-primary, etc.) */
+[data-streamdown="mermaid-block"] {
+  border-color: var(--border) !important;
+}
+
+/* Control bar buttons (download, copy, fullscreen) */
+[data-streamdown="mermaid-block"] > div > button,
+[data-streamdown="mermaid-block"] > div > div > button {
+  color: var(--text-secondary) !important;
+}
+
+[data-streamdown="mermaid-block"] > div > button:hover,
+[data-streamdown="mermaid-block"] > div > div > button:hover {
+  color: var(--text-primary) !important;
+}
+
+/* Download/copy dropdown menu */
+[data-streamdown="mermaid-block"] > div > div > div[class*="absolute"] {
+  background-color: var(--bg-primary) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-streamdown="mermaid-block"] > div > div > div[class*="absolute"] button {
+  color: var(--text-primary) !important;
+}
+
+[data-streamdown="mermaid-block"] > div > div > div[class*="absolute"] button:hover {
+  background-color: var(--bg-secondary) !important;
+}
+
+/* Pan/zoom floating controls */
+[data-streamdown="mermaid-block"] [data-streamdown="mermaid"] > div[class*="absolute"] {
+  background-color: var(--bg-primary) !important;
+  border-color: var(--border) !important;
+}
+
+[data-streamdown="mermaid-block"] [data-streamdown="mermaid"] > div[class*="absolute"] button {
+  color: var(--text-secondary) !important;
+}
+
+[data-streamdown="mermaid-block"] [data-streamdown="mermaid"] > div[class*="absolute"] button:hover {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Fullscreen modal overlay */
+[data-streamdown="mermaid-block"] > div[class*="fixed"] {
+  background-color: color-mix(in srgb, var(--bg-primary) 95%, transparent) !important;
+}
+
+[data-streamdown="mermaid-block"] > div[class*="fixed"] > button {
+  color: var(--text-secondary) !important;
+}
+
+[data-streamdown="mermaid-block"] > div[class*="fixed"] > button:hover {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
 /* Chat message prose - smaller, tighter styles for chat context */
 .chat-message-prose .prose {
   font-size: 0.875rem;

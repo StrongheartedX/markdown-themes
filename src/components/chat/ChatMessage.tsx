@@ -527,7 +527,7 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({ message
                         caret="block"
                         parseIncompleteMarkdown={true}
                         plugins={{ code: codePlugin, mermaid: mermaidPlugin, math }}
-                        controls={{ mermaid: { fullscreen: false } }}
+                        controls={{ mermaid: { download: true, copy: true, fullscreen: true } }}
                       >
                         {seg.text || ' '}
                       </Streamdown>
@@ -537,7 +537,7 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({ message
                         isAnimating={false}
                         parseIncompleteMarkdown={false}
                         plugins={{ code: codePlugin, mermaid: mermaidPlugin, math }}
-                        controls={{ mermaid: { fullscreen: false } }}
+                        controls={{ mermaid: { download: true, copy: true, fullscreen: true } }}
                       >
                         {seg.text}
                       </Streamdown>
@@ -599,7 +599,7 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({ message
                   caret="block"
                   parseIncompleteMarkdown={true}
                   plugins={{ code: codePlugin, mermaid: mermaidPlugin, math }}
-                  controls={{ mermaid: { fullscreen: false } }}
+                  controls={{ mermaid: { download: true, copy: true, fullscreen: true } }}
                 >
                   {message.content || ' '}
                 </Streamdown>
@@ -609,7 +609,7 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({ message
                   isAnimating={false}
                   parseIncompleteMarkdown={false}
                   plugins={{ code: codePlugin, mermaid: mermaidPlugin, math }}
-                  controls={{ mermaid: { fullscreen: false } }}
+                  controls={{ mermaid: { download: true, copy: true, fullscreen: true } }}
                 >
                   {message.content}
                 </Streamdown>

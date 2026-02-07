@@ -479,7 +479,7 @@ export const MarkdownViewer = forwardRef<MarkdownViewerHandle, MarkdownViewerPro
         parseIncompleteMarkdown={true}
         className="streamdown-content"
         plugins={{ code: codePlugin, mermaid: mermaidPlugin, math }}
-        controls={{ mermaid: { fullscreen: false } }}
+        controls={{ mermaid: { download: true, copy: true, fullscreen: true } }}
       >
         {processedContent}
       </Streamdown>
