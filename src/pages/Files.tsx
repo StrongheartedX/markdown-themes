@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Clock, ChevronLeft, GitCommit, FileDiff, Loader2, MessageCircle, Crosshair, Users, Columns, Bot } from 'lucide-react';
+import { Clock, ChevronLeft, GitCommit, FileDiff, Loader2, Crosshair, Users, Columns, Bot } from 'lucide-react';
 import { useFileWatcher } from '../hooks/useFileWatcher';
 import { useWorkspaceStreaming } from '../hooks/useWorkspaceStreaming';
 import { useDiffAutoScroll } from '../hooks/useDiffAutoScroll';
@@ -419,13 +419,18 @@ export function Files() {
     setChatPanelOpen((prev) => !prev);
   }, []);
 
-  // AI Chat integration for "Send to Chat"
-  const { sendToChat } = useAIChatContext();
+  // AI Chat integration for "Send to Chat" and "Resume in Chat"
+  const { sendToChat, resumeConversation } = useAIChatContext();
   const handleSendToChat = useCallback((content: string) => {
     // Open chat panel if not already open
     setChatPanelOpen(true);
     sendToChat(content);
   }, [sendToChat]);
+
+  const handleResumeInChat = useCallback((sessionId: string) => {
+    setChatPanelOpen(true);
+    resumeConversation(sessionId);
+  }, [resumeConversation]);
 
   // Handle chat panel resize
   const handleChatResizeMouseDown = useCallback((e: React.MouseEvent) => {
@@ -465,7 +470,7 @@ export function Files() {
 
   // Current conversation detection for "View Conversation" button
   // Must be defined before file watchers to avoid watching the active conversation (causes freezes)
-  const { conversation, isLoading: conversationLoading } = useCurrentConversation();
+  const { conversation } = useCurrentConversation();
 
   // Check if a file is the current active conversation (being written to by Claude)
   // Watching this file causes freezes due to rapid updates and heavy JSONL parsing
@@ -836,24 +841,6 @@ export function Files() {
     openRightTab(hotkeysPath, false); // Open as pinned tab
   }, [workspacePath, isSplit, openSplit, setRightPaneFile, openRightTab]);
 
-  // Handle view conversation button - open conversation JSONL file
-  const handleViewConversation = useCallback(() => {
-    if (!conversation?.conversationPath) {
-      console.warn('[handleViewConversation] No conversation path available');
-      return;
-    }
-
-    // Open as a conversation tab with a descriptive name instead of the raw session ID
-    openConversationTab(conversation.conversationPath, {
-      sessionId: conversation.sessionId,
-      workingDir: conversation.workingDir,
-      pane: conversation.pane || '',
-      taskDescription: 'Current Session',
-      autoClose: false,
-    });
-    addRecentFile(conversation.conversationPath);
-  }, [conversation, openConversationTab, addRecentFile]);
-
   // Handle archive from sidebar context menu or other triggers
   const handleArchiveFile = useCallback((path: string) => {
     setArchiveFilePath(path);
@@ -946,30 +933,6 @@ export function Files() {
       {/* Portal actions into NavHeader's #nav-actions-slot */}
       {portalTarget && createPortal(
         <>
-          {/* View Conversation */}
-          <button
-            type="button"
-            onClick={handleViewConversation}
-            disabled={!conversation?.conversationPath || conversationLoading}
-            className="w-8 h-8 flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{
-              borderRadius: 'var(--radius)',
-              backgroundColor: 'var(--bg-primary)',
-              color: 'var(--text-primary)',
-              border: '1px solid var(--border)',
-            }}
-            title={conversationLoading ? 'Loading conversation...' : conversation?.conversationPath ? 'View current conversation' : 'No conversation found'}
-          >
-            {conversationLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <MessageCircle className="w-4 h-4" />
-            )}
-          </button>
-
-          {/* Separator */}
-          <div className="w-px h-5" style={{ backgroundColor: 'var(--border)' }} />
-
           {/* Follow AI Edits toggle */}
           <button
             type="button"
@@ -1103,6 +1066,7 @@ export function Files() {
             gitStatusVersion={gitStatusVersion}
             onSendToChat={handleSendToChat}
             onArchiveFile={handleArchiveFile}
+            onResumeInChat={handleResumeInChat}
           />
         )}
 

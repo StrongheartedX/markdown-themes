@@ -14,6 +14,7 @@ interface FileContextMenuProps {
   onCopyContent?: () => void;
   onSendToChat?: () => void;
   onArchive?: () => void;
+  onResumeInChat?: () => void;
   isConversationFile?: boolean;
 }
 
@@ -55,6 +56,7 @@ export function FileContextMenu({
   onCopyContent,
   onSendToChat,
   onArchive,
+  onResumeInChat,
   isConversationFile,
 }: FileContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -293,23 +295,40 @@ export function FileContextMenu({
             <span>Edit</span>
           </button>
 
-          {/* Archive Conversation - only for conversation files */}
-          {isConversationFile && onArchive && (
+          {/* Conversation file actions */}
+          {isConversationFile && (onArchive || onResumeInChat) && (
             <>
               <div style={dividerStyle} />
-              <button
-                className="context-menu-item"
-                onClick={() => {
-                  onArchive();
-                  onClose();
-                }}
-                style={menuItemStyle}
-                onMouseEnter={handleMenuItemHover}
-                onMouseLeave={handleMenuItemLeave}
-              >
-                <ArchiveIcon />
-                <span>Archive Conversation</span>
-              </button>
+              {onResumeInChat && (
+                <button
+                  className="context-menu-item"
+                  onClick={() => {
+                    onResumeInChat();
+                    onClose();
+                  }}
+                  style={menuItemStyle}
+                  onMouseEnter={handleMenuItemHover}
+                  onMouseLeave={handleMenuItemLeave}
+                >
+                  <ResumeIcon />
+                  <span>Resume in Chat</span>
+                </button>
+              )}
+              {onArchive && (
+                <button
+                  className="context-menu-item"
+                  onClick={() => {
+                    onArchive();
+                    onClose();
+                  }}
+                  style={menuItemStyle}
+                  onMouseEnter={handleMenuItemHover}
+                  onMouseLeave={handleMenuItemLeave}
+                >
+                  <ArchiveIcon />
+                  <span>Archive Conversation</span>
+                </button>
+              )}
             </>
           )}
         </>
@@ -409,6 +428,15 @@ function ArchiveIcon() {
       <polyline points="21 8 21 21 3 21 3 8" />
       <rect x="1" y="3" width="22" height="5" />
       <line x1="10" y1="12" x2="14" y2="12" />
+    </svg>
+  );
+}
+
+function ResumeIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+      <polyline points="21 3 21 8 16 8" />
     </svg>
   );
 }

@@ -56,6 +56,8 @@ interface SidebarProps {
   onSendToChat?: (content: string) => void;
   /** Callback when archive is requested from context menu */
   onArchiveFile?: (path: string) => void;
+  /** Callback when 'Resume in Chat' is requested for a conversation file */
+  onResumeInChat?: (sessionId: string) => void;
 }
 
 interface TreeItemProps {
@@ -590,7 +592,7 @@ function formatRelativeTime(isoDate: string): string {
 const MIN_SIDEBAR_WIDTH = 150;
 const MAX_SIDEBAR_WIDTH = 400;
 
-export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSplit, width = 250, onWidthChange, onWidthChangeEnd, onFileSelect, onFileDoubleClick, onRightFileSelect, favorites, toggleFavorite, isFavorite, searchInputRef, changedFiles, gitStatusVersion, onSendToChat, onArchiveFile }: SidebarProps) {
+export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSplit, width = 250, onWidthChange, onWidthChangeEnd, onFileSelect, onFileDoubleClick, onRightFileSelect, favorites, toggleFavorite, isFavorite, searchInputRef, changedFiles, gitStatusVersion, onSendToChat, onArchiveFile, onResumeInChat }: SidebarProps) {
   const workspaceName = workspacePath?.split('/').pop() ?? workspacePath?.split('\\').pop() ?? 'Workspace';
 
   // Get lazy loading state from workspace context
@@ -702,6 +704,16 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
     if (contextMenu.isDirectory || !onArchiveFile) return;
     onArchiveFile(contextMenu.filePath);
   }, [contextMenu.filePath, contextMenu.isDirectory, onArchiveFile]);
+
+  const handleResumeInChat = useCallback(() => {
+    if (contextMenu.isDirectory || !onResumeInChat) return;
+    // Extract session ID from filename (e.g., '01abc123.jsonl' -> '01abc123')
+    const fileName = contextMenu.filePath.split('/').pop() ?? '';
+    const sessionId = fileName.replace(/\.jsonl$/, '');
+    if (sessionId) {
+      onResumeInChat(sessionId);
+    }
+  }, [contextMenu.filePath, contextMenu.isDirectory, onResumeInChat]);
 
   // Keep ref in sync with prop
   useEffect(() => {
@@ -1353,6 +1365,7 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
         onCopyContent={handleCopyContent}
         onSendToChat={handleSendToChat}
         onArchive={onArchiveFile ? handleArchive : undefined}
+        onResumeInChat={onResumeInChat ? handleResumeInChat : undefined}
         isConversationFile={
           !contextMenu.isDirectory &&
           (contextMenu.filePath.endsWith('.jsonl') || contextMenu.filePath.endsWith('.ndjson')) &&

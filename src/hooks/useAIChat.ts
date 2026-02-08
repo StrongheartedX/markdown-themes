@@ -95,6 +95,7 @@ export interface UseAIChatResult {
   sendToChat: (content: string) => void;
   stopGeneration: () => void;
   newConversation: () => Conversation;
+  resumeConversation: (sessionId: string) => Conversation;
   setActiveConversation: (id: string) => void;
   deleteConversation: (id: string) => void;
   endConversation: (id: string) => Promise<void>;
@@ -378,6 +379,22 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
     setConversations(prev => [conv, ...prev]);
     setActiveConversationId(conv.id);
     // Persist to backend
+    saveToBackend(conv);
+    return conv;
+  }, [saveToBackend]);
+
+  const resumeConversation = useCallback((sessionId: string) => {
+    const conv: Conversation = {
+      id: generateId(),
+      title: `Resumed: ${sessionId.slice(0, 8)}...`,
+      messages: [],
+      claudeSessionId: sessionId,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      cwd: cwdRef.current ?? undefined,
+    };
+    setConversations(prev => [conv, ...prev]);
+    setActiveConversationId(conv.id);
     saveToBackend(conv);
     return conv;
   }, [saveToBackend]);
@@ -930,6 +947,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
     sendToChat,
     stopGeneration,
     newConversation,
+    resumeConversation,
     setActiveConversation,
     deleteConversation,
     endConversation,
@@ -947,6 +965,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatResult {
     sendToChat,
     stopGeneration,
     newConversation,
+    resumeConversation,
     setActiveConversation,
     deleteConversation,
     endConversation,
