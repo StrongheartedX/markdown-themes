@@ -191,13 +191,16 @@ export function ConversationMarkdownViewer({
 }: ConversationMarkdownViewerProps) {
   // Whether to load all messages (bypass MAX_MESSAGES limit)
   const [loadAll, setLoadAll] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const hasScrolledRef = useRef(false);
 
-  // Reset loadAll when switching files
+  // Reset loadAll and scroll state when switching files
   const prevFilePathRef = useRef(filePath);
   useEffect(() => {
     if (filePath !== prevFilePathRef.current) {
       prevFilePathRef.current = filePath;
       setLoadAll(false);
+      hasScrolledRef.current = false;
     }
   }, [filePath]);
 
@@ -253,22 +256,31 @@ export function ConversationMarkdownViewer({
   );
 
   // Scroll to bottom on initial load (conversations are chronological)
-  const containerRef = useRef<HTMLDivElement>(null);
-  const hasScrolledRef = useRef(false);
-
+  // Uses ResizeObserver to handle async rendering (Shiki, Streamdown)
   useEffect(() => {
-    // Only scroll once on initial content load, not during streaming updates
-    if (markdown && !hasScrolledRef.current && containerRef.current) {
-      hasScrolledRef.current = true;
-      // Double rAF ensures layout is complete before scrolling
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (containerRef.current) {
-            containerRef.current.scrollTop = containerRef.current.scrollHeight;
-          }
-        });
-      });
-    }
+    if (!markdown || hasScrolledRef.current || !containerRef.current) return;
+    hasScrolledRef.current = true;
+
+    const container = containerRef.current;
+    container.scrollTop = container.scrollHeight;
+
+    // Keep scrolling to bottom as async content renders (code highlighting, etc.)
+    let settleTimer: ReturnType<typeof setTimeout>;
+    const observer = new ResizeObserver(() => {
+      container.scrollTop = container.scrollHeight;
+      clearTimeout(settleTimer);
+      settleTimer = setTimeout(() => observer.disconnect(), 300);
+    });
+    observer.observe(container);
+
+    // Hard cutoff - stop observing after 3s
+    const maxTimer = setTimeout(() => observer.disconnect(), 3000);
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(settleTimer);
+      clearTimeout(maxTimer);
+    };
   }, [markdown]);
 
   // Handle empty content
