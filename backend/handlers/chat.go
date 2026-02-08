@@ -596,17 +596,22 @@ func Chat(w http.ResponseWriter, r *http.Request) {
 					"costUSD":         costUSD,
 					"durationMs":      duration,
 				}
-				// Claude CLI puts per-call usage directly in result.usage
-				// (it doesn't emit message_start/message_stop events).
-				// Use result.usage as lastCallUsage since it has the
-				// snake_case token breakdown the frontend expects.
-				if usage != nil {
-					doneEvent["lastCallUsage"] = usage
-				} else if lastMessageStopUsage != nil {
-					// Fallback for raw Anthropic API streams
-					doneEvent["lastCallUsage"] = lastMessageStopUsage
-				} else if lastMessageStartUsage != nil {
+				// Prefer per-call usage from message_start/message_stop events.
+				// result.usage is aggregated across ALL API calls in a turn
+				// (e.g. tool-use turns make multiple calls), so it inflates
+				// the context-window percentage the frontend computes.
+				// message_start usage from the LAST API call is the most
+				// accurate single-call snapshot.
+				if lastMessageStartUsage != nil {
 					doneEvent["lastCallUsage"] = lastMessageStartUsage
+					log.Printf("[Chat] lastCallUsage source: message_start, tokens: %v", lastMessageStartUsage)
+				} else if lastMessageStopUsage != nil {
+					doneEvent["lastCallUsage"] = lastMessageStopUsage
+					log.Printf("[Chat] lastCallUsage source: message_stop, tokens: %v", lastMessageStopUsage)
+				} else if usage != nil {
+					// Fallback for single-call turns where message_start wasn't emitted
+					doneEvent["lastCallUsage"] = usage
+					log.Printf("[Chat] lastCallUsage source: result.usage (fallback), tokens: %v", usage)
 				}
 				buf.appendEvent(doneEvent)
 			}
