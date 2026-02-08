@@ -5,7 +5,7 @@ import { FILTERS, type FilterId } from '../lib/filters';
 import { getFileIconInfo } from '../utils/fileIcons';
 import type { FavoriteItem } from '../context/AppStoreContext';
 import { FileContextMenu } from './FileContextMenu';
-import { fetchFileContent, pasteToTerminal, readAloud, fetchGitStatus, type GitStatusMap, type GitStatus } from '../lib/api';
+import { fetchFileContent, fetchGitStatus, type GitStatusMap, type GitStatus } from '../lib/api';
 
 /**
  * Check if a path looks like a "projects directory" (contains repos, not a repo itself).
@@ -411,6 +411,15 @@ function TreeItem({ node, currentFile, isSplit, onFileSelect, onFileDoubleClick,
       <IndentGuides depth={depth} />
       <FileIcon path={node.path} />
       <span className="truncate flex-1 min-w-0">{node.name}</span>
+      {node.modified && (
+        <span
+          className="text-[10px] flex-shrink-0 whitespace-nowrap"
+          style={{ color: 'var(--text-secondary)', opacity: 0.7 }}
+          title={new Date(node.modified).toLocaleString()}
+        >
+          {formatRelativeTime(node.modified)}
+        </span>
+      )}
       {fileStatus && (
         <span
           className={`w-2 h-2 rounded-full ${GIT_STATUS_COLORS[fileStatus.status]} flex-shrink-0`}
@@ -554,6 +563,29 @@ function filterTreeBySearch<T extends FileTreeNode>(nodes: T[], query: string): 
   return nodes.map(filterNode).filter((node): node is T => node !== null);
 }
 
+/**
+ * Format an ISO 8601 timestamp as a relative time string (e.g., "2h ago", "3d ago").
+ */
+function formatRelativeTime(isoDate: string): string {
+  const now = Date.now();
+  const then = new Date(isoDate).getTime();
+  const diffMs = now - then;
+  if (diffMs < 0) return 'now';
+
+  const seconds = Math.floor(diffMs / 1000);
+  if (seconds < 60) return 'now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  const years = Math.floor(months / 12);
+  return `${years}y ago`;
+}
+
 // Sidebar width constraints
 const MIN_SIDEBAR_WIDTH = 150;
 const MAX_SIDEBAR_WIDTH = 400;
@@ -583,8 +615,6 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
     fileName: '',
     isDirectory: false,
   });
-  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
-
   // Git status state
   const [gitStatus, setGitStatus] = useState<GitStatusMap>({});
 
@@ -657,31 +687,6 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
       console.error('Failed to send to chat:', err);
     }
   }, [contextMenu.filePath, contextMenu.fileName, contextMenu.isDirectory, onSendToChat]);
-
-  const handlePasteToTerminal = useCallback(async () => {
-    if (contextMenu.isDirectory) return;
-    try {
-      const fileContent = await fetchFileContent(contextMenu.filePath);
-      await pasteToTerminal(fileContent.content);
-    } catch (err) {
-      console.error('Failed to paste to terminal:', err);
-    }
-  }, [contextMenu.filePath, contextMenu.isDirectory]);
-
-  const handleReadAloud = useCallback(async () => {
-    if (contextMenu.isDirectory) return;
-    setIsLoadingAudio(true);
-    try {
-      const fileContent = await fetchFileContent(contextMenu.filePath);
-      await readAloud(fileContent.content);
-      // Close menu after audio starts
-      closeContextMenu();
-    } catch (err) {
-      console.error('Failed to read aloud:', err);
-    } finally {
-      setIsLoadingAudio(false);
-    }
-  }, [contextMenu.filePath, contextMenu.isDirectory, closeContextMenu]);
 
   const handleCopyContent = useCallback(async () => {
     if (contextMenu.isDirectory) return;
@@ -1347,10 +1352,7 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
         onToggleFavorite={() => toggleFavorite(contextMenu.filePath, contextMenu.isDirectory)}
         onCopyContent={handleCopyContent}
         onSendToChat={handleSendToChat}
-        onPasteToTerminal={handlePasteToTerminal}
-        onReadAloud={handleReadAloud}
         onArchive={onArchiveFile ? handleArchive : undefined}
-        isLoadingAudio={isLoadingAudio}
         isConversationFile={
           !contextMenu.isDirectory &&
           (contextMenu.filePath.endsWith('.jsonl') || contextMenu.filePath.endsWith('.ndjson')) &&

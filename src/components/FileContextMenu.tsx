@@ -13,10 +13,7 @@ interface FileContextMenuProps {
   onToggleFavorite: () => void;
   onCopyContent?: () => void;
   onSendToChat?: () => void;
-  onPasteToTerminal?: () => void;
-  onReadAloud?: () => void;
   onArchive?: () => void;
-  isLoadingAudio?: boolean;
   isConversationFile?: boolean;
 }
 
@@ -43,8 +40,6 @@ function escapeShellArg(arg: string): string {
  * - **Copy @Path**: Copy path with @ prefix (for Claude references)
  * - **Toggle Favorite**: Add/remove from favorites
  * - **Send to Chat**: Send file content to AI Chat (files only)
- * - **Paste to Terminal**: Paste file content directly to active terminal (files only)
- * - **Read Aloud**: TTS playback of file content (files only)
  * - **Edit**: Open file in $EDITOR via TabzChrome spawn API (files only)
  */
 export function FileContextMenu({
@@ -59,10 +54,7 @@ export function FileContextMenu({
   onToggleFavorite,
   onCopyContent,
   onSendToChat,
-  onPasteToTerminal,
-  onReadAloud,
   onArchive,
-  isLoadingAudio,
   isConversationFile,
 }: FileContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -287,48 +279,7 @@ export function FileContextMenu({
             </button>
           )}
 
-          {/* Paste to Terminal */}
-          {onPasteToTerminal && (
-            <button
-              className="context-menu-item"
-              onClick={() => {
-                onPasteToTerminal();
-                onClose();
-              }}
-              style={menuItemStyle}
-              onMouseEnter={handleMenuItemHover}
-              onMouseLeave={handleMenuItemLeave}
-            >
-              <TerminalIcon />
-              <span>Paste to Terminal</span>
-            </button>
-          )}
-
-          {/* Read Aloud */}
-          {onReadAloud && (
-            <button
-              className="context-menu-item"
-              onClick={() => {
-                if (!isLoadingAudio) {
-                  onReadAloud();
-                  // Don't close - let user see loading state
-                }
-              }}
-              style={{
-                ...menuItemStyle,
-                opacity: isLoadingAudio ? 0.5 : 1,
-                cursor: isLoadingAudio ? 'wait' : 'pointer',
-              }}
-              onMouseEnter={handleMenuItemHover}
-              onMouseLeave={handleMenuItemLeave}
-              disabled={isLoadingAudio}
-            >
-              {isLoadingAudio ? <LoadingIcon /> : <VolumeIcon />}
-              <span>{isLoadingAudio ? 'Loading...' : 'Read Aloud'}</span>
-            </button>
-          )}
-
-          {(onSendToChat || onPasteToTerminal || onReadAloud) && <div style={dividerStyle} />}
+          {onSendToChat && <div style={dividerStyle} />}
 
           {/* Edit */}
           <button
@@ -452,25 +403,6 @@ function EditIcon() {
   );
 }
 
-function TerminalIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="4 17 10 11 4 5" />
-      <line x1="12" y1="19" x2="20" y2="19" />
-    </svg>
-  );
-}
-
-function VolumeIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-    </svg>
-  );
-}
-
 function ArchiveIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -481,27 +413,3 @@ function ArchiveIcon() {
   );
 }
 
-function LoadingIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      style={{ animation: 'spin 1s linear infinite' }}
-    >
-      <line x1="12" y1="2" x2="12" y2="6" />
-      <line x1="12" y1="18" x2="12" y2="22" />
-      <line x1="4.93" y1="4.93" x2="7.76" y2="7.76" />
-      <line x1="16.24" y1="16.24" x2="19.07" y2="19.07" />
-      <line x1="2" y1="12" x2="6" y2="12" />
-      <line x1="18" y1="12" x2="22" y2="12" />
-      <line x1="4.93" y1="19.07" x2="7.76" y2="16.24" />
-      <line x1="16.24" y1="7.76" x2="19.07" y2="4.93" />
-    </svg>
-  );
-}
