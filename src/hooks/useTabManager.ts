@@ -204,7 +204,7 @@ export function useTabManager(options: UseTabManagerOptions = {}): UseTabManager
   const unpinTab = useCallback((id: string) => {
     setTabs((prevTabs) =>
       prevTabs.map((tab) =>
-        tab.id === id ? { ...tab, isPinned: false } : tab
+        tab.id === id ? { ...tab, isPinned: false, isPreview: true } : tab
       )
     );
   }, []);

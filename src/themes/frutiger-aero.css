@@ -209,7 +209,7 @@
 /* Paragraphs */
 .theme-frutiger-aero .prose p {
   margin-bottom: 1.25rem;
-  color: var(--text-medium);
+  color: var(--text-dark);
 }
 
 /* Blockquotes - Soft glass card */
@@ -298,7 +298,7 @@
 /* Lists */
 .theme-frutiger-aero .prose ul,
 .theme-frutiger-aero .prose ol {
-  color: var(--text-secondary);
+  color: var(--text-dark);
   padding-left: 1.5rem;
   margin-bottom: 1.25rem;
 }
@@ -363,7 +363,7 @@
 .theme-frutiger-aero .prose td {
   padding: 0.75rem 1rem;
   border-bottom: 1px solid rgba(126, 200, 240, 0.2);
-  color: var(--text-medium);
+  color: var(--text-dark);
 }
 
 .theme-frutiger-aero .prose tr:last-child td {
@@ -401,20 +401,36 @@
    ======================================== */
 
 .theme-frutiger-aero {
-  /* Shiki base colors - dark for glass backgrounds */
+  /* Shiki base colors - dark text for code files (light glass background) */
   --shiki-foreground: #1a3a4a;
-  --shiki-background: rgba(26, 58, 74, 0.95);
+  --shiki-background: rgba(255, 255, 255, 0.85);
 
-  /* Token colors - Darker for contrast on glass/white backgrounds */
+  /* Token colors - Dark for contrast on light code file backgrounds */
   --shiki-token-constant: #0077a8;           /* Deep sky blue for constants */
   --shiki-token-string: #4a8c2a;             /* Forest green for strings */
-  --shiki-token-comment: #5a7a8a;            /* Muted blue-gray for comments */
+  --shiki-token-comment: #7a94a4;            /* Muted blue-gray for comments */
   --shiki-token-keyword: #c87800;            /* Deep orange for keywords */
   --shiki-token-parameter: #2a6a8a;          /* Ocean blue for parameters */
   --shiki-token-function: #0066aa;           /* Deep blue for functions */
   --shiki-token-string-expression: #4a8c2a;  /* Forest green for string expressions */
   --shiki-token-punctuation: #4a6a7a;        /* Dark blue-gray for punctuation */
   --shiki-token-link: #0077a8;               /* Deep sky blue for links */
+}
+
+/* Override Shiki colors inside markdown prose (dark code block backgrounds) */
+.theme-frutiger-aero .prose,
+.theme-frutiger-aero .streamdown-content {
+  --shiki-foreground: #d8eaf3;
+  --shiki-background: rgba(26, 58, 74, 0.95);
+  --shiki-token-constant: #7ec8f0;           /* Sky blue */
+  --shiki-token-string: #a5d66a;             /* Bright grass green */
+  --shiki-token-comment: #6e99a8;            /* Muted blue-gray */
+  --shiki-token-keyword: #ffc866;            /* Sunrise orange */
+  --shiki-token-parameter: #8dd4f0;          /* Light sky blue */
+  --shiki-token-function: #5db8e8;           /* Bright blue */
+  --shiki-token-string-expression: #a5d66a;  /* Bright grass green */
+  --shiki-token-punctuation: #8aa8b8;        /* Light blue-gray */
+  --shiki-token-link: #7ec8f0;              /* Sky blue */
 }
 
 /* Shiki code blocks styling */
@@ -526,7 +542,7 @@
 
 .theme-frutiger-aero .prose dd {
   margin-left: 1.5rem;
-  color: var(--text-medium);
+  color: var(--text-dark);
 }
 
 /* Abbreviations */

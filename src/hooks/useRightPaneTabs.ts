@@ -149,7 +149,7 @@ export function useRightPaneTabs(options: UseRightPaneTabsOptions = {}): UseRigh
   const unpinTab = useCallback((id: string) => {
     setTabs((prevTabs) =>
       prevTabs.map((tab) =>
-        tab.id === id ? { ...tab, isPinned: false } : tab
+        tab.id === id ? { ...tab, isPinned: false, isPreview: true } : tab
       )
     );
   }, []);
