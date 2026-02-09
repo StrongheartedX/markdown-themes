@@ -404,11 +404,77 @@ func mimeTypeFromExt(ext string) string {
 		".wav":  "audio/wav",
 		".ogg":  "audio/ogg",
 		".flac": "audio/flac",
+		// Web content types
+		".html": "text/html",
+		".htm":  "text/html",
+		".css":  "text/css",
+		".js":   "application/javascript",
+		".mjs":  "application/javascript",
+		".json": "application/json",
+		".xml":  "application/xml",
+		".txt":  "text/plain",
+		".woff": "font/woff",
+		".woff2": "font/woff2",
+		".ttf":  "font/ttf",
+		".otf":  "font/otf",
+		".eot":  "application/vnd.ms-fontobject",
 	}
 	if mime, ok := types[strings.ToLower(ext)]; ok {
 		return mime
 	}
 	return "application/octet-stream"
+}
+
+// ServeFile handles GET /api/files/serve/* - serves files with path-based URLs
+// so that relative references (CSS, images, scripts) resolve correctly.
+func ServeFile(w http.ResponseWriter, r *http.Request) {
+	// Extract path from URL: strip "/api/files/serve/" prefix, prepend "/"
+	urlPath := r.URL.Path
+	const prefix = "/api/files/serve/"
+	if !strings.HasPrefix(urlPath, prefix) {
+		http.Error(w, "invalid path", http.StatusBadRequest)
+		return
+	}
+
+	filePath := "/" + strings.TrimPrefix(urlPath, prefix)
+	filePath = filepath.Clean(filePath)
+
+	// Security: reject path traversal attempts
+	if strings.Contains(filePath, "..") {
+		http.Error(w, "invalid path", http.StatusBadRequest)
+		return
+	}
+
+	info, err := os.Stat(filePath)
+	if err != nil {
+		http.Error(w, "file not found", http.StatusNotFound)
+		return
+	}
+
+	if info.IsDir() {
+		// Try index.html in directory
+		indexPath := filepath.Join(filePath, "index.html")
+		if _, err := os.Stat(indexPath); err == nil {
+			filePath = indexPath
+		} else {
+			http.Error(w, "path is a directory", http.StatusBadRequest)
+			return
+		}
+	}
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		http.Error(w, "failed to read file", http.StatusInternalServerError)
+		return
+	}
+
+	ext := filepath.Ext(filePath)
+	mime := mimeTypeFromExt(ext)
+
+	w.Header().Set("Content-Type", mime)
+	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Write(data)
 }
 
 // FileMedia handles GET /api/files/media - serves images, video, audio as base64 data URIs

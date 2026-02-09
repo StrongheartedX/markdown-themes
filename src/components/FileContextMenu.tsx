@@ -15,6 +15,7 @@ interface FileContextMenuProps {
   onArchive?: () => void;
   onResumeInChat?: () => void;
   isConversationFile?: boolean;
+  onOpenInBrowser?: () => void;
   onPin?: () => void;
   onCloseTab?: () => void;
   onCloseOtherTabs?: () => void;
@@ -47,6 +48,7 @@ export function FileContextMenu({
   onArchive,
   onResumeInChat,
   isConversationFile,
+  onOpenInBrowser,
   onPin,
   onCloseTab,
   onCloseOtherTabs,
@@ -275,6 +277,23 @@ export function FileContextMenu({
             <span>Open in Editor</span>
           </button>
 
+          {/* Open in Browser - HTML files only */}
+          {onOpenInBrowser && (
+            <button
+              className="context-menu-item"
+              onClick={() => {
+                onOpenInBrowser();
+                onClose();
+              }}
+              style={menuItemStyle}
+              onMouseEnter={handleMenuItemHover}
+              onMouseLeave={handleMenuItemLeave}
+            >
+              <ExternalLinkIcon />
+              <span>Open in Browser</span>
+            </button>
+          )}
+
           {/* Conversation file actions */}
           {isConversationFile && (onArchive || onResumeInChat) && (
             <>
@@ -495,6 +514,16 @@ function CloseOthersIcon() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="3" width="18" height="18" rx="2" />
       <path d="M15 9l-6 6M9 9l6 6" />
+    </svg>
+  );
+}
+
+function ExternalLinkIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <polyline points="15 3 21 3 21 9" />
+      <line x1="10" y1="14" x2="21" y2="3" />
     </svg>
   );
 }

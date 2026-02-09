@@ -10,6 +10,7 @@ import { ConversationMarkdownViewer } from './viewers/ConversationMarkdownViewer
 import { AudioViewer } from './viewers/AudioViewer';
 import { VideoViewer } from './viewers/VideoViewer';
 import { SvgViewer } from './viewers/SvgViewer';
+import { HtmlViewer } from './viewers/HtmlViewer';
 import { PdfViewer } from './viewers/PdfViewer';
 import { PromptNotebook } from './PromptNotebook';
 import { isPromptyFile } from '../utils/promptyUtils';
@@ -28,7 +29,7 @@ interface ViewerContainerProps {
   scrollContainerRef?: RefObject<HTMLDivElement | null>;
 }
 
-type ViewerType = 'markdown' | 'code' | 'image' | 'csv' | 'json' | 'jsonl' | 'convlog' | 'audio' | 'video' | 'svg' | 'pdf' | 'prompty' | 'binary';
+type ViewerType = 'markdown' | 'code' | 'image' | 'csv' | 'json' | 'jsonl' | 'convlog' | 'audio' | 'video' | 'svg' | 'html' | 'pdf' | 'prompty' | 'binary';
 
 // Extensions for each viewer type
 const markdownExtensions = new Set(['md', 'markdown', 'mdx']);
@@ -40,6 +41,7 @@ const convlogExtensions = new Set(['convlog']);
 const audioExtensions = new Set(['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac', 'wma']);
 const videoExtensions = new Set(['mp4', 'webm', 'mov', 'ogg', 'mkv', 'm4v', 'avi']);
 const svgExtensions = new Set(['svg']);
+const htmlExtensions = new Set(['html', 'htm']);
 const pdfExtensions = new Set(['pdf']);
 
 // Binary file extensions that shouldn't be displayed as text
@@ -151,6 +153,10 @@ function getViewerType(filePath: string, content?: string): ViewerType {
     return 'video';
   }
 
+  if (htmlExtensions.has(ext)) {
+    return 'html';
+  }
+
   if (pdfExtensions.has(ext)) {
     return 'pdf';
   }
@@ -219,6 +225,9 @@ export function ViewerContainer({
 
     case 'svg':
       return <SvgViewer filePath={filePath} content={content} fontSize={fontSize} />;
+
+    case 'html':
+      return <HtmlViewer filePath={filePath} content={content} fontSize={fontSize} isStreaming={isStreaming} />;
 
     case 'pdf':
       return <PdfViewer filePath={filePath} fontSize={fontSize} />;

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -43,10 +44,10 @@ func main() {
 		MaxAge:           300,
 	}))
 
-	// JSON content type for API responses (except WebSocket and SSE endpoints)
+	// JSON content type for API responses (except WebSocket, SSE, and file-serving endpoints)
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path != "/ws" && r.URL.Path != "/api/files/raw" && !(r.URL.Path == "/api/chat" && r.Method == "POST") {
+			if r.URL.Path != "/ws" && r.URL.Path != "/api/files/raw" && !strings.HasPrefix(r.URL.Path, "/api/files/serve/") && !(r.URL.Path == "/api/chat" && r.Method == "POST") {
 				w.Header().Set("Content-Type", "application/json")
 			}
 			next.ServeHTTP(w, r)
@@ -70,6 +71,7 @@ func main() {
 		r.Get("/files/video", handlers.FileMedia)
 		r.Get("/files/audio", handlers.FileMedia)
 		r.Get("/files/raw", handlers.FileRaw)
+		r.Get("/files/serve/*", handlers.ServeFile)
 		r.Post("/files/open", handlers.FileOpen)
 
 		// Claude

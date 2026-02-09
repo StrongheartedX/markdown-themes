@@ -1370,6 +1370,12 @@ export function Sidebar({ fileTree, currentFile, workspacePath, homePath, isSpli
           (contextMenu.filePath.endsWith('.jsonl') || contextMenu.filePath.endsWith('.ndjson')) &&
           contextMenu.filePath.includes('/.claude/projects/')
         }
+        onOpenInBrowser={
+          !contextMenu.isDirectory &&
+          (contextMenu.filePath.endsWith('.html') || contextMenu.filePath.endsWith('.htm'))
+            ? () => window.open(`http://localhost:8130/api/files/serve${contextMenu.filePath}`, '_blank')
+            : undefined
+        }
       />
     </aside>
   );

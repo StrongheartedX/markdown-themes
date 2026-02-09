@@ -1458,6 +1458,11 @@ export function Files() {
         onToggleFavorite={() => toggleFavorite(tabContextMenu.filePath, false)}
         onCopyContent={tabContextMenu.tabType === 'file' ? handleTabContextMenuCopyContent : undefined}
         onSendToChat={tabContextMenu.tabType === 'file' ? handleTabContextMenuSendToChat : undefined}
+        onOpenInBrowser={
+          (tabContextMenu.filePath.endsWith('.html') || tabContextMenu.filePath.endsWith('.htm'))
+            ? () => window.open(`http://localhost:8130/api/files/serve${tabContextMenu.filePath}`, '_blank')
+            : undefined
+        }
         onPin={tabContextMenu.isPreview && !tabContextMenu.isPinned ? handleTabContextMenuPin : undefined}
         onCloseTab={handleTabContextMenuClose}
         onCloseOtherTabs={handleTabContextMenuCloseOthers}
