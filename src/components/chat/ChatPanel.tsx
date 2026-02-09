@@ -13,6 +13,8 @@ interface ChatPanelProps {
   fontSize?: number;
   /** Callback to open the conversation JSONL in the main viewer. Receives the resolved file path, sessionId, and title. */
   onViewConversation?: (path: string, sessionId: string, title: string) => void;
+  /** Close the chat panel */
+  onClose?: () => void;
 }
 
 // --- Context % indicator (disabled) ---
@@ -66,7 +68,7 @@ function isConversationStreaming(conversation: Conversation): boolean {
   return lastMsg?.isStreaming === true;
 }
 
-export function ChatPanel({ currentFile, fontSize = 100, onViewConversation }: ChatPanelProps) {
+export function ChatPanel({ currentFile, fontSize = 100, onViewConversation, onClose }: ChatPanelProps) {
   const {
     conversations,
     activeConversation,
@@ -359,7 +361,7 @@ export function ChatPanel({ currentFile, fontSize = 100, onViewConversation }: C
           className="flex items-center justify-between px-3 py-2 border-b shrink-0"
           style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}
         >
-          <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+          <span className="text-sm font-medium flex-1" style={{ color: 'var(--text-primary)' }}>
             AI Chat
           </span>
           <button
@@ -374,6 +376,16 @@ export function ChatPanel({ currentFile, fontSize = 100, onViewConversation }: C
             <MessageSquarePlus className="w-3.5 h-3.5" />
             New
           </button>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1 rounded hover:opacity-80 transition-opacity"
+              style={{ color: 'var(--text-secondary)' }}
+              title="Close chat panel (Ctrl+Shift+C)"
+            >
+              <X size={16} />
+            </button>
+          )}
         </div>
 
         {/* Tab bar - shown even on list view so user can switch back to open tabs */}
@@ -514,6 +526,18 @@ export function ChatPanel({ currentFile, fontSize = 100, onViewConversation }: C
         >
           <Trash2 size={16} />
         </button>
+
+        {/* Close chat panel */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="p-1 rounded hover:opacity-80 transition-opacity"
+            style={{ color: 'var(--text-secondary)' }}
+            title="Close chat panel (Ctrl+Shift+C)"
+          >
+            <X size={16} />
+          </button>
+        )}
       </div>
 
       {/* Tab bar */}

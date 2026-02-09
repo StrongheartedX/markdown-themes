@@ -60,12 +60,12 @@ src/
 │   └── Files.tsx              # Main markdown viewer with sidebar
 ├── components/
 │   ├── MarkdownViewer.tsx     # Streamdown renderer
-│   ├── Sidebar.tsx            # File tree with search + filters
-│   ├── Toolbar.tsx            # File toolbar (open, copy, send to chat, follow mode)
-│   ├── TabBar.tsx             # Left pane tab bar
+│   ├── Sidebar.tsx            # File tree with search, filters + theme selector
+│   ├── Toolbar.tsx            # File toolbar (open, copy, send to chat)
+│   ├── TabBar.tsx             # Left pane tab bar + actions (follow AI, git graph, working tree, hotkeys, split view)
 │   ├── RightPaneTabBar.tsx    # Right pane tab bar
 │   ├── SplitView.tsx          # Split view container with drag resize
-│   ├── NavHeader.tsx          # Top navigation bar (Home, Files links + theme/project selectors)
+│   ├── ChatBubble.tsx         # Floating AI chat toggle (bottom-right, portal to body)
 │   ├── MetadataBar.tsx        # Frontmatter metadata display bar
 │   ├── ViewerContainer.tsx    # File type detection + viewer dispatch
 │   ├── FileContextMenu.tsx    # Right-click context menu for files
@@ -130,13 +130,15 @@ When rapid file changes are detected (< 1.5s apart):
 - `parseIncompleteMarkdown` for mid-stream rendering
 
 ### Follow AI Edits
-The toolbar has a "Follow AI Edits" button that auto-opens files as Claude writes to them:
+The TabBar has a "Follow AI Edits" toggle (Crosshair icon) that auto-opens files as Claude writes to them:
 
 **How it works:**
 1. `useWorkspaceStreaming` subscribes to `workspace-watch` via WebSocket
 2. Go backend monitors the entire workspace directory with fsnotify
 3. On first file change or rapid changes (streaming), server broadcasts `workspace-file-change`
-4. Client receives the message and auto-opens the file
+4. Client receives the message and auto-opens the file:
+   - **Not split**: opens in the main pane via `openTab()`
+   - **Split**: opens in the right pane via `openRightTab()`
 5. Existing `useFileWatcher` then shows live content updates
 
 **WebSocket messages:**
@@ -289,7 +291,7 @@ Some features require TabzChrome (port 8129) running alongside the Go backend:
 Note: Core file viewing and watching works with just the Go backend.
 
 ### GitGraph
-The Files page toolbar has a git graph button that shows commit history in the right pane:
+The TabBar has a git graph toggle (`Ctrl+G`) that shows commit history. When split, it opens in the right pane; when not split, it replaces the main pane via `mainPaneView` state. Same pattern for Working Tree (`Ctrl+Shift+G`).
 
 - **GitGraph** (`components/git/GitGraph.tsx`) - Renders commit history with canvas rail lines
 - **CommitDetails** (`components/git/CommitDetails.tsx`) - Expandable commit details shown when clicking a row
@@ -337,6 +339,30 @@ The chat panel supports multiple open conversations as tabs:
 - Tab bar shows truncated title, streaming indicator dot, close button on hover
 - Click conversation in list to open as tab; middle-click or close button removes tab
 - Back button returns to conversation list without closing tabs
+
+### Layout (Headerless)
+The app has no top navigation bar — all controls live in context:
+
+```
+┌──────────────────────────────────────────────────────┐
+│ Sidebar          │ TabBar [tabs...] [actions >>>]    │
+│ ┌──────────────┐ │ ┌──────────────────────────────┐  │
+│ │🎨 Project  ▾ │ │ │                              │  │
+│ │ [⊞] [⊟] [▼] │ │ │  Main viewer / Git graph     │  │
+│ │              │ │ │                              │  │
+│ │ file tree... │ │ │                              │  │
+│ └──────────────┘ │ └──────────────────────────────┘  │
+│                  │                         💬 bubble  │
+└──────────────────────────────────────────────────────┘
+```
+
+- **Theme selector**: Sidebar header palette icon → inline dropdown
+- **Follow AI Edits / Split View / Git Graph / Working Tree / Hotkeys**: TabBar action buttons (right-aligned)
+- **AI Chat toggle**: Floating `ChatBubble` (bottom-right, rendered via `createPortal` to `document.body`)
+  - Hidden when chat panel is open (X close button in ChatPanel header instead)
+  - Auto-reveals when AI is generating (pulsing accent ring indicator)
+  - Otherwise appears on mouse proximity
+- **`mainPaneView`** state (`'file' | 'git-graph' | 'working-tree'`): Controls what the main pane shows when not in split view. Git graph and working tree open here instead of forcing split.
 
 ## Keyboard Shortcuts
 

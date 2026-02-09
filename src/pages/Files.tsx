@@ -1409,6 +1409,7 @@ export function Files() {
               <ChatPanel
                 currentFile={currentFile}
                 fontSize={appState.fontSize}
+                onClose={handleChatPanelToggle}
                 onViewConversation={(path, sessionId, title) => {
                   openConversationTab(path, {
                     sessionId,
