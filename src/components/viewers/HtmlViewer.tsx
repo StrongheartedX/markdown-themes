@@ -154,7 +154,7 @@ html { scrollbar-color: ${colors.thumb} ${colors.track}; scrollbar-width: thin; 
           <iframe
             srcDoc={srcdoc}
             title={fileName}
-            sandbox="allow-scripts allow-same-origin"
+            sandbox="allow-scripts"
             className="w-full h-full border-0"
             style={{
               backgroundColor: 'white',
