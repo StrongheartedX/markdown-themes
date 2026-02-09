@@ -3,7 +3,7 @@
  */
 
 import type { LucideIcon } from 'lucide-react';
-import { Bot, FileInput, FileText, Globe, Image, FileCog, GitBranch, MessageSquare } from 'lucide-react';
+import { Bot, FileInput, FileText, Globe, Image, FileCog, GitBranch, MessageSquare, ClipboardList } from 'lucide-react';
 import type { FileTreeNode } from '../context/WorkspaceContext';
 
 /**
@@ -71,7 +71,7 @@ export const CONFIG_PATTERNS = [
   '.env',             // Environment variables
 ];
 
-export type FilterId = 'claude-code' | 'prompts' | 'markdown' | 'html' | 'media' | 'config' | 'changed' | 'conversations';
+export type FilterId = 'claude-code' | 'prompts' | 'markdown' | 'html' | 'media' | 'config' | 'changed' | 'conversations' | 'plans';
 
 /**
  * Scope for merged file tree display
@@ -144,6 +144,17 @@ export const FILTERS: FilterDefinition[] = [
     patterns: ['.jsonl'],
     homePaths: {
       relativePaths: ['.claude/projects'],
+    },
+    sortMode: 'recency',
+    homeOnly: true,
+  },
+  {
+    id: 'plans',
+    name: 'Plans',
+    icon: ClipboardList,
+    patterns: ['.md'],
+    homePaths: {
+      relativePaths: ['.claude/plans'],
     },
     sortMode: 'recency',
     homeOnly: true,

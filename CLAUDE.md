@@ -144,6 +144,8 @@ The toolbar has a "Follow AI Edits" button that auto-opens files as Claude write
 - `{ type: 'workspace-unwatch', path }` - Unsubscribe
 - `{ type: 'workspace-file-change', path, isStreaming }` - File being edited
 
+**Extra watch paths:** The hook also watches `~/.claude/plans/` via `extraWatchPaths`, so new plan files created by Claude trigger Follow AI Edits.
+
 **Ignored directories:** `node_modules`, `.git`, `dist`, `build`, `.next`, etc.
 
 ### Auto-Scroll to Changes

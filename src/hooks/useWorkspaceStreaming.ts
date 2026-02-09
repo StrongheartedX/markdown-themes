@@ -5,6 +5,8 @@ interface UseWorkspaceStreamingOptions {
   workspacePath: string | null;
   enabled: boolean;
   streamingTimeout?: number;
+  /** Additional paths to watch alongside the workspace (e.g., ~/.claude/plans) */
+  extraWatchPaths?: string[];
 }
 
 interface UseWorkspaceStreamingResult {
@@ -40,6 +42,7 @@ export function useWorkspaceStreaming({
   workspacePath,
   enabled,
   streamingTimeout = 3000,
+  extraWatchPaths = [],
 }: UseWorkspaceStreamingOptions): UseWorkspaceStreamingResult {
   const [streamingFile, setStreamingFile] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
@@ -49,6 +52,8 @@ export function useWorkspaceStreaming({
   const streamingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttemptRef = useRef(0);
   const currentPathRef = useRef<string | null>(null);
+  const extraWatchPathsRef = useRef<string[]>(extraWatchPaths);
+  extraWatchPathsRef.current = extraWatchPaths;
   const maxReconnectAttempts = 5;
   const mountedRef = useRef(true);
 
@@ -159,6 +164,10 @@ export function useWorkspaceStreaming({
           if (currentPathRef.current) {
             subscribeTo(ws, currentPathRef.current);
           }
+          // Subscribe to extra watch paths
+          for (const extra of extraWatchPathsRef.current) {
+            subscribeTo(ws, extra);
+          }
         };
 
         ws.onmessage = handleMessage;
@@ -257,6 +266,24 @@ export function useWorkspaceStreaming({
       connect(workspacePath);
     }
   }, [workspacePath, enabled, connect, subscribeTo, unsubscribeFrom]);
+
+  // Manage extra watch path subscriptions
+  useEffect(() => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN || !enabled) return;
+
+    for (const extra of extraWatchPaths) {
+      subscribeTo(ws, extra);
+    }
+
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        for (const extra of extraWatchPaths) {
+          unsubscribeFrom(ws, extra);
+        }
+      }
+    };
+  }, [extraWatchPaths, enabled, subscribeTo, unsubscribeFrom]);
 
   // Cleanup on unmount
   useEffect(() => {

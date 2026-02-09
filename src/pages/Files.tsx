@@ -521,9 +521,12 @@ export function Files() {
   });
 
   // Workspace streaming detection for follow mode and changed files tracking
+  const homePath = getHomePath(workspacePath);
+  const extraWatchPaths = useMemo(() => [`${homePath}/.claude/plans`], [homePath]);
   const { streamingFile, changedFiles, removeChangedFiles } = useWorkspaceStreaming({
     workspacePath,
     enabled: true, // Always enabled to track changed files for the Changed filter
+    extraWatchPaths,
   });
 
   // Subagent watching - auto-open conversation tabs when subagents start
