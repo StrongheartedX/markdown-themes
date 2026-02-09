@@ -105,6 +105,9 @@ func main() {
 		r.Post("/git/repos/{repo}/fetch", handlers.GitRepoFetch)
 		r.Post("/git/repos/{repo}/discard", handlers.GitRepoDiscard)
 		r.Post("/git/repos/{repo}/generate-message", handlers.GitRepoGenerateMessage)
+
+		// Beads
+		r.Get("/beads/issues", handlers.BeadsIssues)
 	})
 
 	// WebSocket

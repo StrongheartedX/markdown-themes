@@ -459,6 +459,44 @@ export async function updateConversation(id: string, conv: StoredConversation): 
 /**
  * Delete a conversation
  */
+// ============================================================
+// Beads Issues API
+// ============================================================
+
+export interface BeadsIssue {
+  id: string;
+  title: string;
+  description?: string;
+  notes?: string;
+  design?: string;
+  status: string;
+  priority: number;
+  issue_type?: string;
+  owner?: string;
+  labels?: string[];
+  dependencies?: BeadsDependency[];
+  created_at?: string;
+  updated_at?: string;
+  closed_at?: string;
+  close_reason?: string;
+}
+
+export interface BeadsDependency {
+  issue_id: string;
+  depends_on_id: string;
+  type: string;
+}
+
+export async function fetchBeadsIssues(workspacePath: string): Promise<BeadsIssue[]> {
+  const params = new URLSearchParams({ path: workspacePath });
+  const response = await fetch(`${API_BASE}/api/beads/issues?${params}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch beads issues: ${response.status}`);
+  }
+  const data = await response.json();
+  return data.issues ?? [];
+}
+
 export async function deleteConversationAPI(id: string): Promise<void> {
   const response = await fetch(`${API_BASE}/api/chat/conversations/${encodeURIComponent(id)}`, {
     method: 'DELETE',

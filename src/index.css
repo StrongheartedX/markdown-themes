@@ -1197,3 +1197,88 @@ body {
 .conversation-viewer .tool-use-block > :not(summary) {
   padding: 0 0.75rem;
 }
+
+/* ============================================================
+   Beads Board
+   ============================================================ */
+.beads-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  padding: 0.75rem;
+  flex: 1;
+  overflow-y: auto;
+  align-content: start;
+}
+
+.beads-column {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-height: 0;
+  max-height: 100%;
+}
+
+.beads-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  width: 100%;
+  text-align: left;
+}
+
+.beads-column-header:hover {
+  background-color: color-mix(in srgb, var(--bg-primary) 50%, var(--bg-secondary));
+}
+
+.beads-column-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.beads-card {
+  position: relative;
+  padding: 0.5rem 0.625rem;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: calc(var(--radius) * 0.75);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.beads-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--border));
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+/* Make copy icon visible on hover */
+.beads-card:hover .opacity-0 {
+  opacity: 1 !important;
+}
+
+.beads-card-label {
+  font-size: 0.625rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 9999px;
+  font-weight: 500;
+  background-color: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+}

@@ -371,11 +371,12 @@ The app has no top navigation bar — all controls live in context:
 |----------|--------|
 | `?` | Show keyboard shortcuts |
 | `/` | Focus sidebar search |
-| `Ctrl+B` | Toggle sidebar |
+| `Ctrl+B` or `Alt+[` | Toggle sidebar |
 | `Ctrl+\` | Toggle split view |
 | `Ctrl+G` | Toggle git graph |
 | `Ctrl+Shift+G` | Toggle working tree |
-| `Ctrl+Shift+C` | Toggle AI chat panel |
+| `Ctrl+Shift+B` | Toggle beads board |
+| `Ctrl+Shift+C` or `Alt+]` | Toggle AI chat panel |
 | `Ctrl+Click` | Open file in right pane (when split) |
 | `Escape` | Clear focus |
 

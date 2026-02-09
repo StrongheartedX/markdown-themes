@@ -19,6 +19,9 @@ import { TabBar } from '../components/TabBar';
 import { RightPaneTabBar } from '../components/RightPaneTabBar';
 import { SplitView } from '../components/SplitView';
 import { GitGraph, WorkingTree, MultiRepoView } from '../components/git';
+import { BeadsBoard } from '../components/beads/BeadsBoard';
+import { BeadsDetail } from '../components/beads/BeadsDetail';
+import type { BeadsIssue } from '../lib/api';
 import { DiffViewer } from '../components/viewers/DiffViewer';
 import { ArchiveModal } from '../components/ArchiveModal';
 import { FileContextMenu } from '../components/FileContextMenu';
@@ -302,7 +305,8 @@ export function Files() {
 
   // Main pane view mode: file viewer, git graph, or working tree
   // When not split, git graph/working tree render in the main pane
-  const [mainPaneView, setMainPaneView] = useState<'file' | 'git-graph' | 'working-tree'>('file');
+  const [mainPaneView, setMainPaneView] = useState<'file' | 'git-graph' | 'working-tree' | 'beads-board' | 'beads-detail'>('file');
+  const [selectedBeadsIssue, setSelectedBeadsIssue] = useState<BeadsIssue | null>(null);
 
   // Track recently closed files to prevent circular auto-reopening (path -> close timestamp)
   const recentlyClosedRef = useRef<Map<string, number>>(new Map());
@@ -369,6 +373,7 @@ export function Files() {
     setRightPaneFile,
     setRightPaneGitGraph,
     setRightPaneWorkingTree,
+    setRightPaneBeadsBoard,
   } = useSplitView({
     initialState: {
       isSplit: filesState.isSplit,
@@ -388,6 +393,8 @@ export function Files() {
         setMainPaneView('git-graph');
       } else if (rightPaneContent?.type === 'working-tree') {
         setMainPaneView('working-tree');
+      } else if (rightPaneContent?.type === 'beads-board') {
+        setMainPaneView('beads-board');
       }
     } else if (!prevIsSplitRef.current && isSplit) {
       // Split just opened - if main had git view, move to right pane
@@ -397,10 +404,13 @@ export function Files() {
       } else if (mainPaneView === 'working-tree') {
         setRightPaneWorkingTree();
         setMainPaneView('file');
+      } else if (mainPaneView === 'beads-board') {
+        setRightPaneBeadsBoard();
+        setMainPaneView('file');
       }
     }
     prevIsSplitRef.current = isSplit;
-  }, [isSplit, rightPaneContent?.type, mainPaneView, setRightPaneGitGraph, setRightPaneWorkingTree]);
+  }, [isSplit, rightPaneContent?.type, mainPaneView, setRightPaneGitGraph, setRightPaneWorkingTree, setRightPaneBeadsBoard]);
 
   // Right pane tabs state with persistence
   const handleRightPaneTabsStateChange = useCallback(
@@ -862,6 +872,25 @@ export function Files() {
     }
   }, [isSplit, rightPaneContent, setRightFile, setRightPaneWorkingTree]);
 
+  // Handle beads board toggle
+  const handleBeadsBoardToggle = useCallback(() => {
+    if (isSplit) {
+      if (rightPaneContent?.type === 'beads-board') {
+        setRightFile(null);
+      } else {
+        setRightPaneBeadsBoard();
+      }
+    } else {
+      setMainPaneView((prev) => prev === 'beads-board' ? 'file' : 'beads-board');
+    }
+  }, [isSplit, rightPaneContent, setRightFile, setRightPaneBeadsBoard]);
+
+  // Handle beads issue selection (show detail in main pane)
+  const handleBeadsIssueSelect = useCallback((issue: BeadsIssue) => {
+    setSelectedBeadsIssue(issue);
+    setMainPaneView('beads-detail');
+  }, []);
+
   // Handle chat panel toggle (now a separate third column)
   const handleChatPanelToggle = useCallback(() => {
     toggleChatPanel();
@@ -980,8 +1009,8 @@ export function Files() {
         return;
       }
 
-      // Ctrl/Cmd + B - Toggle sidebar
-      if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+      // Ctrl/Cmd + B or Alt + [ - Toggle sidebar
+      if (((e.ctrlKey || e.metaKey) && e.key === 'b') || (e.altKey && e.key === '[')) {
         e.preventDefault();
         setSidebarVisible((prev) => !prev);
         return;
@@ -1008,8 +1037,15 @@ export function Files() {
         return;
       }
 
-      // Ctrl/Cmd + Shift + C - Toggle AI chat panel
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'C') {
+      // Ctrl/Cmd + Shift + B - Toggle beads board
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'B') {
+        e.preventDefault();
+        handleBeadsBoardToggle();
+        return;
+      }
+
+      // Ctrl/Cmd + Shift + C or Alt + ] - Toggle AI chat panel
+      if (((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'C') || (e.altKey && e.key === ']')) {
         e.preventDefault();
         handleChatPanelToggle();
         return;
@@ -1033,7 +1069,7 @@ export function Files() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggleSplit, handleGitGraphToggle, handleWorkingTreeToggle, handleChatPanelToggle, handleHotkeysClick]);
+  }, [toggleSplit, handleGitGraphToggle, handleWorkingTreeToggle, handleBeadsBoardToggle, handleChatPanelToggle, handleHotkeysClick]);
 
   return (
     <>
@@ -1102,8 +1138,10 @@ export function Files() {
                 onTabContextMenu={(e, tab) => handleTabContextMenu(e, tab, 'left')}
                 isGitGraph={mainPaneView === 'git-graph' || rightPaneContent?.type === 'git-graph'}
                 isWorkingTree={mainPaneView === 'working-tree' || rightPaneContent?.type === 'working-tree'}
+                isBeadsBoard={mainPaneView === 'beads-board' || rightPaneContent?.type === 'beads-board'}
                 onGitGraphToggle={handleGitGraphToggle}
                 onWorkingTreeToggle={handleWorkingTreeToggle}
+                onBeadsBoardToggle={handleBeadsBoardToggle}
                 onHotkeysClick={handleHotkeysClick}
                 isFollowMode={appState.followStreamingMode}
                 onFollowModeToggle={toggleFollowMode}
@@ -1146,6 +1184,24 @@ export function Files() {
                     }}
                   />
                 )
+              )}
+
+              {/* Beads board in main pane (non-split mode) */}
+              {mainPaneView === 'beads-board' && (
+                <BeadsBoard
+                  workspacePath={workspacePath}
+                  fontSize={appState.fontSize}
+                  onIssueSelect={handleBeadsIssueSelect}
+                />
+              )}
+
+              {/* Beads issue detail in main pane */}
+              {mainPaneView === 'beads-detail' && selectedBeadsIssue && (
+                <BeadsDetail
+                  issue={selectedBeadsIssue}
+                  fontSize={appState.fontSize}
+                  onBack={() => setMainPaneView(isSplit ? 'file' : 'beads-board')}
+                />
               )}
 
               {/* File viewer content (default main pane view) */}
@@ -1344,6 +1400,15 @@ export function Files() {
                     }}
                   />
                 )
+              )}
+
+              {/* Beads board content type */}
+              {rightPaneContent?.type === 'beads-board' && (
+                <BeadsBoard
+                  workspacePath={workspacePath}
+                  fontSize={appState.fontSize}
+                  onIssueSelect={handleBeadsIssueSelect}
+                />
               )}
 
               {/* Diff content type */}

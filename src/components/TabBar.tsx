@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileDiff, Users, GitBranch, GitPullRequestDraft, Keyboard, Crosshair, Columns } from 'lucide-react';
+import { FileDiff, Users, GitBranch, GitPullRequestDraft, Keyboard, Crosshair, Columns, LayoutGrid } from 'lucide-react';
 import type { Tab } from '../hooks/useTabManager';
 import { getFileIconInfo } from '../utils/fileIcons';
 
@@ -17,8 +17,10 @@ interface TabBarProps {
   onTabContextMenu?: (e: React.MouseEvent, tab: Tab) => void;
   isGitGraph?: boolean;
   isWorkingTree?: boolean;
+  isBeadsBoard?: boolean;
   onGitGraphToggle?: () => void;
   onWorkingTreeToggle?: () => void;
+  onBeadsBoardToggle?: () => void;
   onHotkeysClick?: () => void;
   /** Follow AI Edits mode */
   isFollowMode?: boolean;
@@ -164,8 +166,8 @@ function TabItem({ tab, isActive, isStreaming, onSelect, onClose, onPin, onUnpin
   );
 }
 
-export function TabBar({ tabs, activeTabId, onTabSelect, onTabClose, onTabPin, onTabUnpin, pane = 'left', streamingFilePath, onTabContextMenu, isGitGraph, isWorkingTree, onGitGraphToggle, onWorkingTreeToggle, onHotkeysClick, isFollowMode, onFollowModeToggle, activeSubagentCount, isSplit, onSplitToggle }: TabBarProps) {
-  const hasActions = !!(onGitGraphToggle || onWorkingTreeToggle || onHotkeysClick || onFollowModeToggle || onSplitToggle);
+export function TabBar({ tabs, activeTabId, onTabSelect, onTabClose, onTabPin, onTabUnpin, pane = 'left', streamingFilePath, onTabContextMenu, isGitGraph, isWorkingTree, isBeadsBoard, onGitGraphToggle, onWorkingTreeToggle, onBeadsBoardToggle, onHotkeysClick, isFollowMode, onFollowModeToggle, activeSubagentCount, isSplit, onSplitToggle }: TabBarProps) {
+  const hasActions = !!(onGitGraphToggle || onWorkingTreeToggle || onBeadsBoardToggle || onHotkeysClick || onFollowModeToggle || onSplitToggle);
 
   if (tabs.length === 0 && !hasActions) {
     return null;
@@ -287,6 +289,31 @@ export function TabBar({ tabs, activeTabId, onTabSelect, onTabClose, onTabPin, o
               title={isWorkingTree ? 'Close working tree (Ctrl+Shift+G)' : 'Show working tree (Ctrl+Shift+G)'}
             >
               <GitPullRequestDraft size={16} />
+            </button>
+          )}
+          {onBeadsBoardToggle && (
+            <button
+              onClick={onBeadsBoardToggle}
+              className="w-7 h-7 flex items-center justify-center rounded transition-colors"
+              style={{
+                backgroundColor: isBeadsBoard ? 'var(--accent)' : 'transparent',
+                color: isBeadsBoard ? 'var(--bg-primary)' : 'var(--text-secondary)',
+              }}
+              onMouseEnter={(e) => {
+                if (!isBeadsBoard) {
+                  e.currentTarget.style.backgroundColor = 'var(--bg-primary)';
+                  e.currentTarget.style.color = 'var(--text-primary)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isBeadsBoard) {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = 'var(--text-secondary)';
+                }
+              }}
+              title={isBeadsBoard ? 'Close beads board (Ctrl+Shift+B)' : 'Show beads board (Ctrl+Shift+B)'}
+            >
+              <LayoutGrid size={16} />
             </button>
           )}
           {onHotkeysClick && (
