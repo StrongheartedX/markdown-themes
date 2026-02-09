@@ -4,7 +4,7 @@ import { useAppStore } from './hooks/useAppStore';
 import { useMouseSpotlight } from './hooks/useMouseSpotlight';
 import { useWorkspaceContext } from './context/WorkspaceContext';
 import { NavHeader } from './components/NavHeader';
-import { Landing, Files } from './pages';
+import { Files } from './pages';
 import './index.css';
 
 function App() {
@@ -32,7 +32,7 @@ function App() {
         onCloseWorkspace={closeWorkspace}
       />
       <Routes>
-        <Route path="/" element={<Landing />} />
+        <Route path="/" element={<Files />} />
         <Route path="/files" element={<Files />} />
       </Routes>
     </div>

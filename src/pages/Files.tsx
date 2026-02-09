@@ -1124,6 +1124,7 @@ export function Files() {
       <div className="flex-1 flex overflow-hidden">
         {workspacePath && sidebarVisible && (
           <Sidebar
+            key={workspacePath}
             fileTree={fileTree}
             currentFile={currentFile}
             workspacePath={workspacePath}
