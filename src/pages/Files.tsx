@@ -718,24 +718,28 @@ export function Files() {
 
   // Auto-scroll to changes during actual streaming (rapid file changes < 1.5s)
   // Uses block-level diffing for markdown, line-level for code files
+  // Sequential mode walks through ALL changed blocks when Follow AI Edits is active
   useDiffAutoScroll({
     content: isMarkdownFile ? markdownContent : content,
     isStreaming,
     scrollContainerRef: leftScrollContainerRef,
     filePath: currentFile ?? undefined,
     enabled: isStreaming && !isLeftPaneActiveConversation, // Disable auto-scroll for active conversation (handled by viewer)
+    sequential: appState.followStreamingMode,
   });
 
   // Auto-scroll for right pane (used by Follow AI Edits)
   // Only scroll when content is actually changing (rightIsStreaming).
   // Follow mode controls auto-OPENING files, not auto-scrolling.
   // Auto-scroll is driven by actual content changes detected via diffing.
+  // Sequential mode enabled when Follow AI Edits is active for guided tour experience.
   useDiffAutoScroll({
     content: isRightMarkdownFile ? rightMarkdownContent : rightContent,
     isStreaming: rightIsStreaming,
     scrollContainerRef: rightScrollContainerRef,
     filePath: rightPaneFilePath ?? undefined,
     enabled: rightIsStreaming,
+    sequential: appState.followStreamingMode,
   });
 
   // Get recent files for empty state (limit to 6)

@@ -128,6 +128,81 @@ export function findFirstChangedBlock(oldContent: string, newContent: string): D
   };
 }
 
+export interface ChangedBlockInfo {
+  /** Block index (0-based) in the new content */
+  blockIndex: number;
+  /** Whether this block was added (vs modified) */
+  isAddition: boolean;
+}
+
+/**
+ * Find ALL blocks that differ between old and new content.
+ * Returns an array of changed block indices and their types.
+ * Used for sequential scroll mode to walk through all changes.
+ */
+export function findAllChangedBlocks(oldContent: string, newContent: string): ChangedBlockInfo[] {
+  const oldBlocks = splitIntoBlocks(oldContent);
+  const newBlocks = splitIntoBlocks(newContent);
+  const changed: ChangedBlockInfo[] = [];
+
+  // Compare blocks that exist in both
+  const minLength = Math.min(oldBlocks.length, newBlocks.length);
+  for (let i = 0; i < minLength; i++) {
+    if (oldBlocks[i] !== newBlocks[i]) {
+      changed.push({
+        blockIndex: i,
+        isAddition: newBlocks[i].length > oldBlocks[i].length,
+      });
+    }
+  }
+
+  // New blocks added at end
+  for (let i = oldBlocks.length; i < newBlocks.length; i++) {
+    changed.push({
+      blockIndex: i,
+      isAddition: true,
+    });
+  }
+
+  return changed;
+}
+
+export interface ChangedLineInfo {
+  /** Line number (1-based) */
+  line: number;
+  /** Whether this line was added (vs modified) */
+  isAddition: boolean;
+}
+
+/**
+ * Find ALL lines that differ between old and new content.
+ * Returns an array of changed line numbers and their types.
+ * Used for sequential scroll mode in code files.
+ */
+export function findAllChangedLinesList(oldContent: string, newContent: string): ChangedLineInfo[] {
+  const oldNormalized = oldContent.replace(/\r\n/g, '\n');
+  const newNormalized = newContent.replace(/\r\n/g, '\n');
+
+  const oldLines = oldNormalized.split('\n');
+  const newLines = newNormalized.split('\n');
+  const changed: ChangedLineInfo[] = [];
+
+  // Compare lines that exist in both
+  const minLength = Math.min(oldLines.length, newLines.length);
+  for (let i = 0; i < minLength; i++) {
+    if (oldLines[i] !== newLines[i]) {
+      changed.push({ line: i + 1, isAddition: false });
+    }
+  }
+
+  // New lines added at end
+  for (let i = oldLines.length; i < newLines.length; i++) {
+    changed.push({ line: i + 1, isAddition: true });
+  }
+
+  return changed;
+}
+
 /**
  * Calculate scroll position as a percentage of the document.
  * This maps the change location to approximate scroll position.
