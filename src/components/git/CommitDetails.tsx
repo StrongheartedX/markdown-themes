@@ -201,7 +201,7 @@ export function CommitDetails({ hash, repoPath, onFileClick }: CommitDetailsProp
       )}
 
       {/* Files changed */}
-      {data.files.length > 0 && (
+      {data.files?.length > 0 && (
         <div className="mb-3">
           <p className="text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
             Files changed ({data.files.length})

@@ -3,7 +3,7 @@
  */
 
 import type { LucideIcon } from 'lucide-react';
-import { Bot, FileInput, FileText, Image, FileCog, GitBranch, MessageSquare } from 'lucide-react';
+import { Bot, FileInput, FileText, Globe, Image, FileCog, GitBranch, MessageSquare } from 'lucide-react';
 import type { FileTreeNode } from '../context/WorkspaceContext';
 
 /**
@@ -36,6 +36,14 @@ export const MARKDOWN_PATTERNS = [
 ];
 
 /**
+ * Patterns to match HTML files.
+ */
+export const HTML_PATTERNS = [
+  '.html',            // HTML files
+  '.htm',             // HTML files (alt extension)
+];
+
+/**
  * Patterns to match media files (images, video, audio).
  */
 export const MEDIA_PATTERNS = [
@@ -63,7 +71,7 @@ export const CONFIG_PATTERNS = [
   '.env',             // Environment variables
 ];
 
-export type FilterId = 'claude-code' | 'prompts' | 'markdown' | 'media' | 'config' | 'changed' | 'conversations';
+export type FilterId = 'claude-code' | 'prompts' | 'markdown' | 'html' | 'media' | 'config' | 'changed' | 'conversations';
 
 /**
  * Scope for merged file tree display
@@ -131,6 +139,12 @@ export const FILTERS: FilterDefinition[] = [
     name: 'Markdown',
     icon: FileText,
     patterns: MARKDOWN_PATTERNS,
+  },
+  {
+    id: 'html',
+    name: 'HTML',
+    icon: Globe,
+    patterns: HTML_PATTERNS,
   },
   {
     id: 'media',

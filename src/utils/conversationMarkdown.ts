@@ -156,61 +156,51 @@ function parseConversationEntries(content: string, maxLines: number = 0): Conver
 }
 
 /**
- * Format a user message to markdown.
+ * Format a user message as a styled HTML container.
+ * Renders as a distinct block with accent background + person icon via CSS.
  */
 function formatUserMessage(entry: UserMessage): string {
   const content = entry.message.content;
 
+  let text: string;
   if (typeof content === 'string') {
-    return `## User\n\n${content}`;
-  }
-
-  // Handle array content (rare for user messages but possible)
-  const parts: string[] = [];
-  for (const block of content) {
-    if (block.type === 'text') {
-      parts.push(block.text);
+    text = content;
+  } else {
+    const parts: string[] = [];
+    for (const block of content) {
+      if (block.type === 'text') {
+        parts.push(block.text);
+      }
     }
+    text = parts.join('\n\n');
   }
 
-  return `## User\n\n${parts.join('\n\n')}`;
+  // Blank lines around content ensure markdown parser treats it as markdown, not inline HTML
+  return `<div class="user-prompt">\n\n${text}\n\n</div>`;
 }
 
 /**
  * Format an assistant message to markdown.
- * Handles text, thinking, and tool_use blocks.
- * @param entry The assistant message entry
- * @param expandLastThinking If true, expands the last thinking block in this message
+ * No header — assistant text flows as the default content.
+ * Handles text, thinking, tool_use, and tool_result blocks.
  */
-function formatAssistantMessage(entry: AssistantMessage, expandLastThinking = false): string {
+function formatAssistantMessage(entry: AssistantMessage): string {
   const content = entry.message.content;
 
   if (typeof content === 'string') {
-    return `## Assistant\n\n${content}`;
+    return content;
   }
 
-  // Find the index of the last thinking block if we need to expand it
-  let lastThinkingIndex = -1;
-  if (expandLastThinking) {
-    for (let i = content.length - 1; i >= 0; i--) {
-      if (content[i].type === 'thinking') {
-        lastThinkingIndex = i;
-        break;
-      }
-    }
-  }
+  const parts: string[] = [];
 
-  const parts: string[] = ['## Assistant'];
-
-  for (let i = 0; i < content.length; i++) {
-    const block = content[i];
+  for (const block of content) {
     switch (block.type) {
       case 'text':
         parts.push(block.text);
         break;
 
       case 'thinking':
-        parts.push(formatThinkingBlock(block.thinking, i === lastThinkingIndex));
+        parts.push(formatThinkingBlock(block.thinking));
         break;
 
       case 'tool_use':
@@ -228,11 +218,10 @@ function formatAssistantMessage(entry: AssistantMessage, expandLastThinking = fa
 
 /**
  * Format thinking block as collapsible details element.
- * @param thinking The thinking content
- * @param isExpanded Whether to render the details element open (default false)
+ * All thinking blocks start collapsed — IntersectionObserver handles expansion.
  */
-function formatThinkingBlock(thinking: string, isExpanded = false): string {
-  return `<details${isExpanded ? ' open' : ''}>
+function formatThinkingBlock(thinking: string): string {
+  return `<details>
 <summary>Thinking</summary>
 
 ${thinking}
@@ -241,11 +230,18 @@ ${thinking}
 }
 
 /**
- * Format tool_use block with tool name and JSON input.
+ * Format tool_use block as collapsible details element.
  */
 function formatToolUseBlock(name: string, input: unknown): string {
   const inputJson = JSON.stringify(input, null, 2);
-  return `### Tool: ${name}\n\n\`\`\`json\n${inputJson}\n\`\`\``;
+  return `<details class="tool-use-block">
+<summary>Tool: ${name}</summary>
+
+\`\`\`json
+${inputJson}
+\`\`\`
+
+</details>`;
 }
 
 /**
@@ -344,26 +340,21 @@ export function jsonlToMarkdown(content: string, maxEntries: number = 50): strin
 
   const formattedParts: string[] = [];
 
-  // Find the last 3 assistant messages to expand their thinking blocks
-  const expandThinkingSet = new Set<number>();
-  let foundCount = 0;
-  for (let i = entries.length - 1; i >= 0 && foundCount < 3; i--) {
-    if (entries[i].type === 'assistant') {
-      expandThinkingSet.add(i);
-      foundCount++;
-    }
-  }
-
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i];
+
+    // Add separator before user messages (visual section break)
+    if (entry.type === 'user' && i > 0) {
+      formattedParts.push('---');
+    }
+
     switch (entry.type) {
       case 'user':
         formattedParts.push(formatUserMessage(entry as UserMessage));
         break;
 
       case 'assistant':
-        // Expand thinking blocks in the last 3 assistant messages
-        formattedParts.push(formatAssistantMessage(entry as AssistantMessage, expandThinkingSet.has(i)));
+        formattedParts.push(formatAssistantMessage(entry as AssistantMessage));
         break;
 
       case 'summary':
@@ -372,5 +363,5 @@ export function jsonlToMarkdown(content: string, maxEntries: number = 50): strin
     }
   }
 
-  return truncationNote + formattedParts.join('\n\n---\n\n');
+  return truncationNote + formattedParts.join('\n\n');
 }

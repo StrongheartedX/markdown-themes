@@ -5,7 +5,7 @@ import { ChatInput } from './ChatInput';
 import { ChatSettings, getSettingsSummary } from './ChatSettings';
 import { useAIChatContext, type Conversation } from '../../context/AIChatContext';
 import { usePageState } from '../../context/PageStateContext';
-import type { ModelUsage, ChatSettings as ChatSettingsType } from '../../hooks/useAIChat';
+import type { ChatSettings as ChatSettingsType } from '../../hooks/useAIChat';
 
 interface ChatPanelProps {
   /** Current file path for context */
@@ -15,47 +15,50 @@ interface ChatPanelProps {
   onViewConversation?: (path: string, sessionId: string, title: string) => void;
 }
 
-const DEFAULT_CONTEXT_LIMIT = 200_000;
-
-function getContextPercent(conversation: Conversation | null): { percent: number; contextWindow: number } | null {
-  if (!conversation) return null;
-  // Find the latest assistant message with modelUsage data
-  for (let i = conversation.messages.length - 1; i >= 0; i--) {
-    const msg = conversation.messages[i];
-    if (msg.role === 'assistant' && msg.modelUsage) {
-      const mu = msg.modelUsage as ModelUsage;
-      const contextWindow = mu.contextWindow || DEFAULT_CONTEXT_LIMIT;
-      const maxOutput = mu.maxOutputTokens || 0;
-      // Prefer per-call usage from lastCallUsage (accurate single API call)
-      // over modelUsage which sums tokens across all API calls in a turn
-      const lcu = msg.lastCallUsage;
-      const totalInput = lcu
-        ? (lcu.input_tokens || 0)
-          + (lcu.cache_read_input_tokens || 0)
-          + (lcu.cache_creation_input_tokens || 0)
-        : (mu.inputTokens || 0)
-          + (mu.cacheReadInputTokens || 0)
-          + (mu.cacheCreationInputTokens || 0);
-      if (totalInput === 0) continue;
-      // Effective context = full window minus reserved output tokens (matches Claude Code behavior)
-      const effectiveWindow = maxOutput > 0 ? contextWindow - maxOutput : contextWindow;
-      const percent = Math.min(Math.round((totalInput / effectiveWindow) * 100), 100);
-      return { percent, contextWindow };
-    }
-  }
-  return null;
-}
-
-function getContextColor(percent: number): string {
-  if (percent >= 90) return '#ef4444'; // red
-  if (percent >= 70) return '#f97316'; // orange
-  if (percent >= 50) return '#eab308'; // amber
-  return 'var(--text-secondary)';      // default
-}
-
-function getConversationContextPercent(conversation: Conversation): number | null {
-  return getContextPercent(conversation)?.percent ?? null;
-}
+// --- Context % indicator (disabled) ---
+// Disabled because claude -p modelUsage conflates subagent tokens with the
+// primary model's usage, and context compaction (which frees space server-side)
+// isn't reflected in the token counts. This causes the % to jump to 100% early
+// while conversations continue fine. Revisit if Claude CLI exposes per-call
+// context stats in stream-json output (like the interactive statusline does).
+//
+// const DEFAULT_CONTEXT_LIMIT = 200_000;
+//
+// function getContextPercent(conversation: Conversation | null): { percent: number; contextWindow: number } | null {
+//   if (!conversation) return null;
+//   for (let i = conversation.messages.length - 1; i >= 0; i--) {
+//     const msg = conversation.messages[i];
+//     if (msg.role === 'assistant' && msg.modelUsage) {
+//       const mu = msg.modelUsage as ModelUsage;
+//       const contextWindow = mu.contextWindow || DEFAULT_CONTEXT_LIMIT;
+//       const maxOutput = mu.maxOutputTokens || 0;
+//       const lcu = msg.lastCallUsage;
+//       const totalInput = lcu
+//         ? (lcu.input_tokens || 0)
+//           + (lcu.cache_read_input_tokens || 0)
+//           + (lcu.cache_creation_input_tokens || 0)
+//         : (mu.inputTokens || 0)
+//           + (mu.cacheReadInputTokens || 0)
+//           + (mu.cacheCreationInputTokens || 0);
+//       if (totalInput === 0) continue;
+//       const effectiveWindow = maxOutput > 0 ? contextWindow - maxOutput : contextWindow;
+//       const percent = Math.min(Math.round((totalInput / effectiveWindow) * 100), 100);
+//       return { percent, contextWindow };
+//     }
+//   }
+//   return null;
+// }
+//
+// function getContextColor(percent: number): string {
+//   if (percent >= 90) return '#ef4444'; // red
+//   if (percent >= 70) return '#f97316'; // orange
+//   if (percent >= 50) return '#eab308'; // amber
+//   return 'var(--text-secondary)';      // default
+// }
+//
+// function getConversationContextPercent(conversation: Conversation): number | null {
+//   return getContextPercent(conversation)?.percent ?? null;
+// }
 
 /** Check if a conversation is currently streaming */
 function isConversationStreaming(conversation: Conversation): boolean {
@@ -255,7 +258,7 @@ export function ChatPanel({ currentFile, fontSize = 100, onViewConversation }: C
     }
   }, [activeConversationId, updateConversationSettings]);
 
-  const contextInfo = backendLoaded ? getContextPercent(activeConversation) : null;
+  // const contextInfo = backendLoaded ? getContextPercent(activeConversation) : null;
 
   const zoom = fontSize / 100;
 
@@ -446,19 +449,7 @@ export function ChatPanel({ currentFile, fontSize = 100, onViewConversation }: C
           {activeConversation?.title || 'New conversation'}
         </span>
 
-        {/* Context usage display */}
-        {contextInfo !== null && (
-          <span
-            className="text-xs shrink-0 px-1.5 py-0.5 rounded font-mono"
-            style={{
-              color: getContextColor(contextInfo.percent),
-              backgroundColor: 'var(--bg-primary)',
-            }}
-            title={`Context window: ${contextInfo.percent}% of ${(contextInfo.contextWindow / 1000).toFixed(0)}k tokens`}
-          >
-            {contextInfo.percent}%
-          </span>
-        )}
+        {/* Context % disabled — see comment at top of file */}
 
         {isGenerating && reconnectAttempt > 0 ? (
           <span className="flex items-center gap-1.5 text-xs" style={{ color: '#f97316' }}>
@@ -605,7 +596,7 @@ function ConversationRow({
   const messageCount = conversation.messages.length;
   const lastMessage = conversation.messages[messageCount - 1];
   const preview = lastMessage?.content?.slice(0, 80) || 'No messages';
-  const ctxPercent = backendLoaded ? getConversationContextPercent(conversation) : null;
+  // const ctxPercent = backendLoaded ? getConversationContextPercent(conversation) : null;
   const settingsSummary = getSettingsSummary(conversation.settings);
 
   return (
@@ -642,18 +633,8 @@ function ConversationRow({
               {conversation.title}
             </span>
           </span>
-          <span className="flex items-center gap-1.5 shrink-0">
-            {ctxPercent !== null && (
-              <span
-                className="text-[10px] font-mono"
-                style={{ color: getContextColor(ctxPercent) }}
-              >
-                {ctxPercent}%
-              </span>
-            )}
-            <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-              {formatTime(conversation.updatedAt)}
-            </span>
+          <span className="text-xs shrink-0" style={{ color: 'var(--text-secondary)' }}>
+            {formatTime(conversation.updatedAt)}
           </span>
         </div>
         <p

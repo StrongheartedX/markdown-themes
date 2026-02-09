@@ -235,6 +235,34 @@ The app auto-detects file types and renders with appropriate viewers:
 | Audio | `.mp3`, `.wav`, `.ogg` | AudioViewer with waveform |
 | PDF | `.pdf` | PdfViewer (page navigation) |
 
+### Conversation Viewer
+`ConversationMarkdownViewer` renders Claude Code JSONL logs (`~/.claude/projects/`) as a chat-like view:
+
+**Chat-like UX:**
+- User prompts render as styled `<div class="user-prompt">` blocks with accent background, left border, and person icon — acting as visual landmarks in long conversations
+- Assistant content flows directly with no header — since ~99% of content is assistant, headers would just add noise
+- `---` separators appear only before user messages (section breaks between exchanges)
+
+**Tool-use blocks:**
+- Wrapped in `<details class="tool-use-block">` (collapsible) instead of `### Tool:` headings
+- Tool results remain in plain `<details>` with "Tool Result" summary
+- Thinking blocks also use `<details>`, all start collapsed
+
+**Viewport-aware expansion (IntersectionObserver):**
+- Tool-use `<details>` blocks auto-expand when scrolled into view, auto-collapse when scrolled out
+- `rootMargin: "100px"` pre-expands slightly before entering viewport
+- User-toggled blocks are marked with `data-user-toggled` and excluded from auto-collapse
+- Observer re-initializes when markdown content changes; cleans up on unmount
+
+**Streaming performance:**
+- `useThrottledContent` limits re-parsing to once per second during streaming
+- Metadata (message count, badges) is cached during streaming to avoid redundant extraction
+- Initial scroll-to-bottom uses ResizeObserver to handle async rendering (Shiki, Streamdown)
+
+**CSS classes** (scoped under `.conversation-viewer` in `index.css`):
+- `.user-prompt` — accent-tinted background, left border, person icon via CSS mask
+- `.tool-use-block` — bordered collapsible with custom disclosure triangle
+
 ### Page State Persistence
 `PageStateContext` preserves UI state when navigating between pages. State is held in memory only—refreshing the page resets it.
 

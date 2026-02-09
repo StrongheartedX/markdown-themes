@@ -283,6 +283,103 @@ export function ConversationMarkdownViewer({
     };
   }, [markdown]);
 
+  // Restore HTML classes stripped by Streamdown's rehype-sanitize,
+  // then set up viewport-aware expansion via IntersectionObserver.
+  // Uses MutationObserver to catch elements added after initial render
+  // (e.g. when "Load all messages" triggers a large re-render).
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !markdown) return;
+
+    // Track state across processElements calls
+    const observed = new WeakSet<HTMLDetailsElement>();
+    const userToggled = new WeakSet<HTMLDetailsElement>();
+
+    const intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const el = entry.target as HTMLDetailsElement;
+          if (userToggled.has(el)) continue;
+          if (entry.isIntersecting) {
+            el.setAttribute('open', '');
+          } else {
+            el.removeAttribute('open');
+          }
+        }
+      },
+      { rootMargin: '100px' }
+    );
+
+    // Scan for new elements, restore classes, and observe collapsible blocks
+    function processElements() {
+      const prose = container.querySelector('.streamdown-content') || container;
+
+      // --- Restore classes stripped by rehype-sanitize ---
+
+      // Tag <details> by summary text
+      for (const el of prose.querySelectorAll('details')) {
+        const summary = el.querySelector('summary');
+        const text = summary?.textContent;
+        if (text?.startsWith('Tool:') && !el.classList.contains('tool-use-block')) {
+          el.classList.add('tool-use-block');
+        } else if (text === 'Thinking' && !el.classList.contains('thinking-block')) {
+          el.classList.add('thinking-block');
+        }
+      }
+
+      // User prompt blocks: <div> following <hr> separators
+      for (const hr of prose.querySelectorAll(':scope > hr')) {
+        const next = hr.nextElementSibling;
+        if (next?.tagName === 'DIV' && !next.hasAttribute('data-streamdown') && !next.classList.contains('user-prompt')) {
+          next.classList.add('user-prompt');
+        }
+      }
+
+      // First user prompt has no preceding <hr>
+      const firstChild = prose.firstElementChild;
+      if (firstChild?.tagName === 'DIV' && !firstChild.hasAttribute('data-streamdown') && !firstChild.classList.contains('user-prompt')) {
+        firstChild.classList.add('user-prompt');
+      }
+
+      // --- Observe new collapsible blocks ---
+      for (const el of container.querySelectorAll<HTMLDetailsElement>('details.tool-use-block, details.thinking-block')) {
+        if (observed.has(el)) continue;
+        observed.add(el);
+        el.addEventListener('toggle', () => {
+          userToggled.add(el);
+          el.setAttribute('data-user-toggled', '');
+        });
+        intersectionObserver.observe(el);
+      }
+    }
+
+    // Run once after initial render
+    const raf = requestAnimationFrame(processElements);
+
+    // Watch for new content (large re-renders, streaming)
+    let mutationTimer: ReturnType<typeof setTimeout>;
+    const mutationObserver = new MutationObserver(() => {
+      clearTimeout(mutationTimer);
+      mutationTimer = setTimeout(processElements, 100);
+    });
+
+    // Start observing after initial content is placed
+    const observeRaf = requestAnimationFrame(() => {
+      const prose = container.querySelector('.streamdown-content');
+      if (prose) {
+        mutationObserver.observe(prose, { childList: true, subtree: true });
+      }
+    });
+
+    return () => {
+      cancelAnimationFrame(raf);
+      cancelAnimationFrame(observeRaf);
+      clearTimeout(mutationTimer);
+      mutationObserver.disconnect();
+      intersectionObserver.disconnect();
+    };
+  }, [markdown]);
+
   // Handle empty content
   if (!markdown) {
     return (
