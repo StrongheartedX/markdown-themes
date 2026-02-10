@@ -2,7 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import { themes } from './themes';
 import { useAppStore } from './hooks/useAppStore';
 import { useMouseSpotlight } from './hooks/useMouseSpotlight';
-import { Files } from './pages';
+import { Files, VoiceClone } from './pages';
 import './index.css';
 
 function App() {
@@ -23,6 +23,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Files />} />
         <Route path="/files" element={<Files />} />
+        <Route path="/voice-clone" element={<VoiceClone />} />
       </Routes>
     </div>
   );

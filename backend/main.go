@@ -39,7 +39,7 @@ func main() {
 		AllowedOrigins:   []string{"http://localhost:*", "http://127.0.0.1:*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Auth-Token"},
-		ExposedHeaders:   []string{"Link"},
+		ExposedHeaders:   []string{"Link", "X-Output-File"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
@@ -47,7 +47,7 @@ func main() {
 	// JSON content type for API responses (except WebSocket, SSE, and file-serving endpoints)
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path != "/ws" && r.URL.Path != "/api/files/raw" && !strings.HasPrefix(r.URL.Path, "/api/files/serve/") && !(r.URL.Path == "/api/chat" && r.Method == "POST") {
+			if r.URL.Path != "/ws" && r.URL.Path != "/api/files/raw" && !strings.HasPrefix(r.URL.Path, "/api/files/serve/") && !strings.HasPrefix(r.URL.Path, "/api/tts/") && !(r.URL.Path == "/api/chat" && r.Method == "POST") {
 				w.Header().Set("Content-Type", "application/json")
 			}
 			next.ServeHTTP(w, r)
@@ -108,6 +108,9 @@ func main() {
 
 		// Beads
 		r.Get("/beads/issues", handlers.BeadsIssues)
+
+		// TTS (proxy to Python TTS server)
+		r.Handle("/tts/*", http.HandlerFunc(handlers.TTSProxy))
 	})
 
 	// WebSocket
