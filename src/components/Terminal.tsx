@@ -74,6 +74,12 @@ export function Terminal({
   const containerRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+
+  // Keep callback refs fresh without triggering effect re-runs
+  const onResizeRef = useRef(onResize);
+  onResizeRef.current = onResize;
+  const onInputRef = useRef(onInput);
+  onInputRef.current = onInput;
   const isResizingRef = useRef(false);
   const writeQueueRef = useRef<string[]>([]);
   const resizeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -170,7 +176,7 @@ export function Terminal({
     // to wrap when sidebar is narrow, corrupting the terminal display.
     const minRows = Math.max(1, currentRows - 1);
     xtermRef.current.resize(currentCols, minRows);
-    onResize?.(currentCols, minRows);
+    onResizeRef.current?.(currentCols, minRows);
 
     // Step 2: Fit to actual container size after 200ms (tmux processes first SIGWINCH)
     if (resizeTrickTimerRef.current) {
@@ -182,12 +188,12 @@ export function Terminal({
       fitAddonRef.current.fit();
       const finalCols = xtermRef.current.cols;
       const finalRows = xtermRef.current.rows;
-      onResize?.(finalCols, finalRows);
+      onResizeRef.current?.(finalCols, finalRows);
 
       // Update tracking to prevent redundant sends
       prevDimensionsRef.current = { cols: finalCols, rows: finalRows };
     }, 200);
-  }, [onResize]);
+  }, []);
 
   // Initialize xterm
   useEffect(() => {
@@ -239,10 +245,10 @@ export function Terminal({
           .replace(/\x1b\[\?[0-9;]*c/g, '')
           .replace(/\x1b\[>[0-9;]*c/g, '');
         if (filtered.length === 0) return;
-        onInput?.(filtered);
+        onInputRef.current?.(filtered);
         return;
       }
-      onInput?.(data);
+      onInputRef.current?.(data);
     });
 
     // Handle title changes
@@ -304,7 +310,7 @@ export function Terminal({
       // Ctrl+Shift+V — paste
       if (e.ctrlKey && e.shiftKey && e.key === 'V') {
         navigator.clipboard.readText().then((text) => {
-          onInput?.(text);
+          onInputRef.current?.(text);
         });
         return false;
       }
@@ -376,14 +382,14 @@ export function Terminal({
       const timer = setTimeout(() => {
         const result = fit();
         if (result) {
-          onResize?.(result.cols, result.rows);
+          onResizeRef.current?.(result.cols, result.rows);
         }
         setFitPending(false);
         xtermRef.current?.focus();
       }, 50);
       return () => clearTimeout(timer);
     }
-  }, [visible, initialized, fit, onResize]);
+  }, [visible, initialized, fit]);
 
   // Perform the actual resize, checking for output quiet period first.
   // For tmux sessions, this only fits xterm locally — backend resize is handled
@@ -422,7 +428,7 @@ export function Terminal({
       // Container CSS changes (sidebar resize, split view) should only
       // update xterm locally. The resize trick handles backend communication.
       if (!tmuxManaged) {
-        onResize?.(xterm.cols, xterm.rows);
+        onResizeRef.current?.(xterm.cols, xterm.rows);
       }
     } catch {
       // Ignore fit errors during resize
@@ -460,7 +466,7 @@ export function Terminal({
         }
       }
     }, RESIZE_COOLDOWN_MS);
-  }, [onResize, tmuxManaged]);
+  }, [tmuxManaged]);
 
   // ResizeObserver for container dimension changes.
   // For tmux sessions: fits xterm locally, then schedules resize trick after settling.
