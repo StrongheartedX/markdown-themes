@@ -1527,7 +1527,7 @@ export function Files() {
                   tabs={terminalTabs}
                   activeTabId={activeTerminalTabId}
                   workspacePath={workspacePath || ''}
-                  fontSize={appState.fontSize}
+                  fontSize={14}
                   onTabsChange={setTerminalTabs}
                   onActiveTabChange={setActiveTerminalTabId}
                   onClose={handleTerminalToggle}

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import { CanvasAddon } from '@xterm/addon-canvas';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
-import { CanvasAddon } from '@xterm/addon-canvas';
 import '@xterm/xterm/css/xterm.css';
 
 interface TerminalProps {
@@ -25,7 +25,7 @@ function getXtermTheme() {
   const s = getComputedStyle(document.documentElement);
   const v = (name: string) => s.getPropertyValue(name).trim();
   return {
-    background: v('--bg-secondary') || '#1a1a2e',
+    background: 'transparent',
     foreground: v('--text-primary') || '#e0e0e0',
     cursor: v('--accent') || '#64ffda',
     cursorAccent: v('--bg-secondary') || '#1a1a2e',
@@ -97,14 +97,16 @@ export function Terminal({
     if (!container || xtermRef.current) return;
 
     const xterm = new XTerm({
+      cols: 80,
+      rows: 24,
       cursorBlink: true,
       fontSize,
       fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, Monaco, monospace",
       theme: getXtermTheme(),
       allowTransparency: true,
+      allowProposedApi: true,
       scrollback: 10000,
       minimumContrastRatio: 4.5,
-      convertEol: true,
     });
 
     const fitAddon = new FitAddon();
@@ -119,7 +121,7 @@ export function Terminal({
     xterm.open(container);
     xterm.unicode.activeVersion = '11';
 
-    // Load canvas renderer after open()
+    // Load CanvasAddon after open() — needed for allowTransparency
     try {
       xterm.loadAddon(new CanvasAddon());
     } catch {
@@ -139,33 +141,46 @@ export function Terminal({
       onTitleChange?.(title);
     });
 
-    // Multiple fit passes to catch layout shifts
-    const fitPasses = [0, 100, 300];
-    const timers = fitPasses.map((delay) =>
-      setTimeout(() => {
-        try {
-          fitAddon.fit();
-          if (delay === fitPasses[fitPasses.length - 1]) {
-            setInitialized(true);
-            onReady?.({
-              write: safeWrite,
-              fit: () => {
-                try {
-                  fitAddon.fit();
-                  return { cols: xterm.cols, rows: xterm.rows };
-                } catch {
-                  return null;
-                }
-              },
-              focus: () => xterm.focus(),
-              clear: () => xterm.clear(),
-            });
+    // Wait for container to have real dimensions before fitting
+    let initObserver: ResizeObserver | null = null;
+    let initDone = false;
+
+    const tryInitFit = () => {
+      if (initDone) return;
+      const rect = container.getBoundingClientRect();
+      if (rect.width < 50 || rect.height < 50) return; // Not laid out yet
+
+      initDone = true;
+      initObserver?.disconnect();
+
+      try {
+        fitAddon.fit();
+      } catch {
+        // ignore
+      }
+
+      setInitialized(true);
+      onReady?.({
+        write: safeWrite,
+        fit: () => {
+          try {
+            fitAddon.fit();
+            return { cols: xterm.cols, rows: xterm.rows };
+          } catch {
+            return null;
           }
-        } catch {
-          // Container might not have dimensions yet
-        }
-      }, delay)
-    );
+        },
+        focus: () => xterm.focus(),
+        clear: () => xterm.clear(),
+      });
+    };
+
+    // Try immediately, then observe for layout changes
+    tryInitFit();
+    if (!initDone) {
+      initObserver = new ResizeObserver(tryInitFit);
+      initObserver.observe(container);
+    }
 
     // Handle keyboard shortcuts
     xterm.attachCustomKeyEventHandler((e) => {
@@ -193,8 +208,8 @@ export function Terminal({
     });
 
     return () => {
-      timers.forEach(clearTimeout);
-      xterm.dispose();
+      initObserver?.disconnect();
+      try { xterm.dispose(); } catch { /* CanvasAddon dispose race in StrictMode */ }
       xtermRef.current = null;
       fitAddonRef.current = null;
     };
