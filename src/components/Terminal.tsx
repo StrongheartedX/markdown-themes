@@ -78,6 +78,7 @@ export function Terminal({
   const lastOutputTimeRef = useRef(0);
   const resizeDeferCountRef = useRef(0);
   const [initialized, setInitialized] = useState(false);
+  const [fitPending, setFitPending] = useState(false);
 
   // Constants for resize/output coordination
   const OUTPUT_QUIET_PERIOD = 500;    // ms after last output before resize is safe
@@ -238,12 +239,15 @@ export function Terminal({
   // Handle visibility changes — re-fit when becoming visible
   useEffect(() => {
     if (visible && initialized) {
+      // Hide content until fit completes to prevent flash of stale dimensions
+      setFitPending(true);
       // Small delay to let DOM layout update
       const timer = setTimeout(() => {
         const result = fit();
         if (result) {
           onResize?.(result.cols, result.rows);
         }
+        setFitPending(false);
         xtermRef.current?.focus();
       }, 50);
       return () => clearTimeout(timer);
@@ -373,6 +377,7 @@ export function Terminal({
         width: '100%',
         height: '100%',
         display: visible ? 'block' : 'none',
+        visibility: fitPending ? 'hidden' : 'visible',
       }}
     />
   );
