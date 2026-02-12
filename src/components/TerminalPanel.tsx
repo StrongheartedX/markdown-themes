@@ -64,12 +64,25 @@ export function TerminalPanel({
   // Track tabs that need reconnection after WS reconnect
   const pendingReconnectsRef = useRef<Set<string>>(new Set());
 
+  // Track staggered reconnection timers so we can clean up on unmount
+  const reconnectTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
   // Track whether we've connected at least once (to distinguish initial connect vs reconnect)
   const hasConnectedRef = useRef(false);
 
   // Ref to current tabs for use in onConnected callback
   const tabsRef = useRef(tabs);
   useEffect(() => { tabsRef.current = tabs; }, [tabs]);
+
+  // Clean up staggered reconnection timers on unmount
+  useEffect(() => {
+    return () => {
+      for (const timer of reconnectTimersRef.current) {
+        clearTimeout(timer);
+      }
+      reconnectTimersRef.current.clear();
+    };
+  }, []);
 
   // Ref to the reconnect function -- populated after useTerminal returns.
   // This breaks the circular dependency where onConnected needs reconnect
@@ -87,12 +100,12 @@ export function TerminalPanel({
       spawnedRef.current.add(info.terminalId);
       pendingReconnectsRef.current.delete(info.terminalId);
 
-      // Store the tmux session name on the tab
-      if (info.tmuxSession) {
-        onTabsChange(prev => prev.map(t =>
-          t.id === info.terminalId ? { ...t, tmuxSession: info.tmuxSession } : t
-        ));
-      }
+      // Store the tmux session name on the tab and clear reconnecting state
+      onTabsChange(prev => prev.map(t =>
+        t.id === info.terminalId
+          ? { ...t, ...(info.tmuxSession ? { tmuxSession: info.tmuxSession } : {}), reconnecting: false }
+          : t
+      ));
     }, [onTabsChange]),
     onClosed: useCallback((terminalId: string) => {
       spawnedRef.current.delete(terminalId);
@@ -122,6 +135,11 @@ export function TerminalPanel({
           );
           return remaining;
         });
+      } else {
+        // Clear reconnecting flag on other errors too
+        onTabsChange(prev => prev.map(t =>
+          t.id === terminalId ? { ...t, reconnecting: false } : t
+        ));
       }
     }, [onTabsChange, onActiveTabChange]),
     onConnected: useCallback(() => {
@@ -130,10 +148,26 @@ export function TerminalPanel({
         return;
       }
       // WebSocket reconnected -- reconnect all tabs that have tmux sessions
+      // Stagger reconnections by 150ms to avoid tmux race conditions
       const currentTabs = tabsRef.current;
-      for (const tab of currentTabs) {
-        // Only reconnect tabs that had been spawned (have tmux sessions)
-        if (spawnedRef.current.has(tab.id) || tab.tmuxSession) {
+      const tabsToReconnect = currentTabs.filter(tab =>
+        spawnedRef.current.has(tab.id) || tab.tmuxSession
+      );
+
+      // Sort by id for stable ordering across reconnects
+      tabsToReconnect.sort((a, b) => a.id.localeCompare(b.id));
+
+      // Mark all reconnecting tabs immediately for visual feedback
+      if (tabsToReconnect.length > 0) {
+        const reconnectIds = new Set(tabsToReconnect.map(t => t.id));
+        onTabsChange(prev => prev.map(t =>
+          reconnectIds.has(t.id) ? { ...t, reconnecting: true } : t
+        ));
+      }
+
+      tabsToReconnect.forEach((tab, index) => {
+        const timer = setTimeout(() => {
+          reconnectTimersRef.current.delete(timer);
           const helpers = terminalWritersRef.current.get(tab.id);
           if (helpers) {
             const dims = helpers.fit();
@@ -142,9 +176,10 @@ export function TerminalPanel({
             pendingReconnectsRef.current.add(tab.id);
             reconnectRef.current(tab.id, cols, rows);
           }
-        }
-      }
-    }, []),
+        }, index * 150);
+        reconnectTimersRef.current.add(timer);
+      });
+    }, [onTabsChange]),
   });
 
   // Keep reconnectRef pointing to the latest reconnect function
@@ -272,8 +307,16 @@ export function TerminalPanel({
               }}
               onClick={() => onActiveTabChange(tab.id)}
             >
-              <TerminalIcon size={12} className="flex-shrink-0" />
-              <span className="truncate">{tab.title}</span>
+              {tab.reconnecting ? (
+                <span
+                  className="flex-shrink-0 w-3 h-3 rounded-full animate-pulse"
+                  style={{ backgroundColor: 'var(--accent, #f59e0b)', opacity: 0.8 }}
+                  title="Reconnecting..."
+                />
+              ) : (
+                <TerminalIcon size={12} className="flex-shrink-0" />
+              )}
+              <span className="truncate">{tab.reconnecting ? 'Reconnecting...' : tab.title}</span>
               <button
                 className="w-4 h-4 flex items-center justify-center rounded flex-shrink-0 opacity-0 hover:opacity-100 group-hover:opacity-60"
                 style={{ color: 'rgba(255, 255, 255, 0.6)' }}

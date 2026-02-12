@@ -9,6 +9,8 @@ export interface TerminalTab {
   profileName?: string;
   /** The tmux session name backing this terminal (same as id for mt-* terminals) */
   tmuxSession?: string;
+  /** True while waiting for a staggered reconnection to fire or complete */
+  reconnecting?: boolean;
 }
 
 interface UseTerminalOptions {
