@@ -1529,7 +1529,7 @@ export function Files() {
 
         {/* Terminal panel — always mounted to preserve xterm instances, hidden via CSS */}
         <div
-          className="h-full flex flex-col overflow-hidden"
+          className="h-full flex flex-col"
           style={{
             width: `${thirdColumnWidth}px`,
             flexShrink: 0,
