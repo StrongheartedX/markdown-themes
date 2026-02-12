@@ -11,12 +11,19 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 
+	"markdown-themes-backend/auth"
 	"markdown-themes-backend/db"
 	"markdown-themes-backend/handlers"
 	"markdown-themes-backend/websocket"
 )
 
 func main() {
+	// Generate per-startup auth token
+	if err := auth.Init(); err != nil {
+		log.Fatalf("Failed to initialize auth token: %v", err)
+	}
+	defer auth.Cleanup()
+
 	// Initialize SQLite database
 	if _, err := db.Init(); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)

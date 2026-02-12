@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"markdown-themes-backend/auth"
 	"markdown-themes-backend/handlers"
 )
 
@@ -155,9 +156,9 @@ type IncomingMessage struct {
 
 // HandleWebSocket upgrades HTTP connection to WebSocket
 func (h *Hub) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
-	// Check token (simple validation)
+	// Validate auth token (generated per startup)
 	token := r.URL.Query().Get("token")
-	if token != "markdown-themes-local-token" {
+	if !auth.Validate(token) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}

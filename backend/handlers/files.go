@@ -13,15 +13,15 @@ import (
 	"strings"
 	"time"
 
+	"markdown-themes-backend/auth"
 	"markdown-themes-backend/models"
 	"markdown-themes-backend/utils"
 )
 
 // AuthToken handles GET /api/auth/token
 func AuthToken(w http.ResponseWriter, r *http.Request) {
-	// Simple static token for local development
 	json.NewEncoder(w).Encode(map[string]string{
-		"token": "markdown-themes-local-token",
+		"token": auth.Token(),
 	})
 }
 
