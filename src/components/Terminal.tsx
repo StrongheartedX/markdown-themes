@@ -83,6 +83,16 @@ export function Terminal({
   const [initialized, setInitialized] = useState(false);
   const [fitPending, setFitPending] = useState(false);
 
+  // Input guard: filter device query responses during first 1000ms
+  // xterm.js sends DA1/DA2 queries on init; their responses leak into the PTY
+  const isInitializingRef = useRef(true);
+
+  // Output guard: buffer all output during first 1000ms, flush at once
+  // Prevents partial escape sequences from corrupting display on reconnect
+  const isOutputGuardedRef = useRef(true);
+  const outputGuardBufferRef = useRef<string[]>([]);
+  const outputGuardBytesRef = useRef<Uint8Array[]>([]);
+
   // Constants for resize/output coordination
   const OUTPUT_QUIET_PERIOD = 500;    // ms after last output before resize is safe
   const MAX_RESIZE_DEFERRALS = 10;    // max retry attempts before aborting resize
@@ -93,6 +103,17 @@ export function Terminal({
   const writeQueueBytesRef = useRef<Uint8Array[]>([]);
   const safeWrite = useCallback((data: string | Uint8Array) => {
     lastOutputTimeRef.current = Date.now();
+
+    // Output guard: buffer everything during first 1000ms
+    if (isOutputGuardedRef.current) {
+      if (data instanceof Uint8Array) {
+        outputGuardBytesRef.current.push(data);
+      } else {
+        outputGuardBufferRef.current.push(data);
+      }
+      return;
+    }
+
     if (isResizingRef.current) {
       if (data instanceof Uint8Array) {
         writeQueueBytesRef.current.push(data);
@@ -157,8 +178,20 @@ export function Terminal({
     xtermRef.current = xterm;
     fitAddonRef.current = fitAddon;
 
-    // Handle input
+    // Handle input — filter device query responses during init period
     xterm.onData((data) => {
+      if (isInitializingRef.current) {
+        // DA1 response: ESC [ ? Ps c (Primary Device Attributes)
+        // DA2 response: ESC [ > Ps c (Secondary Device Attributes)
+        // Filter these out — xterm sends queries on init and responses
+        // leak into the PTY, appearing as garbled text in the shell
+        const filtered = data
+          .replace(/\x1b\[\?[0-9;]*c/g, '')
+          .replace(/\x1b\[>[0-9;]*c/g, '');
+        if (filtered.length === 0) return;
+        onInput?.(filtered);
+        return;
+      }
       onInput?.(data);
     });
 
@@ -233,7 +266,40 @@ export function Terminal({
       return true;
     });
 
+    // Input guard: clear after 1000ms — device query responses only arrive during init
+    const inputGuardTimer = setTimeout(() => {
+      isInitializingRef.current = false;
+    }, 1000);
+
+    // Output guard: buffer output for 1000ms, then flush all at once
+    // Prevents partial escape sequences from corrupting display when
+    // connecting mid-stream (e.g., page refresh during active output)
+    const outputGuardTimer = setTimeout(() => {
+      isOutputGuardedRef.current = false;
+
+      // Flush buffered string output
+      const bufferedStrings = outputGuardBufferRef.current;
+      const bufferedBytes = outputGuardBytesRef.current;
+      outputGuardBufferRef.current = [];
+      outputGuardBytesRef.current = [];
+
+      if (bufferedStrings.length > 0 || bufferedBytes.length > 0) {
+        const xt = xtermRef.current;
+        if (xt) {
+          const joined = bufferedStrings.join('');
+          if (joined.length > 0) {
+            xt.write(joined);
+          }
+          for (const chunk of bufferedBytes) {
+            xt.write(chunk);
+          }
+        }
+      }
+    }, 1000);
+
     return () => {
+      clearTimeout(inputGuardTimer);
+      clearTimeout(outputGuardTimer);
       initObserver?.disconnect();
       try { xterm.dispose(); } catch { /* dispose race in StrictMode */ }
       xtermRef.current = null;
