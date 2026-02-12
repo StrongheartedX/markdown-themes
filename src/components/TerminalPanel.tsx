@@ -22,8 +22,19 @@ interface TerminalPanelProps {
   onClose: () => void;
 }
 
-function generateTerminalId(): string {
-  return `mt-${Date.now().toString(36)}`;
+function sanitizeProfileName(name: string): string {
+  const sanitized = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 20);
+  return sanitized || 'bash';
+}
+
+function generateTerminalId(profileName?: string): string {
+  const name = sanitizeProfileName(profileName || 'bash');
+  const hex = Math.random().toString(16).slice(2, 10).padEnd(8, '0');
+  return `mt-${name}-${hex}`;
 }
 
 export function TerminalPanel({
@@ -100,7 +111,7 @@ export function TerminalPanel({
   }, [showProfileMenu]);
 
   const spawnTerminal = useCallback((profile?: TerminalProfile) => {
-    const id = generateTerminalId();
+    const id = generateTerminalId(profile?.name);
     const cwd = (profile?.cwd || '{{workspace}}').replace('{{workspace}}', workspacePath);
     const command = profile?.command;
 
