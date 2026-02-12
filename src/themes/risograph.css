@@ -33,6 +33,7 @@
   --text-secondary: #3D3D5C;
   --text-muted: #6B6B8A;
   --accent: var(--riso-pink);
+  --terminal-bg: linear-gradient(145deg, #1a1018 0%, #2a1828 40%, #140a12 100%);
   --accent-hover: var(--riso-pink-light);
   --accent-secondary: var(--riso-teal);
   --border: var(--riso-black);

@@ -19,6 +19,7 @@
   --text-primary: var(--cream);
   --text-secondary: rgba(245, 240, 225, 0.7);
   --accent: var(--gold);
+  --terminal-bg: linear-gradient(145deg, #0d0d0d 0%, #141008 40%, #0a0a0a 100%);
   --accent-hover: var(--gold-light);
   --border: rgba(212, 175, 55, 0.3);
 

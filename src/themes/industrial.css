@@ -41,6 +41,7 @@
   --text-secondary: var(--brushed-steel);
   --text-muted: var(--steel-light);
   --accent: var(--hazard-yellow);
+  --terminal-bg: linear-gradient(145deg, #0d0f10 0%, #1a1d1f 40%, #111314 100%);
   --accent-hover: #FFD333;
   --accent-secondary: var(--rust-mid);
   --border: var(--steel-mid);

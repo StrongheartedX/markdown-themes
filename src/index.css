@@ -25,6 +25,9 @@ body.resizing iframe {
   --font-mono: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
   --radius: 0.5rem;
 
+  /* Terminal panel background — dark gradient for default (light) theme */
+  --terminal-bg: linear-gradient(145deg, #1e1b4b 0%, #1a1a2e 40%, #0f172a 100%);
+
   /* Status colors for git badges */
   --status-clean: #34d399;
   --status-changes: #fbbf24;
@@ -142,13 +145,24 @@ body {
 
 /* Terminal panel styles */
 .terminal-container {
-  background: var(--bg-secondary);
+  background: transparent;
 }
 
 /* Critical: xterm element must fill container for FitAddon to measure correctly */
 .terminal-container .xterm {
   height: 100%;
   padding: 4px 8px;
+}
+
+/* Override xterm's default opaque backgrounds so theme gradients show through.
+   xterm.css sets background-color: #000 on .xterm-viewport, and xterm.js sets
+   inline backgroundColor on the scrollable-element wrapper. Force all layers
+   transparent so --terminal-bg gradient is visible. */
+.terminal-container .xterm .xterm-viewport,
+.terminal-container .xterm .xterm-screen,
+.terminal-container .xterm > div {
+  background-color: transparent !important;
+  background: transparent !important;
 }
 
 .terminal-container .xterm-viewport::-webkit-scrollbar {

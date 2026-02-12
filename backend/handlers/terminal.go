@@ -118,10 +118,31 @@ func (tm *TerminalManager) SpawnSession(id, cwd string, cols, rows uint16, comma
 		cmd = exec.Command(shell, "-l")
 	}
 	cmd.Dir = cwd
+	// Ensure UTF-8 locale is set (needed for Bubbletea/lipgloss/ncurses TUI apps)
+	lang := os.Getenv("LANG")
+	if lang == "" {
+		lang = "en_US.UTF-8"
+	}
+	lcAll := os.Getenv("LC_ALL")
+	if lcAll == "" {
+		lcAll = "en_US.UTF-8"
+	}
+
 	cmd.Env = append(os.Environ(),
 		"TERM=xterm-256color",
 		fmt.Sprintf("COLUMNS=%d", cols),
 		fmt.Sprintf("LINES=%d", rows),
+		// UTF-8 locale for proper box-drawing and emoji rendering
+		fmt.Sprintf("LANG=%s", lang),
+		fmt.Sprintf("LC_ALL=%s", lcAll),
+		// Truecolor support detection for lipgloss/charm/termenv
+		"COLORTERM=truecolor",
+		// Tell lipgloss/charm about dark background (15=white fg, 0=black bg)
+		"COLORFGBG=15;0",
+		// Force ncurses to use UTF-8 box-drawing instead of ACS fallback
+		"NCURSES_NO_UTF8_ACS=1",
+		// Force color output in Node.js apps (chalk, etc.)
+		"FORCE_COLOR=1",
 	)
 
 	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{

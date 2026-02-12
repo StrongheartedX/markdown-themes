@@ -28,6 +28,10 @@
   --text-primary: rgba(240, 240, 255, 0.95);
   --text-secondary: rgba(200, 195, 220, 0.8);
   --accent: var(--cosmic-pink);
+  --terminal-bg:
+    radial-gradient(ellipse at 20% 80%, rgba(224, 86, 160, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(64, 224, 208, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, #0a0612 0%, #030108 70%);
   --accent-hover: var(--aurora-teal);
   --border: rgba(224, 86, 160, 0.15);
 

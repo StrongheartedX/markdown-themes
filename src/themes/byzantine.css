@@ -43,6 +43,7 @@
   --text-secondary: rgba(245, 240, 225, 0.75);
   --text-muted: rgba(245, 240, 225, 0.5);
   --accent: var(--gold);
+  --terminal-bg: linear-gradient(145deg, #120820 0%, #1a0a2e 40%, #0f0618 100%);
   --accent-hover: var(--gold-light);
   --accent-secondary: var(--imperial-purple);
   --border: rgba(212, 160, 18, 0.4);

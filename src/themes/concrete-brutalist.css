@@ -35,6 +35,7 @@
   --text-secondary: var(--concrete-light);
   --text-muted: var(--concrete-base);
   --accent: var(--safety-yellow);
+  --terminal-bg: linear-gradient(145deg, #1a1a18 0%, #252523 40%, #141412 100%);
   --accent-hover: #FFB81C;
   --accent-secondary: var(--safety-orange);
   --border: var(--concrete-mid);

@@ -38,6 +38,7 @@
   --text-secondary: var(--phosphor-dim);
   --text-muted: var(--phosphor-faded);
   --accent: var(--phosphor-bright);
+  --terminal-bg: radial-gradient(ellipse at 50% 50%, #001a00 0%, #000a00 70%, #000000 100%);
   --accent-hover: var(--phosphor-mid);
   --accent-secondary: var(--amber-bright);
   --border: var(--phosphor-dark);

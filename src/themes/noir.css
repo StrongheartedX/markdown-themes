@@ -36,6 +36,7 @@
   --text-secondary: var(--noir-silver);
   --text-muted: var(--noir-pale);
   --accent: var(--cigarette-glow);
+  --terminal-bg: linear-gradient(145deg, #0a0a0a 0%, #0f0f0f 40%, #080808 100%);
   --accent-hover: var(--cigarette-ember);
   --border: var(--noir-gray);
   --border-subtle: var(--noir-shadow);

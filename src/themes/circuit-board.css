@@ -41,6 +41,7 @@
   --text-secondary: var(--silkscreen-dim);
   --text-muted: var(--silkscreen-faint);
   --accent: var(--copper);
+  --terminal-bg: linear-gradient(145deg, #061a06 0%, #0a3d0a 40%, #082008 100%);
   --accent-hover: var(--copper-light);
   --accent-secondary: var(--gold);
   --border: var(--copper-dark);

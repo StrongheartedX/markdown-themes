@@ -1,7 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { CanvasAddon } from '@xterm/addon-canvas';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import '@xterm/xterm/css/xterm.css';
@@ -11,7 +10,7 @@ interface TerminalProps {
   visible: boolean;
   onTitleChange?: (title: string) => void;
   onReady?: (helpers: {
-    write: (data: string) => void;
+    write: (data: string | Uint8Array) => void;
     fit: () => { cols: number; rows: number } | null;
     focus: () => void;
     clear: () => void;
@@ -19,6 +18,15 @@ interface TerminalProps {
   onInput?: (data: string) => void;
   onResize?: (cols: number, rows: number) => void;
   fontSize?: number;
+}
+
+/** Force all xterm internal elements transparent so --terminal-bg gradient shows through.
+ *  xterm.js sets inline backgroundColor on its scrollable-element wrapper,
+ *  and xterm.css sets background-color: #000 on .xterm-viewport. */
+function forceXtermTransparent(container: HTMLElement) {
+  container.querySelectorAll<HTMLElement>('.xterm > div, .xterm-viewport, .xterm-screen').forEach((el) => {
+    el.style.setProperty('background-color', 'transparent', 'important');
+  });
 }
 
 function getXtermTheme() {
@@ -68,10 +76,15 @@ export function Terminal({
   const resizeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [initialized, setInitialized] = useState(false);
 
-  // Safe write that buffers during resize
-  const safeWrite = useCallback((data: string) => {
+  // Safe write that buffers during resize — accepts Uint8Array for proper UTF-8
+  const writeQueueBytesRef = useRef<Uint8Array[]>([]);
+  const safeWrite = useCallback((data: string | Uint8Array) => {
     if (isResizingRef.current) {
-      writeQueueRef.current.push(data);
+      if (data instanceof Uint8Array) {
+        writeQueueBytesRef.current.push(data);
+      } else {
+        writeQueueRef.current.push(data);
+      }
     } else if (xtermRef.current) {
       xtermRef.current.write(data);
     }
@@ -121,12 +134,9 @@ export function Terminal({
     xterm.open(container);
     xterm.unicode.activeVersion = '11';
 
-    // Load CanvasAddon after open() — needed for allowTransparency
-    try {
-      xterm.loadAddon(new CanvasAddon());
-    } catch {
-      // Falls back to DOM renderer
-    }
+    // DOM renderer is used (no CanvasAddon) for transparency support.
+    // Force xterm's internal elements transparent after it creates its DOM.
+    forceXtermTransparent(container);
 
     xtermRef.current = xterm;
     fitAddonRef.current = fitAddon;
@@ -209,7 +219,7 @@ export function Terminal({
 
     return () => {
       initObserver?.disconnect();
-      try { xterm.dispose(); } catch { /* CanvasAddon dispose race in StrictMode */ }
+      try { xterm.dispose(); } catch { /* dispose race in StrictMode */ }
       xtermRef.current = null;
       fitAddonRef.current = null;
     };
@@ -252,10 +262,15 @@ export function Terminal({
         }
         isResizingRef.current = false;
 
-        // Flush write queue
+        // Flush write queues (string + binary)
         const queue = writeQueueRef.current;
         writeQueueRef.current = [];
         for (const data of queue) {
+          xtermRef.current?.write(data);
+        }
+        const bytesQueue = writeQueueBytesRef.current;
+        writeQueueBytesRef.current = [];
+        for (const data of bytesQueue) {
           xtermRef.current?.write(data);
         }
       }, 100);
@@ -276,6 +291,10 @@ export function Terminal({
     const observer = new MutationObserver(() => {
       if (xtermRef.current) {
         xtermRef.current.options.theme = getXtermTheme();
+        // Re-force transparency after xterm re-applies the theme background
+        if (containerRef.current) {
+          requestAnimationFrame(() => forceXtermTransparent(containerRef.current!));
+        }
       }
     });
     observer.observe(html, { attributes: true, attributeFilter: ['class'] });

@@ -31,6 +31,7 @@
 
   /* ACCENT & BORDERS */
   --accent: var(--neon-cyan);
+  --terminal-bg: linear-gradient(145deg, #0a0a0f 0%, #0f0a1a 40%, #0a0f14 100%);
   --accent-hover: var(--neon-pink);
   --border: rgba(5, 217, 232, 0.2);
   --border-glow: rgba(5, 217, 232, 0.4);

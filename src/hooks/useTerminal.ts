@@ -9,7 +9,7 @@ export interface TerminalTab {
 }
 
 interface UseTerminalOptions {
-  onOutput?: (terminalId: string, data: string) => void;
+  onOutput?: (terminalId: string, data: string | Uint8Array) => void;
   onSpawned?: (info: { terminalId: string; cwd: string; cols: number; rows: number }) => void;
   onClosed?: (terminalId: string) => void;
   onError?: (terminalId: string, error: string) => void;
@@ -50,8 +50,15 @@ export function useTerminal({ onOutput, onSpawned, onClosed, onError }: UseTermi
             switch (msg.type) {
               case 'terminal-output':
                 if (msg.terminalId && callbacksRef.current.onOutput) {
-                  const decoded = atob(msg.data);
-                  callbacksRef.current.onOutput(msg.terminalId, decoded);
+                  // Decode base64 → Uint8Array (raw bytes) instead of atob() which
+                  // produces Latin-1 strings that corrupt multi-byte UTF-8 sequences
+                  // (box-drawing characters, emojis, CJK, etc.)
+                  const binaryStr = atob(msg.data);
+                  const bytes = new Uint8Array(binaryStr.length);
+                  for (let i = 0; i < binaryStr.length; i++) {
+                    bytes[i] = binaryStr.charCodeAt(i);
+                  }
+                  callbacksRef.current.onOutput(msg.terminalId, bytes);
                 }
                 break;
               case 'terminal-spawned':
