@@ -98,6 +98,14 @@ export function Terminal({
   const MAX_RESIZE_DEFERRALS = 10;    // max retry attempts before aborting resize
   const RESIZE_DEBOUNCE_MS = 150;     // ResizeObserver debounce
   const RESIZE_COOLDOWN_MS = 80;      // keep isResizing=true after fit() completes
+  const RESIZE_TRICK_DEBOUNCE_MS = 500; // debounce between resize tricks to prevent redraw storms
+
+  // Resize trick state (tmux two-step SIGWINCH pattern)
+  const lastResizeTrickTimeRef = useRef(0);
+  const prevDimensionsRef = useRef<{ cols: number; rows: number }>({ cols: 0, rows: 0 });
+  const resizeTrickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const postResizeCleanupRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const preResizeDimsRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
 
   // Safe write that buffers during resize — accepts Uint8Array for proper UTF-8
   const writeQueueBytesRef = useRef<Uint8Array[]>([]);
@@ -138,6 +146,48 @@ export function Terminal({
       return null;
     }
   }, []);
+
+  // Two-step resize trick for tmux: shrink by 1 row (SIGWINCH), wait 200ms,
+  // then fit to actual size (second SIGWINCH). This forces tmux to fully redraw
+  // because tmux ignores resize to the same dimensions.
+  const triggerResizeTrick = useCallback(() => {
+    if (!xtermRef.current || !fitAddonRef.current) return;
+
+    // Debounce to prevent redraw storms from rapid calls
+    const timeSinceLast = Date.now() - lastResizeTrickTimeRef.current;
+    if (timeSinceLast < RESIZE_TRICK_DEBOUNCE_MS) {
+      return;
+    }
+    lastResizeTrickTimeRef.current = Date.now();
+
+    const currentCols = xtermRef.current.cols;
+    const currentRows = xtermRef.current.rows;
+
+    console.log(`[triggerResizeTrick] ${currentCols}x${currentRows}`);
+
+    // Step 1: Shrink by 1 ROW (sends SIGWINCH via creack/pty).
+    // CRITICAL: Use rows, NOT columns! Column changes can cause tmux status bar
+    // to wrap when sidebar is narrow, corrupting the terminal display.
+    const minRows = Math.max(1, currentRows - 1);
+    xtermRef.current.resize(currentCols, minRows);
+    onResize?.(currentCols, minRows);
+
+    // Step 2: Fit to actual container size after 200ms (tmux processes first SIGWINCH)
+    if (resizeTrickTimerRef.current) {
+      clearTimeout(resizeTrickTimerRef.current);
+    }
+    resizeTrickTimerRef.current = setTimeout(() => {
+      resizeTrickTimerRef.current = null;
+      if (!xtermRef.current || !fitAddonRef.current) return;
+      fitAddonRef.current.fit();
+      const finalCols = xtermRef.current.cols;
+      const finalRows = xtermRef.current.rows;
+      onResize?.(finalCols, finalRows);
+
+      // Update tracking to prevent redundant sends
+      prevDimensionsRef.current = { cols: finalCols, rows: finalRows };
+    }, 200);
+  }, [onResize]);
 
   // Initialize xterm
   useEffect(() => {
@@ -295,11 +345,21 @@ export function Terminal({
           }
         }
       }
+
+      // Force resize trick after output guard lifts to fix any tmux state
+      // (copy mode, scroll regions) that may have been corrupted during reconnect
+      if (tmuxManaged) {
+        setTimeout(() => triggerResizeTrick(), 100);
+      }
     }, 1000);
 
     return () => {
       clearTimeout(inputGuardTimer);
       clearTimeout(outputGuardTimer);
+      if (resizeTrickTimerRef.current) {
+        clearTimeout(resizeTrickTimerRef.current);
+        resizeTrickTimerRef.current = null;
+      }
       initObserver?.disconnect();
       try { xterm.dispose(); } catch { /* dispose race in StrictMode */ }
       xtermRef.current = null;
@@ -325,7 +385,9 @@ export function Terminal({
     }
   }, [visible, initialized, fit, onResize]);
 
-  // Perform the actual resize, checking for output quiet period first
+  // Perform the actual resize, checking for output quiet period first.
+  // For tmux sessions, this only fits xterm locally — backend resize is handled
+  // by triggerResizeTrick() which sends the two-step SIGWINCH pattern.
   const doResize = useCallback(() => {
     if (!xtermRef.current || !fitAddonRef.current) return;
 
@@ -356,7 +418,12 @@ export function Terminal({
     try {
       fitAddonRef.current.fit();
       const xterm = xtermRef.current;
-      onResize?.(xterm.cols, xterm.rows);
+      // For tmux sessions, do NOT send resize to backend here.
+      // Container CSS changes (sidebar resize, split view) should only
+      // update xterm locally. The resize trick handles backend communication.
+      if (!tmuxManaged) {
+        onResize?.(xterm.cols, xterm.rows);
+      }
     } catch {
       // Ignore fit errors during resize
     }
@@ -367,41 +434,81 @@ export function Terminal({
       isResizingRef.current = false;
       resizeCooldownRef.current = null;
 
-      // Flush write queues via requestAnimationFrame for stability
-      const queue = writeQueueRef.current;
-      const bytesQueue = writeQueueBytesRef.current;
-      writeQueueRef.current = [];
-      writeQueueBytesRef.current = [];
+      // For tmux: clear write queues (resize trick redraws will handle content).
+      // For non-tmux: flush write queues normally.
+      if (tmuxManaged) {
+        writeQueueRef.current = [];
+        writeQueueBytesRef.current = [];
+      } else {
+        // Flush write queues via requestAnimationFrame for stability
+        const queue = writeQueueRef.current;
+        const bytesQueue = writeQueueBytesRef.current;
+        writeQueueRef.current = [];
+        writeQueueBytesRef.current = [];
 
-      if (queue.length > 0 || bytesQueue.length > 0) {
-        requestAnimationFrame(() => {
-          const xterm = xtermRef.current;
-          if (!xterm) return;
-          for (const data of queue) {
-            xterm.write(data);
-          }
-          for (const data of bytesQueue) {
-            xterm.write(data);
-          }
-        });
+        if (queue.length > 0 || bytesQueue.length > 0) {
+          requestAnimationFrame(() => {
+            const xterm = xtermRef.current;
+            if (!xterm) return;
+            for (const data of queue) {
+              xterm.write(data);
+            }
+            for (const data of bytesQueue) {
+              xterm.write(data);
+            }
+          });
+        }
       }
     }, RESIZE_COOLDOWN_MS);
-  }, [onResize]);
+  }, [onResize, tmuxManaged]);
 
-  // ResizeObserver for container dimension changes
+  // ResizeObserver for container dimension changes.
+  // For tmux sessions: fits xterm locally, then schedules resize trick after settling.
+  // For non-tmux: sends resize directly to backend via doResize.
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !initialized) return;
 
-    const observer = new ResizeObserver(() => {
+    // Track initial dimensions for significant-change detection
+    const rect = container.getBoundingClientRect();
+    preResizeDimsRef.current = { width: rect.width, height: rect.height };
+
+    const observer = new ResizeObserver((entries) => {
       if (resizeDebounceRef.current) {
         clearTimeout(resizeDebounceRef.current);
+      }
+
+      // Cancel pending post-resize cleanup (will reschedule below)
+      if (postResizeCleanupRef.current) {
+        clearTimeout(postResizeCleanupRef.current);
+        postResizeCleanupRef.current = null;
       }
 
       // Reset deferral counter on new resize event (fresh sequence)
       resizeDeferCountRef.current = 0;
 
+      const entry = entries[0];
+      const newWidth = entry.contentRect.width;
+      const newHeight = entry.contentRect.height;
+
+      // Debounced fit (local only for tmux, full resize for non-tmux)
       resizeDebounceRef.current = setTimeout(() => doResize(), RESIZE_DEBOUNCE_MS);
+
+      // For tmux: schedule post-resize cleanup with resize trick
+      // Fires 450ms after last resize event (150ms fit + 300ms settle)
+      if (tmuxManaged) {
+        postResizeCleanupRef.current = setTimeout(() => {
+          postResizeCleanupRef.current = null;
+          const widthChange = Math.abs(newWidth - preResizeDimsRef.current.width);
+          const heightChange = Math.abs(newHeight - preResizeDimsRef.current.height);
+          const significantChange = widthChange > 10 || heightChange > 10;
+
+          if (significantChange && newWidth > 0 && newHeight > 0) {
+            preResizeDimsRef.current = { width: newWidth, height: newHeight };
+            triggerResizeTrick();
+          }
+        }, 450);
+      }
     });
 
     observer.observe(container);
@@ -413,8 +520,46 @@ export function Terminal({
       if (resizeCooldownRef.current) {
         clearTimeout(resizeCooldownRef.current);
       }
+      if (postResizeCleanupRef.current) {
+        clearTimeout(postResizeCleanupRef.current);
+      }
     };
-  }, [initialized, doResize]);
+  }, [initialized, doResize, tmuxManaged, triggerResizeTrick]);
+
+  // Window resize events trigger the full resize trick for tmux sessions.
+  // Unlike container ResizeObserver (CSS layout shifts), window resize is a
+  // deliberate user action that always needs the two-step SIGWINCH pattern.
+  useEffect(() => {
+    if (!initialized || !tmuxManaged) return;
+
+    let windowResizeTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const handleWindowResize = () => {
+      if (windowResizeTimer) {
+        clearTimeout(windowResizeTimer);
+      }
+      // Debounce: fit locally first, then resize trick after settling
+      windowResizeTimer = setTimeout(() => {
+        windowResizeTimer = null;
+        if (!xtermRef.current || !fitAddonRef.current) return;
+        try {
+          fitAddonRef.current.fit();
+        } catch {
+          // ignore
+        }
+        // Trigger resize trick after fit settles
+        setTimeout(() => triggerResizeTrick(), 200);
+      }, RESIZE_DEBOUNCE_MS);
+    };
+
+    window.addEventListener('resize', handleWindowResize);
+    return () => {
+      window.removeEventListener('resize', handleWindowResize);
+      if (windowResizeTimer) {
+        clearTimeout(windowResizeTimer);
+      }
+    };
+  }, [initialized, tmuxManaged, triggerResizeTrick]);
 
   // Theme updates via MutationObserver on <html> class changes
   useEffect(() => {
