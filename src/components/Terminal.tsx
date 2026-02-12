@@ -74,11 +74,21 @@ export function Terminal({
   const isResizingRef = useRef(false);
   const writeQueueRef = useRef<string[]>([]);
   const resizeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resizeCooldownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastOutputTimeRef = useRef(0);
+  const resizeDeferCountRef = useRef(0);
   const [initialized, setInitialized] = useState(false);
+
+  // Constants for resize/output coordination
+  const OUTPUT_QUIET_PERIOD = 500;    // ms after last output before resize is safe
+  const MAX_RESIZE_DEFERRALS = 10;    // max retry attempts before aborting resize
+  const RESIZE_DEBOUNCE_MS = 150;     // ResizeObserver debounce
+  const RESIZE_COOLDOWN_MS = 80;      // keep isResizing=true after fit() completes
 
   // Safe write that buffers during resize — accepts Uint8Array for proper UTF-8
   const writeQueueBytesRef = useRef<Uint8Array[]>([]);
   const safeWrite = useCallback((data: string | Uint8Array) => {
+    lastOutputTimeRef.current = Date.now();
     if (isResizingRef.current) {
       if (data instanceof Uint8Array) {
         writeQueueBytesRef.current.push(data);
@@ -240,6 +250,69 @@ export function Terminal({
     }
   }, [visible, initialized, fit, onResize]);
 
+  // Perform the actual resize, checking for output quiet period first
+  const doResize = useCallback(() => {
+    if (!xtermRef.current || !fitAddonRef.current) return;
+
+    // Check if output occurred recently — defer resize if so
+    const timeSinceOutput = Date.now() - lastOutputTimeRef.current;
+    if (timeSinceOutput < OUTPUT_QUIET_PERIOD) {
+      if (resizeDeferCountRef.current < MAX_RESIZE_DEFERRALS) {
+        resizeDeferCountRef.current++;
+        resizeDebounceRef.current = setTimeout(() => doResize(), OUTPUT_QUIET_PERIOD);
+        return;
+      } else {
+        // Abort — continuous output, forcing resize would corrupt terminal
+        resizeDeferCountRef.current = 0;
+        return;
+      }
+    }
+
+    // Safe to resize — reset deferral counter
+    resizeDeferCountRef.current = 0;
+    isResizingRef.current = true;
+
+    // Clear any previous cooldown timer
+    if (resizeCooldownRef.current) {
+      clearTimeout(resizeCooldownRef.current);
+      resizeCooldownRef.current = null;
+    }
+
+    try {
+      fitAddonRef.current.fit();
+      const xterm = xtermRef.current;
+      onResize?.(xterm.cols, xterm.rows);
+    } catch {
+      // Ignore fit errors during resize
+    }
+
+    // Keep isResizing=true for a cooldown period AFTER fit() completes,
+    // so output arriving in the immediate aftermath gets buffered
+    resizeCooldownRef.current = setTimeout(() => {
+      isResizingRef.current = false;
+      resizeCooldownRef.current = null;
+
+      // Flush write queues via requestAnimationFrame for stability
+      const queue = writeQueueRef.current;
+      const bytesQueue = writeQueueBytesRef.current;
+      writeQueueRef.current = [];
+      writeQueueBytesRef.current = [];
+
+      if (queue.length > 0 || bytesQueue.length > 0) {
+        requestAnimationFrame(() => {
+          const xterm = xtermRef.current;
+          if (!xterm) return;
+          for (const data of queue) {
+            xterm.write(data);
+          }
+          for (const data of bytesQueue) {
+            xterm.write(data);
+          }
+        });
+      }
+    }, RESIZE_COOLDOWN_MS);
+  }, [onResize]);
+
   // ResizeObserver for container dimension changes
   useEffect(() => {
     const container = containerRef.current;
@@ -249,31 +322,11 @@ export function Terminal({
       if (resizeDebounceRef.current) {
         clearTimeout(resizeDebounceRef.current);
       }
-      resizeDebounceRef.current = setTimeout(() => {
-        if (!xtermRef.current || !fitAddonRef.current) return;
 
-        isResizingRef.current = true;
-        try {
-          fitAddonRef.current.fit();
-          const xterm = xtermRef.current;
-          onResize?.(xterm.cols, xterm.rows);
-        } catch {
-          // Ignore fit errors during resize
-        }
-        isResizingRef.current = false;
+      // Reset deferral counter on new resize event (fresh sequence)
+      resizeDeferCountRef.current = 0;
 
-        // Flush write queues (string + binary)
-        const queue = writeQueueRef.current;
-        writeQueueRef.current = [];
-        for (const data of queue) {
-          xtermRef.current?.write(data);
-        }
-        const bytesQueue = writeQueueBytesRef.current;
-        writeQueueBytesRef.current = [];
-        for (const data of bytesQueue) {
-          xtermRef.current?.write(data);
-        }
-      }, 100);
+      resizeDebounceRef.current = setTimeout(() => doResize(), RESIZE_DEBOUNCE_MS);
     });
 
     observer.observe(container);
@@ -282,8 +335,11 @@ export function Terminal({
       if (resizeDebounceRef.current) {
         clearTimeout(resizeDebounceRef.current);
       }
+      if (resizeCooldownRef.current) {
+        clearTimeout(resizeCooldownRef.current);
+      }
     };
-  }, [initialized, onResize]);
+  }, [initialized, doResize]);
 
   // Theme updates via MutationObserver on <html> class changes
   useEffect(() => {
