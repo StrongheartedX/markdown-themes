@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Plus, X, MoreVertical, Terminal as TerminalIcon } from 'lucide-react';
 import { Terminal } from './Terminal';
-import { useTerminal, type TerminalTab } from '../hooks/useTerminal';
+import { useTerminal, type TerminalTab, type RecoveredSession } from '../hooks/useTerminal';
 
 const API_BASE = 'http://localhost:8130';
 
@@ -180,6 +180,63 @@ export function TerminalPanel({
         reconnectTimersRef.current.add(timer);
       });
     }, [onTabsChange]),
+    onRecoveryComplete: useCallback((recoveredSessions: RecoveredSession[]) => {
+      const currentTabs = tabsRef.current;
+      if (currentTabs.length === 0) return;
+
+      const recoveredIds = new Set(recoveredSessions.map(s => s.id));
+
+      // Remove tabs whose tmux sessions no longer exist (stale tabs)
+      const staleTabs = currentTabs.filter(tab => !recoveredIds.has(tab.id) && !spawnedRef.current.has(tab.id));
+      if (staleTabs.length > 0) {
+        const staleIds = new Set(staleTabs.map(t => t.id));
+        onTabsChange(prev => {
+          const remaining = prev.filter(t => !staleIds.has(t.id));
+          onActiveTabChange(prevActive => {
+            if (prevActive && staleIds.has(prevActive)) {
+              return remaining.length > 0 ? remaining[remaining.length - 1].id : null;
+            }
+            return prevActive;
+          });
+          return remaining;
+        });
+        for (const id of staleIds) {
+          spawnedRef.current.delete(id);
+          terminalWritersRef.current.delete(id);
+        }
+      }
+
+      // For tabs that match recovered sessions, trigger staggered reconnects
+      const tabsToReconnect = currentTabs.filter(tab =>
+        recoveredIds.has(tab.id) && !spawnedRef.current.has(tab.id)
+      );
+
+      if (tabsToReconnect.length === 0) return;
+
+      // Sort for stable ordering
+      tabsToReconnect.sort((a, b) => a.id.localeCompare(b.id));
+
+      // Mark reconnecting for visual feedback
+      const reconnectIds = new Set(tabsToReconnect.map(t => t.id));
+      onTabsChange(prev => prev.map(t =>
+        reconnectIds.has(t.id) ? { ...t, reconnecting: true } : t
+      ));
+
+      tabsToReconnect.forEach((tab, index) => {
+        const timer = setTimeout(() => {
+          reconnectTimersRef.current.delete(timer);
+          const helpers = terminalWritersRef.current.get(tab.id);
+          if (helpers) {
+            const dims = helpers.fit();
+            const cols = dims?.cols || 120;
+            const rows = dims?.rows || 30;
+            pendingReconnectsRef.current.add(tab.id);
+            reconnectRef.current(tab.id, cols, rows);
+          }
+        }, index * 150);
+        reconnectTimersRef.current.add(timer);
+      });
+    }, [onTabsChange, onActiveTabChange]),
   });
 
   // Keep reconnectRef pointing to the latest reconnect function

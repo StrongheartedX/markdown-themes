@@ -59,6 +59,8 @@ type TerminalManager struct {
 	broadcastFunc func(sessionID string, data []byte)
 	// Callback to notify session closed
 	closedFunc func(sessionID string)
+	// Callback to broadcast a message to ALL connected WebSocket clients
+	broadcastAllFunc func(message interface{})
 }
 
 var (
@@ -141,6 +143,11 @@ func (tm *TerminalManager) SetBroadcastFunc(fn func(sessionID string, data []byt
 // SetClosedFunc sets the callback for session closed notifications
 func (tm *TerminalManager) SetClosedFunc(fn func(sessionID string)) {
 	tm.closedFunc = fn
+}
+
+// SetBroadcastAllFunc sets the callback for broadcasting a message to all connected clients
+func (tm *TerminalManager) SetBroadcastAllFunc(fn func(message interface{})) {
+	tm.broadcastAllFunc = fn
 }
 
 // getShell returns the user's default shell
@@ -359,28 +366,33 @@ func (tm *TerminalManager) ReconnectSession(id, tmuxSessionName string, cols, ro
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 
-	// If we already have a live PTY for this session, supersede it so its
-	// output reader stops broadcasting. This prevents duplicate output when
-	// a new PTY attachment races with the old one.
+	// If we already have a session entry (either a live PTY or a recovery
+	// placeholder), supersede it so its output reader stops broadcasting
+	// and the new PTY takes over.
 	if oldSession, exists := tm.sessions[id]; exists {
-		log.Printf("[Terminal] ReconnectSession %s: superseding old PTY attachment", id)
+		log.Printf("[Terminal] ReconnectSession %s: superseding old session entry", id)
 		oldSession.supersededMu.Lock()
 		oldSession.superseded = true
 		oldSession.supersededMu.Unlock()
 		// Remove from map so attachToTmux can register the new session.
 		delete(tm.sessions, id)
-		// Clean up old PTY fd and process in background.
-		go func() {
-			oldSession.ptmx.Close()
-			doneCh := make(chan error, 1)
-			go func() { doneCh <- oldSession.cmd.Wait() }()
-			select {
-			case <-doneCh:
-			case <-time.After(2 * time.Second):
-				oldSession.cmd.Process.Kill()
-			}
-			log.Printf("[Terminal] Old PTY for %s cleaned up after supersession", id)
-		}()
+		// Clean up old PTY fd and process in background (only if PTY was attached;
+		// recovery placeholders have nil ptmx/cmd).
+		if oldSession.ptmx != nil {
+			go func() {
+				oldSession.ptmx.Close()
+				if oldSession.cmd != nil {
+					doneCh := make(chan error, 1)
+					go func() { doneCh <- oldSession.cmd.Wait() }()
+					select {
+					case <-doneCh:
+					case <-time.After(2 * time.Second):
+						oldSession.cmd.Process.Kill()
+					}
+				}
+				log.Printf("[Terminal] Old PTY for %s cleaned up after supersession", id)
+			}()
+		}
 	}
 
 	if cols == 0 {
@@ -580,16 +592,21 @@ func (tm *TerminalManager) CloseSession(id string) error {
 	// Signal read goroutine to stop
 	close(session.done)
 
-	// Close PTY (sends SIGHUP to the tmux attach process)
-	session.ptmx.Close()
+	// Close PTY (sends SIGHUP to the tmux attach process).
+	// Guard against nil ptmx for recovery placeholders that never had a PTY.
+	if session.ptmx != nil {
+		session.ptmx.Close()
+	}
 
 	// Wait for process to exit (with timeout)
-	doneCh := make(chan error, 1)
-	go func() { doneCh <- session.cmd.Wait() }()
-	select {
-	case <-doneCh:
-	case <-time.After(2 * time.Second):
-		session.cmd.Process.Kill()
+	if session.cmd != nil {
+		doneCh := make(chan error, 1)
+		go func() { doneCh <- session.cmd.Wait() }()
+		select {
+		case <-doneCh:
+		case <-time.After(2 * time.Second):
+			session.cmd.Process.Kill()
+		}
 	}
 
 	// Kill the tmux session so it doesn't linger
@@ -620,15 +637,20 @@ func (tm *TerminalManager) DisconnectSession(id string) error {
 	// Signal read goroutine to stop
 	close(session.done)
 
-	// Close PTY — the tmux session stays alive
-	session.ptmx.Close()
+	// Close PTY — the tmux session stays alive.
+	// Guard against nil ptmx for recovery placeholders.
+	if session.ptmx != nil {
+		session.ptmx.Close()
+	}
 
-	doneCh := make(chan error, 1)
-	go func() { doneCh <- session.cmd.Wait() }()
-	select {
-	case <-doneCh:
-	case <-time.After(2 * time.Second):
-		session.cmd.Process.Kill()
+	if session.cmd != nil {
+		doneCh := make(chan error, 1)
+		go func() { doneCh <- session.cmd.Wait() }()
+		select {
+		case <-doneCh:
+		case <-time.After(2 * time.Second):
+			session.cmd.Process.Kill()
+		}
 	}
 
 	log.Printf("[Terminal] Session %s disconnected (tmux %s still alive)", id, session.TmuxSession)
@@ -820,6 +842,76 @@ func (tm *TerminalManager) ScanOrphanedSessions() {
 	if len(orphans) > 0 {
 		log.Printf("[Terminal] Found %d orphaned mt-* tmux sessions: %v", len(orphans), orphans)
 		log.Printf("[Terminal] These can be reconnected to by the frontend")
+	}
+}
+
+// RecoverOrphanedSessions discovers orphaned mt-* tmux sessions and registers
+// them in the session map (without a PTY -- clients will attach on reconnect).
+// After registration, broadcasts a recovery-complete signal so the frontend
+// can reconcile its tab state.
+//
+// Called in a goroutine after a startup delay to give the frontend time to
+// connect its WebSocket.
+func (tm *TerminalManager) RecoverOrphanedSessions() {
+	orphans := tm.ListOrphanedTmuxSessions()
+	if len(orphans) == 0 {
+		log.Printf("[Terminal] Recovery: no orphaned tmux sessions found")
+		// Still broadcast so the frontend knows recovery ran and can prune stale tabs
+		if tm.broadcastAllFunc != nil {
+			tm.broadcastAllFunc(map[string]interface{}{
+				"type":             "terminal-recovery-complete",
+				"recoveredSessions": []interface{}{},
+			})
+		}
+		return
+	}
+
+	log.Printf("[Terminal] Recovery: found %d orphaned mt-* tmux sessions: %v", len(orphans), orphans)
+
+	type recoveredInfo struct {
+		ID  string `json:"id"`
+		Cwd string `json:"cwd"`
+	}
+	var recovered []recoveredInfo
+
+	tm.mu.Lock()
+	for _, name := range orphans {
+		// Skip if somehow already registered (race with a reconnect)
+		if _, exists := tm.sessions[name]; exists {
+			continue
+		}
+
+		// Get the working directory from the tmux session's active pane
+		cwd := ""
+		cwdCmd := tmuxCmd("display-message", "-p", "-t", name, "#{pane_current_path}")
+		if out, err := cwdCmd.Output(); err == nil {
+			cwd = strings.TrimSpace(string(out))
+		}
+
+		// Register a placeholder session (no PTY, no cmd) so it appears in
+		// ListSessions. The frontend will trigger a reconnect which attaches a PTY.
+		session := &TerminalSession{
+			ID:          name,
+			TmuxSession: name,
+			Cwd:         cwd,
+			CreatedAt:   time.Now(),
+			clients:     make(map[interface{}]bool),
+			done:        make(chan struct{}),
+		}
+		tm.sessions[name] = session
+
+		recovered = append(recovered, recoveredInfo{ID: name, Cwd: cwd})
+		log.Printf("[Terminal] Recovery: registered orphaned session %s (cwd: %s)", name, cwd)
+	}
+	tm.mu.Unlock()
+
+	// Broadcast to all connected clients so the frontend can reconcile
+	if tm.broadcastAllFunc != nil {
+		tm.broadcastAllFunc(map[string]interface{}{
+			"type":             "terminal-recovery-complete",
+			"recoveredSessions": recovered,
+		})
+		log.Printf("[Terminal] Recovery: broadcast complete, %d sessions recovered", len(recovered))
 	}
 }
 

@@ -13,24 +13,30 @@ export interface TerminalTab {
   reconnecting?: boolean;
 }
 
+export interface RecoveredSession {
+  id: string;
+  cwd: string;
+}
+
 interface UseTerminalOptions {
   onOutput?: (terminalId: string, data: string | Uint8Array) => void;
   onSpawned?: (info: { terminalId: string; tmuxSession?: string; cwd: string; cols: number; rows: number; reconnected?: boolean }) => void;
   onClosed?: (terminalId: string) => void;
   onError?: (terminalId: string, error: string) => void;
   onConnected?: () => void;
+  onRecoveryComplete?: (recoveredSessions: RecoveredSession[]) => void;
 }
 
-export function useTerminal({ onOutput, onSpawned, onClosed, onError, onConnected }: UseTerminalOptions) {
+export function useTerminal({ onOutput, onSpawned, onClosed, onError, onConnected, onRecoveryComplete }: UseTerminalOptions) {
   const wsRef = useRef<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
   const reconnectAttemptRef = useRef(0);
   const mountedRef = useRef(true);
-  const callbacksRef = useRef({ onOutput, onSpawned, onClosed, onError, onConnected });
+  const callbacksRef = useRef({ onOutput, onSpawned, onClosed, onError, onConnected, onRecoveryComplete });
 
   // Keep callbacks fresh without re-triggering effects
   useEffect(() => {
-    callbacksRef.current = { onOutput, onSpawned, onClosed, onError, onConnected };
+    callbacksRef.current = { onOutput, onSpawned, onClosed, onError, onConnected, onRecoveryComplete };
   });
 
   // Connect WebSocket
@@ -76,6 +82,9 @@ export function useTerminal({ onOutput, onSpawned, onClosed, onError, onConnecte
                 break;
               case 'terminal-error':
                 callbacksRef.current.onError?.(msg.terminalId, msg.error);
+                break;
+              case 'terminal-recovery-complete':
+                callbacksRef.current.onRecoveryComplete?.(msg.recoveredSessions || []);
                 break;
             }
           } catch {

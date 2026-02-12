@@ -91,6 +91,11 @@ func NewHub() *Hub {
 		}
 	})
 
+	// Wire up broadcast-to-all for terminal recovery notifications
+	tm.SetBroadcastAllFunc(func(message interface{}) {
+		h.BroadcastAll(message)
+	})
+
 	return h
 }
 
@@ -145,6 +150,26 @@ func (h *Hub) SendToClient(client *Client, message interface{}) {
 		close(client.send)
 		delete(h.clients, client)
 		h.mu.Unlock()
+	}
+}
+
+// BroadcastAll sends a message to every connected client
+func (h *Hub) BroadcastAll(message interface{}) {
+	data, err := json.Marshal(message)
+	if err != nil {
+		log.Printf("[Hub] Error marshaling broadcast message: %v", err)
+		return
+	}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for client := range h.clients {
+		select {
+		case client.send <- data:
+		default:
+			// Skip clients with full buffers (will be cleaned up by writePump)
+		}
 	}
 }
 

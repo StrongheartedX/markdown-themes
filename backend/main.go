@@ -137,8 +137,15 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
 
-	// Scan for orphaned mt-* tmux sessions from previous runs
+	// Scan for orphaned mt-* tmux sessions from previous runs (immediate log)
 	handlers.GetTerminalManager().ScanOrphanedSessions()
+
+	// Recover orphaned tmux sessions after a delay, giving the frontend WebSocket
+	// time to connect so it receives the recovery-complete broadcast.
+	go func() {
+		time.Sleep(2500 * time.Millisecond)
+		handlers.GetTerminalManager().RecoverOrphanedSessions()
+	}()
 
 	log.Printf("markdown-themes backend starting on port %s", port)
 	log.Printf("API: http://localhost:%s/api", port)
