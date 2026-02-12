@@ -128,15 +128,6 @@ export function useTerminal({ onOutput, onSpawned, onClosed, onError }: UseTermi
     });
   }, [sendMessage]);
 
-  const reconnect = useCallback((id: string, cols: number, rows: number) => {
-    sendMessage({
-      type: 'terminal-reconnect',
-      terminalId: id,
-      cols,
-      rows,
-    });
-  }, [sendMessage]);
-
   const sendInput = useCallback((id: string, data: string) => {
     sendMessage({
       type: 'terminal-input',
@@ -164,7 +155,6 @@ export function useTerminal({ onOutput, onSpawned, onClosed, onError }: UseTermi
   return {
     connected,
     spawn,
-    reconnect,
     sendInput,
     resize,
     close,
