@@ -226,7 +226,7 @@ export function Terminal({
     fitAddonRef.current = fitAddon;
 
     // Handle input — filter device query responses during init period
-    xterm.onData((data) => {
+    xterm.onData((data: string) => {
       if (isInitializingRef.current) {
         const filtered = data
           .replace(/\x1b\[\?[0-9;]*c/g, '')
@@ -238,11 +238,11 @@ export function Terminal({
       onInputRef.current?.(data);
     });
 
-    xterm.onTitleChange((title) => {
+    xterm.onTitleChange((title: string) => {
       onTitleChange?.(title);
     });
 
-    xterm.attachCustomKeyEventHandler((e) => {
+    xterm.attachCustomKeyEventHandler((e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.key === 'C') {
         const selection = xterm.getSelection();
         if (selection) {

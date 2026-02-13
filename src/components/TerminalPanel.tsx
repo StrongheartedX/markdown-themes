@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { Terminal } from './Terminal';
 import { FilePickerModal } from './FilePickerModal';
 import { useTerminal, type TerminalTab, type RecoveredSession, type TerminalListResponse } from '../hooks/useTerminal';
-import { sanitizeProfileName, generateTerminalId, generateProfileId } from '../utils/terminalUtils';
+import { generateTerminalId, generateProfileId } from '../utils/terminalUtils';
 import type { ThemeId } from '../themes';
 
 const API_BASE = 'http://localhost:8130';

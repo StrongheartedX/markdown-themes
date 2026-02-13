@@ -6,7 +6,7 @@ import { MockWebSocket, mockWebSocketInstances, setupMockWebSocket } from '../te
 // Mock createWebSocket from api module
 const { createWebSocket } = setupMockWebSocket();
 vi.mock('../lib/api', () => ({
-  createWebSocket: (...args: unknown[]) => createWebSocket(...args),
+  createWebSocket: () => createWebSocket(),
 }));
 
 function getWs(): MockWebSocket {

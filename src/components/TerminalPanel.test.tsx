@@ -95,7 +95,7 @@ describe('TerminalPanel', () => {
     mockUseTerminal.connected = true;
 
     // Mock fetch for profiles
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve([...mockProfiles]),
     }) as unknown as typeof fetch;
@@ -229,7 +229,7 @@ describe('TerminalPanel', () => {
     });
 
     it('falls back to default Shell profile on fetch error', async () => {
-      (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('network'));
+      (globalThis.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('network'));
       renderPanel();
 
       // Wait for the fetch error to settle
