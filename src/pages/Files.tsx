@@ -28,6 +28,7 @@ import { FileContextMenu } from '../components/FileContextMenu';
 import { ChatPanel } from '../components/chat';
 import { ChatBubble } from '../components/ChatBubble';
 import { TerminalPanel } from '../components/TerminalPanel';
+import { NotepadPanel } from '../components/NotepadPanel';
 import type { TerminalTab } from '../hooks/useTerminal';
 import { fetchFileContent } from '../lib/api';
 import { parseFrontmatter } from '../utils/frontmatter';
@@ -463,6 +464,22 @@ export function Files() {
   // Terminal tab state
   const [terminalTabs, setTerminalTabs] = useState<TerminalTab[]>(filesState.terminalTabs);
   const [activeTerminalTabId, setActiveTerminalTabId] = useState<string | null>(filesState.activeTerminalTabId);
+
+  // Notepad panel state
+  const [notepadOpen, setNotepadOpen] = useState(false);
+  const toggleNotepadPanel = useCallback(() => {
+    setNotepadOpen(prev => !prev);
+  }, []);
+
+  const handleNotepadConversation = useCallback((path: string, sessionId: string) => {
+    openConversationTab(path, {
+      sessionId,
+      workingDir: workspacePath || '',
+      pane: '',
+      taskDescription: 'Notepad',
+      autoClose: false,
+    });
+  }, [openConversationTab, workspacePath]);
 
   // Persist third column state changes
   useEffect(() => {
@@ -1122,6 +1139,13 @@ export function Files() {
         return;
       }
 
+      // Ctrl/Cmd + Shift + N - Toggle notepad panel
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'N') {
+        e.preventDefault();
+        toggleNotepadPanel();
+        return;
+      }
+
       // Ctrl + Shift + T - New terminal tab
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'T') {
         e.preventDefault();
@@ -1151,7 +1175,7 @@ export function Files() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggleSplit, handleGitGraphToggle, handleWorkingTreeToggle, handleBeadsBoardToggle, handleChatPanelToggle, handleTerminalToggle, handleHotkeysClick, thirdColumnOpen, thirdColumnMode]);
+  }, [toggleSplit, handleGitGraphToggle, handleWorkingTreeToggle, handleBeadsBoardToggle, handleChatPanelToggle, handleTerminalToggle, toggleNotepadPanel, handleHotkeysClick, thirdColumnOpen, thirdColumnMode]);
 
   return (
     <>
@@ -1232,6 +1256,8 @@ export function Files() {
                 onSplitToggle={toggleSplit}
                 isTerminalOpen={thirdColumnOpen && thirdColumnMode === 'terminal'}
                 onTerminalToggle={handleTerminalToggle}
+                isNotepadOpen={notepadOpen}
+                onNotepadToggle={toggleNotepadPanel}
               />
 
               {/* Git graph in main pane (as tab) */}
@@ -1389,6 +1415,14 @@ export function Files() {
                     </>
                   )}
                 </>
+              )}
+
+              {/* Notepad bottom panel */}
+              {notepadOpen && (
+                <NotepadPanel
+                  workspacePath={workspacePath}
+                  onOpenConversation={handleNotepadConversation}
+                />
               )}
             </div>
           }

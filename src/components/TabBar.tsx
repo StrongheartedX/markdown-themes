@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileDiff, Users, GitBranch, GitPullRequestDraft, Keyboard, Crosshair, Columns, LayoutGrid, Terminal } from 'lucide-react';
+import { FileDiff, Users, GitBranch, GitPullRequestDraft, Keyboard, Crosshair, Columns, LayoutGrid, Terminal, BookOpen } from 'lucide-react';
 import type { Tab } from '../hooks/useTabManager';
 import { getFileIconInfo } from '../utils/fileIcons';
 
@@ -33,6 +33,9 @@ interface TabBarProps {
   /** Terminal toggle */
   isTerminalOpen?: boolean;
   onTerminalToggle?: () => void;
+  /** Notepad toggle */
+  isNotepadOpen?: boolean;
+  onNotepadToggle?: () => void;
 }
 
 interface TabItemProps {
@@ -180,7 +183,7 @@ function TabItem({ tab, isActive, isStreaming, onSelect, onClose, onPin, onUnpin
   );
 }
 
-export function TabBar({ tabs, activeTabId, onTabSelect, onTabClose, onTabPin, onTabUnpin, pane = 'left', streamingFilePath, onTabContextMenu, isGitGraph, isWorkingTree, isBeadsBoard, onGitGraphToggle, onWorkingTreeToggle, onBeadsBoardToggle, onHotkeysClick, isFollowMode, onFollowModeToggle, activeSubagentCount, isSplit, onSplitToggle, isTerminalOpen, onTerminalToggle }: TabBarProps) {
+export function TabBar({ tabs, activeTabId, onTabSelect, onTabClose, onTabPin, onTabUnpin, pane = 'left', streamingFilePath, onTabContextMenu, isGitGraph, isWorkingTree, isBeadsBoard, onGitGraphToggle, onWorkingTreeToggle, onBeadsBoardToggle, onHotkeysClick, isFollowMode, onFollowModeToggle, activeSubagentCount, isSplit, onSplitToggle, isTerminalOpen, onTerminalToggle, isNotepadOpen, onNotepadToggle }: TabBarProps) {
   const hasActions = !!(onGitGraphToggle || onWorkingTreeToggle || onBeadsBoardToggle || onHotkeysClick || onFollowModeToggle || onSplitToggle || onTerminalToggle);
 
   if (tabs.length === 0 && !hasActions) {
@@ -328,6 +331,31 @@ export function TabBar({ tabs, activeTabId, onTabSelect, onTabClose, onTabPin, o
               title={isBeadsBoard ? 'Close beads board (Ctrl+Shift+B)' : 'Show beads board (Ctrl+Shift+B)'}
             >
               <LayoutGrid size={16} />
+            </button>
+          )}
+          {onNotepadToggle && (
+            <button
+              onClick={onNotepadToggle}
+              className="w-7 h-7 flex items-center justify-center rounded transition-colors"
+              style={{
+                backgroundColor: isNotepadOpen ? 'var(--accent)' : 'transparent',
+                color: isNotepadOpen ? 'var(--bg-primary)' : 'var(--text-secondary)',
+              }}
+              onMouseEnter={(e) => {
+                if (!isNotepadOpen) {
+                  e.currentTarget.style.backgroundColor = 'var(--bg-primary)';
+                  e.currentTarget.style.color = 'var(--text-primary)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isNotepadOpen) {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = 'var(--text-secondary)';
+                }
+              }}
+              title={isNotepadOpen ? 'Close notepad (Ctrl+Shift+N)' : 'Open notepad (Ctrl+Shift+N)'}
+            >
+              <BookOpen size={16} />
             </button>
           )}
           {onTerminalToggle && (

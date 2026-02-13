@@ -89,6 +89,10 @@ func main() {
 		r.Get("/claude/session", handlers.ClaudeSession)
 		r.Get("/claude/session/{sessionId}", handlers.ClaudeSessionByID)
 
+		// Notepad (lightweight non-streaming Claude CLI)
+		r.Post("/notepad", handlers.NotepadSend)
+		r.Delete("/notepad", handlers.NotepadStop)
+
 		// Chat (AI conversations via Claude CLI)
 		r.Post("/chat", handlers.Chat)
 		r.Get("/chat/process", handlers.ChatProcessStatus)
