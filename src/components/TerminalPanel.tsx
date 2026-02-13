@@ -632,12 +632,14 @@ export function TerminalPanel({
     onTabsChange(prev => prev.map((t) => (t.id === terminalId ? { ...t, title: title || t.title } : t)));
   }, [onTabsChange]);
 
-  // Auto-spawn first terminal if none exist
+  // Auto-spawn first terminal on initial connect only (not when user closes all tabs)
+  const hasSpawnedInitialRef = useRef(false);
   useEffect(() => {
-    if (tabs.length === 0 && connected) {
+    if (tabs.length === 0 && connected && !hasSpawnedInitialRef.current) {
+      hasSpawnedInitialRef.current = true;
       spawnTerminal();
     }
-  }, [tabs.length, connected]); // Only on initial mount when connected
+  }, [tabs.length, connected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="flex flex-col h-full" style={{ background: 'var(--terminal-bg, var(--bg-primary))' }}>
@@ -945,7 +947,7 @@ export function TerminalPanel({
           <div
             key={tab.id}
             className="absolute inset-0"
-            style={{ display: tab.id === activeTabId ? 'block' : 'none' }}
+            style={{ visibility: tab.id === activeTabId ? 'visible' : 'hidden' }}
           >
             <Terminal
               terminalId={tab.id}

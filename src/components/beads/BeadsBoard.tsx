@@ -7,6 +7,8 @@ import { BeadsDetail } from './BeadsDetail';
 interface BeadsBoardProps {
   workspacePath: string | null;
   fontSize?: number;
+  /** When provided, issue selection is delegated to parent (e.g. open in left pane) */
+  onSelectIssue?: (issue: BeadsIssue) => void;
 }
 
 interface ColumnDef {
@@ -23,7 +25,7 @@ const COLUMNS: ColumnDef[] = [
   { key: 'done', title: 'Done', defaultExpanded: false },
 ];
 
-export function BeadsBoard({ workspacePath, fontSize = 100 }: BeadsBoardProps) {
+export function BeadsBoard({ workspacePath, fontSize = 100, onSelectIssue }: BeadsBoardProps) {
   const [issues, setIssues] = useState<BeadsIssue[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -242,7 +244,7 @@ export function BeadsBoard({ workspacePath, fontSize = 100 }: BeadsBoardProps) {
                           key={issue.id}
                           issue={issue}
                           blockedByIds={blockedByMap.get(issue.id)}
-                          onSelect={setSelectedIssue}
+                          onSelect={onSelectIssue ?? setSelectedIssue}
                         />
                       ))
                     )}

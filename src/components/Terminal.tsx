@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
+import { CanvasAddon } from '@xterm/addon-canvas';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
@@ -78,6 +79,7 @@ export function Terminal({
   const containerRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const canvasAddonRef = useRef<CanvasAddon | null>(null);
 
   // Keep callback refs fresh without triggering effect re-runs
   const onResizeRef = useRef(onResize);
@@ -199,7 +201,9 @@ export function Terminal({
     }, 200);
   }, []);
 
-  // Initialize xterm
+  // Initialize xterm. Parent uses visibility:hidden (not display:none) for
+  // inactive tabs, so containers always have real dimensions and xterm.open()
+  // can be called immediately on mount.
   useEffect(() => {
     const container = containerRef.current;
     if (!container || xtermRef.current) return;
@@ -213,15 +217,12 @@ export function Terminal({
       theme: getXtermTheme(),
       allowTransparency: true,
       allowProposedApi: true,
-      // When tmux manages the terminal, set scrollback to 0 since tmux
-      // handles scrollback with 10K lines via .tmux-markdown-themes.conf.
       scrollback: tmuxManaged ? 0 : 10000,
       minimumContrastRatio: 4.5,
     });
 
     const fitAddon = new FitAddon();
 
-    // Load addons in correct order
     xterm.loadAddon(fitAddon);
     xterm.loadAddon(new WebLinksAddon());
     const unicode11 = new Unicode11Addon();
@@ -231,8 +232,11 @@ export function Terminal({
     xterm.open(container);
     xterm.unicode.activeVersion = '11';
 
-    // DOM renderer is used (no CanvasAddon) for transparency support.
-    // Force xterm's internal elements transparent after it creates its DOM.
+    // Canvas renderer for GPU-accelerated rendering with transparency
+    const canvasAddon = new CanvasAddon();
+    xterm.loadAddon(canvasAddon);
+    canvasAddonRef.current = canvasAddon;
+
     forceXtermTransparent(container);
 
     xtermRef.current = xterm;
@@ -241,10 +245,6 @@ export function Terminal({
     // Handle input — filter device query responses during init period
     xterm.onData((data) => {
       if (isInitializingRef.current) {
-        // DA1 response: ESC [ ? Ps c (Primary Device Attributes)
-        // DA2 response: ESC [ > Ps c (Secondary Device Attributes)
-        // Filter these out — xterm sends queries on init and responses
-        // leak into the PTY, appearing as garbled text in the shell
         const filtered = data
           .replace(/\x1b\[\?[0-9;]*c/g, '')
           .replace(/\x1b\[>[0-9;]*c/g, '');
@@ -255,55 +255,11 @@ export function Terminal({
       onInputRef.current?.(data);
     });
 
-    // Handle title changes
     xterm.onTitleChange((title) => {
       onTitleChange?.(title);
     });
 
-    // Wait for container to have real dimensions before fitting
-    let initObserver: ResizeObserver | null = null;
-    let initDone = false;
-
-    const tryInitFit = () => {
-      if (initDone) return;
-      const rect = container.getBoundingClientRect();
-      if (rect.width < 50 || rect.height < 50) return; // Not laid out yet
-
-      initDone = true;
-      initObserver?.disconnect();
-
-      try {
-        fitAddon.fit();
-      } catch {
-        // ignore
-      }
-
-      setInitialized(true);
-      onReady?.({
-        write: safeWrite,
-        fit: () => {
-          try {
-            fitAddon.fit();
-            return { cols: xterm.cols, rows: xterm.rows };
-          } catch {
-            return null;
-          }
-        },
-        focus: () => xterm.focus(),
-        clear: () => xterm.clear(),
-      });
-    };
-
-    // Try immediately, then observe for layout changes
-    tryInitFit();
-    if (!initDone) {
-      initObserver = new ResizeObserver(tryInitFit);
-      initObserver.observe(container);
-    }
-
-    // Handle keyboard shortcuts
     xterm.attachCustomKeyEventHandler((e) => {
-      // Ctrl+Shift+C — copy
       if (e.ctrlKey && e.shiftKey && e.key === 'C') {
         const selection = xterm.getSelection();
         if (selection) {
@@ -311,33 +267,56 @@ export function Terminal({
         }
         return false;
       }
-      // Ctrl+Shift+V — paste
       if (e.ctrlKey && e.shiftKey && e.key === 'V') {
         navigator.clipboard.readText().then((text) => {
           onInputRef.current?.(text);
         });
         return false;
       }
-      // Ctrl + = / - / 0 — font size (let parent handle)
       if (e.ctrlKey && (e.key === '=' || e.key === '-' || e.key === '0')) {
         return false;
       }
-      // Allow all other keys through to the terminal
       return true;
     });
+
+    // Initial fit
+    try {
+      fitAddon.fit();
+    } catch { /* ignore */ }
+
+    setInitialized(true);
+    onReady?.({
+      write: safeWrite,
+      fit: () => {
+        try {
+          fitAddon.fit();
+          return { cols: xterm.cols, rows: xterm.rows };
+        } catch {
+          return null;
+        }
+      },
+      focus: () => xterm.focus(),
+      clear: () => xterm.clear(),
+    });
+
+    // Deferred second fit + refresh to catch layout settling
+    setTimeout(() => {
+      try {
+        fitAddon.fit();
+        xterm.refresh(0, xterm.rows - 1);
+      } catch { /* ignore */ }
+    }, 150);
 
     // Input guard: clear after 1000ms — device query responses only arrive during init
     const inputGuardTimer = setTimeout(() => {
       isInitializingRef.current = false;
     }, 1000);
 
-    // Output guard: buffer output for 1000ms, then flush all at once
-    // Prevents partial escape sequences from corrupting display when
-    // connecting mid-stream (e.g., page refresh during active output)
+    // Output guard: buffer output for 1000ms, then flush all at once.
+    // Prevents partial escape sequences from corrupting display on reconnect.
     const outputGuardTimer = setTimeout(() => {
       isOutputGuardedRef.current = false;
 
-      // Flush buffered string output
       const bufferedStrings = outputGuardBufferRef.current;
       const bufferedBytes = outputGuardBytesRef.current;
       outputGuardBufferRef.current = [];
@@ -353,11 +332,12 @@ export function Terminal({
           for (const chunk of bufferedBytes) {
             xt.write(chunk);
           }
+          requestAnimationFrame(() => {
+            xt.refresh(0, xt.rows - 1);
+          });
         }
       }
 
-      // Force resize trick after output guard lifts to fix any tmux state
-      // (copy mode, scroll regions) that may have been corrupted during reconnect
       if (tmuxManaged) {
         setTimeout(() => triggerResizeTrick(), 100);
       }
@@ -370,10 +350,11 @@ export function Terminal({
         clearTimeout(resizeTrickTimerRef.current);
         resizeTrickTimerRef.current = null;
       }
-      initObserver?.disconnect();
+      try { canvasAddonRef.current?.dispose(); } catch { /* ignore */ }
       try { xterm.dispose(); } catch { /* dispose race in StrictMode */ }
       xtermRef.current = null;
       fitAddonRef.current = null;
+      canvasAddonRef.current = null;
     };
   }, [terminalId]); // Re-init only on terminalId change
 
@@ -388,6 +369,7 @@ export function Terminal({
         if (result) {
           onResizeRef.current?.(result.cols, result.rows);
         }
+        xtermRef.current?.refresh(0, (xtermRef.current?.rows ?? 1) - 1);
         setFitPending(false);
         xtermRef.current?.focus();
       }, 50);
@@ -622,7 +604,6 @@ export function Terminal({
       style={{
         width: '100%',
         height: '100%',
-        display: visible ? 'block' : 'none',
         visibility: fitPending ? 'hidden' : 'visible',
       }}
     />

@@ -49,6 +49,10 @@ run_backend() {
 
 run_frontend() {
     stop_frontend
+    if [[ ! -d node_modules ]] || [[ package.json -nt node_modules/.package-lock.json ]]; then
+        echo -e "${BLUE}Installing npm dependencies...${NC}"
+        npm install
+    fi
     echo -e "${BLUE}Starting frontend dev server on port 5173...${NC}"
     npm run dev
 }
@@ -83,6 +87,12 @@ run_dev() {
     # Stop existing processes first
     stop_backend
     stop_frontend
+
+    # Install npm dependencies if needed
+    if [[ ! -d node_modules ]] || [[ package.json -nt node_modules/.package-lock.json ]]; then
+        echo -e "${BLUE}Installing npm dependencies...${NC}"
+        npm install
+    fi
 
     # Always rebuild backend to pick up code changes
     build_backend
