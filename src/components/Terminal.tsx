@@ -401,6 +401,13 @@ export function Terminal({
   const doResize = useCallback(() => {
     if (!xtermRef.current || !fitAddonRef.current) return;
 
+    // Don't resize if container is hidden — prevents dimension corruption on tab switch
+    const container = containerRef.current;
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1) return;
+    }
+
     // Check if output occurred recently — defer resize if so
     const timeSinceOutput = Date.now() - lastOutputTimeRef.current;
     if (timeSinceOutput < OUTPUT_QUIET_PERIOD) {
@@ -500,6 +507,10 @@ export function Terminal({
       const entry = entries[0];
       const newWidth = entry.contentRect.width;
       const newHeight = entry.contentRect.height;
+
+      // Skip if container is hidden (zero dimensions) — prevents corrupting
+      // xterm dimensions when tab becomes inactive (display: none)
+      if (newWidth < 1 || newHeight < 1) return;
 
       // Debounced fit (local only for tmux, full resize for non-tmux)
       resizeDebounceRef.current = setTimeout(() => doResize(), RESIZE_DEBOUNCE_MS);
@@ -607,6 +618,7 @@ export function Terminal({
     <div
       ref={containerRef}
       className="terminal-container"
+      onContextMenu={(e) => e.preventDefault()}
       style={{
         width: '100%',
         height: '100%',

@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Plus, X, MoreVertical, Terminal as TerminalIcon, Pencil, Trash2, Minus, Type } from 'lucide-react';
+import { Plus, X, MoreVertical, Terminal as TerminalIcon, Pencil, Trash2, Minus, Type, FolderOpen } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { Terminal } from './Terminal';
+import { FilePickerModal } from './FilePickerModal';
 import { useTerminal, type TerminalTab, type RecoveredSession } from '../hooks/useTerminal';
 
 const API_BASE = 'http://localhost:8130';
@@ -61,6 +62,7 @@ function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps) {
   const [name, setName] = useState(profile?.name || '');
   const [command, setCommand] = useState(profile?.command || '');
   const [cwd, setCwd] = useState(profile?.cwd || '');
+  const [showFolderPicker, setShowFolderPicker] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -182,15 +184,41 @@ function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps) {
           {/* Working directory */}
           <div>
             <label style={labelStyle}>Working directory</label>
-            <input
-              type="text"
-              value={cwd}
-              onChange={(e) => setCwd(e.target.value)}
-              placeholder="Current workspace"
-              style={inputStyle}
-              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent, #64ffda)'; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)'; }}
-            />
+            <div className="flex gap-1.5">
+              <input
+                type="text"
+                value={cwd}
+                onChange={(e) => setCwd(e.target.value)}
+                placeholder="Current workspace"
+                style={{ ...inputStyle, flex: 1 }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent, #64ffda)'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)'; }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowFolderPicker(true)}
+                className="flex items-center justify-center rounded flex-shrink-0"
+                style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  borderRadius: '6px',
+                  color: 'rgba(255, 255, 255, 0.6)',
+                  width: '34px',
+                  height: '34px',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.12)';
+                  e.currentTarget.style.color = 'rgba(255, 255, 255, 0.9)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.06)';
+                  e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)';
+                }}
+                title="Browse folders"
+              >
+                <FolderOpen size={14} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -230,6 +258,18 @@ function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps) {
           </button>
         </div>
       </div>
+      {showFolderPicker && (
+        <FilePickerModal
+          mode="folder"
+          title="Select Working Directory"
+          initialPath={cwd || undefined}
+          onSelect={(path) => {
+            setCwd(path);
+            setShowFolderPicker(false);
+          }}
+          onCancel={() => setShowFolderPicker(false)}
+        />
+      )}
     </div>,
     document.body
   );

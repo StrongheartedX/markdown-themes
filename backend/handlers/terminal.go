@@ -124,9 +124,11 @@ func (tm *TerminalManager) CheckSpawnDedup(requestID, spawnKey string) error {
 		tm.recentSpawnRequests[requestID] = now
 	}
 
-	// Layer 2: semantic spawn-key dedup (catches rapid clicks generating different IDs)
+	// Layer 2: semantic spawn-key dedup (catches rapid double-clicks)
+	// Use a short window — just enough to catch accidental doubles,
+	// not so long that it blocks legitimate multiple tabs with same profile+cwd
 	if spawnKey != "" {
-		if t, seen := tm.recentSpawnKeys[spawnKey]; seen && now.Sub(t) <= spawnDedupTTL {
+		if t, seen := tm.recentSpawnKeys[spawnKey]; seen && now.Sub(t) <= 500*time.Millisecond {
 			return fmt.Errorf("duplicate spawn key %q (seen %v ago)", spawnKey, now.Sub(t).Round(time.Millisecond))
 		}
 		tm.recentSpawnKeys[spawnKey] = now
@@ -1093,12 +1095,35 @@ func HandleTerminalMessage(msgType string, raw json.RawMessage, clientSend func(
 
 		session, err := tm.SpawnSession(msg.TerminalID, msg.Cwd, cols, rows, msg.Command)
 		if err != nil {
-			clientSend(map[string]interface{}{
-				"type":       "terminal-error",
-				"terminalId": msg.TerminalID,
-				"error":      err.Error(),
-			})
-			return
+			// If spawn failed because the tmux session already exists (e.g., after
+			// backend restart with orphaned sessions), fall back to reconnect
+			if tmuxHasSession(msg.TerminalID) {
+				log.Printf("[Terminal] Spawn failed but tmux session exists, falling back to reconnect: %s", msg.TerminalID)
+				session, err = tm.ReconnectSession(msg.TerminalID, msg.TerminalID, cols, rows)
+				if err != nil {
+					clientSend(map[string]interface{}{
+						"type":       "terminal-error",
+						"terminalId": msg.TerminalID,
+						"error":      "spawn and reconnect both failed: " + err.Error(),
+					})
+					return
+				}
+			} else {
+				clientSend(map[string]interface{}{
+					"type":       "terminal-error",
+					"terminalId": msg.TerminalID,
+					"error":      err.Error(),
+				})
+				return
+			}
+		}
+
+		// Set @profile tmux option so the status bar can display the profile name
+		if msg.ProfileName != "" {
+			setProfileCmd := tmuxCmd("set-option", "-t", session.TmuxSession, "@profile", msg.ProfileName)
+			if out, err := setProfileCmd.CombinedOutput(); err != nil {
+				log.Printf("[Terminal] tmux set @profile warning: %v (output: %s)", err, strings.TrimSpace(string(out)))
+			}
 		}
 
 		tm.AddClient(session.ID, client)

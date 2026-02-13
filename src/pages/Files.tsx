@@ -1040,8 +1040,11 @@ export function Files() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't handle if user is typing in an input
+      // Don't handle if user is typing in an input or focused in a terminal
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      if ((e.target as HTMLElement).closest?.('.terminal-container')) {
         return;
       }
 
