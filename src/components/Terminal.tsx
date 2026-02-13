@@ -33,8 +33,11 @@ function forceXtermTransparent(container: HTMLElement) {
   });
 }
 
-function getXtermTheme() {
-  const s = getComputedStyle(document.documentElement);
+function getXtermTheme(container?: HTMLElement | null) {
+  // Read from the themed element (has .theme-* class) so theme-specific
+  // variables like --terminal-fg resolve correctly. Falls back to <html>.
+  const el = container?.closest('[class*="theme-"]') ?? document.documentElement;
+  const s = getComputedStyle(el);
   const v = (name: string) => s.getPropertyValue(name).trim();
   return {
     background: 'transparent',
@@ -217,7 +220,7 @@ export function Terminal({
       cursorBlink: true,
       fontSize,
       fontFamily: fontFamily || DEFAULT_FONT_FAMILY,
-      theme: getXtermTheme(),
+      theme: getXtermTheme(container),
       allowTransparency: true,
       allowProposedApi: true,
       scrollback: tmuxManaged ? 0 : 10000,
@@ -635,19 +638,20 @@ export function Terminal({
     };
   }, [initialized, tmuxManaged, triggerResizeTrick]);
 
-  // Theme updates via MutationObserver on <html> class changes
+  // Theme updates via MutationObserver on theme container class changes
   useEffect(() => {
-    const html = document.documentElement;
+    const themeEl = containerRef.current?.closest('[class*="theme-"]');
+    const target = themeEl ?? document.documentElement;
     const observer = new MutationObserver(() => {
       if (xtermRef.current) {
-        xtermRef.current.options.theme = getXtermTheme();
+        xtermRef.current.options.theme = getXtermTheme(containerRef.current);
         // Re-force transparency after xterm re-applies the theme background
         if (containerRef.current) {
           requestAnimationFrame(() => forceXtermTransparent(containerRef.current!));
         }
       }
     });
-    observer.observe(html, { attributes: true, attributeFilter: ['class'] });
+    observer.observe(target, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
   }, []);
 
