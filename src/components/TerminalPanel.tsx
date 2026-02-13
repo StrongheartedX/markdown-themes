@@ -3,7 +3,7 @@ import { Plus, X, MoreVertical, Terminal as TerminalIcon, Pencil, Trash2, Minus,
 import { createPortal } from 'react-dom';
 import { Terminal } from './Terminal';
 import { FilePickerModal } from './FilePickerModal';
-import { useTerminal, type TerminalTab, type RecoveredSession } from '../hooks/useTerminal';
+import { useTerminal, type TerminalTab, type RecoveredSession, type TerminalListResponse } from '../hooks/useTerminal';
 import { sanitizeProfileName, generateTerminalId, generateProfileId } from '../utils/terminalUtils';
 
 const API_BASE = 'http://localhost:8130';
@@ -298,17 +298,22 @@ export function TerminalPanel({
   // Track whether we've connected at least once (to distinguish initial connect vs reconnect)
   const hasConnectedRef = useRef(false);
 
+  // Track whether backend recovery has completed (gates auto-spawn of first terminal)
+  const [recoveryDone, setRecoveryDone] = useState(false);
+  const recoveryTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
   // Ref to current tabs for use in onConnected callback
   const tabsRef = useRef(tabs);
   useEffect(() => { tabsRef.current = tabs; }, [tabs]);
 
-  // Clean up staggered reconnection timers on unmount
+  // Clean up timers on unmount
   useEffect(() => {
     return () => {
       for (const timer of reconnectTimersRef.current) {
         clearTimeout(timer);
       }
       reconnectTimersRef.current.clear();
+      clearTimeout(recoveryTimerRef.current);
     };
   }, []);
 
@@ -316,8 +321,9 @@ export function TerminalPanel({
   // This breaks the circular dependency where onConnected needs reconnect
   // but reconnect comes from the same useTerminal call.
   const reconnectRef = useRef<(id: string, cols: number, rows: number) => void>(() => {});
+  const listSessionsRef = useRef<() => void>(() => {});
 
-  const { connected, spawn, reconnect, sendInput, resize, close } = useTerminal({
+  const { connected, spawn, reconnect, sendInput, resize, close, listSessions } = useTerminal({
     onOutput: useCallback((terminalId: string, data: string | Uint8Array) => {
       const helpers = terminalWritersRef.current.get(terminalId);
       if (helpers) {
@@ -377,6 +383,12 @@ export function TerminalPanel({
     onConnected: useCallback(() => {
       if (!hasConnectedRef.current) {
         hasConnectedRef.current = true;
+        // Request session list from backend so we can discover orphaned mt-* sessions
+        // (the startup recovery broadcast may have already fired before we connected)
+        listSessionsRef.current();
+        // Set a timeout fallback: if backend doesn't respond
+        // within 3s, consider recovery done so auto-spawn can proceed
+        recoveryTimerRef.current = setTimeout(() => setRecoveryDone(true), 3000);
         return;
       }
       // WebSocket reconnected -- reconnect all tabs that have tmux sessions
@@ -413,10 +425,38 @@ export function TerminalPanel({
       });
     }, [onTabsChange]),
     onRecoveryComplete: useCallback((recoveredSessions: RecoveredSession[]) => {
-      const currentTabs = tabsRef.current;
-      if (currentTabs.length === 0) return;
+      clearTimeout(recoveryTimerRef.current);
+      setRecoveryDone(true);
 
+      const currentTabs = tabsRef.current;
       const recoveredIds = new Set(recoveredSessions.map(s => s.id));
+
+      // If we have no tabs but backend found orphaned mt-* tmux sessions,
+      // create tabs for them so the user gets their terminals back
+      if (currentTabs.length === 0 && recoveredSessions.length > 0) {
+        const newTabs: TerminalTab[] = recoveredSessions.map(s => {
+          // Extract a friendly title from the session ID (e.g. "mt-shell-abc123" → "Shell")
+          const parts = s.id.replace(/^mt-/, '').split('-');
+          parts.pop(); // remove the random suffix
+          const title = parts.length > 0
+            ? parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
+            : 'Shell';
+          return {
+            id: s.id,
+            title,
+            cwd: s.cwd || workspacePath,
+            tmuxSession: s.id,
+            reconnecting: true,
+          };
+        });
+        onTabsChange(newTabs);
+        onActiveTabChange(newTabs[0].id);
+        // Terminal components will mount and handleTerminalReady will see
+        // tmuxSession on each tab, triggering reconnect instead of spawn
+        return;
+      }
+
+      if (currentTabs.length === 0) return;
 
       // Remove tabs whose tmux sessions no longer exist (stale tabs)
       const staleTabs = currentTabs.filter(tab => !recoveredIds.has(tab.id) && !spawnedRef.current.has(tab.id));
@@ -468,11 +508,86 @@ export function TerminalPanel({
         }, index * 150);
         reconnectTimersRef.current.add(timer);
       });
-    }, [onTabsChange, onActiveTabChange]),
+    }, [onTabsChange, onActiveTabChange, workspacePath]),
+    onTerminalList: useCallback((data: TerminalListResponse) => {
+      // Treat the terminal-list response like recovery: combine active sessions
+      // and orphans into a single list of sessions to recover
+      clearTimeout(recoveryTimerRef.current);
+      setRecoveryDone(true);
+
+      const currentTabs = tabsRef.current;
+      const allSessionIds = new Set([
+        ...data.active.map(s => s.id),
+        ...data.orphans,
+      ]);
+
+      // If we have tabs from sessionStorage, they'll reconnect via handleTerminalReady.
+      // But if we have no tabs and backend has sessions, create tabs for them.
+      if (currentTabs.length === 0 && allSessionIds.size > 0) {
+        const newTabs: TerminalTab[] = [];
+        for (const s of data.active) {
+          const parts = s.id.replace(/^mt-/, '').split('-');
+          parts.pop();
+          const title = parts.length > 0
+            ? parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
+            : 'Shell';
+          newTabs.push({
+            id: s.id,
+            title,
+            cwd: s.cwd || workspacePath,
+            tmuxSession: s.tmuxSession || s.id,
+            reconnecting: true,
+          });
+        }
+        for (const orphanId of data.orphans) {
+          // Skip if already added from active
+          if (newTabs.some(t => t.id === orphanId)) continue;
+          const parts = orphanId.replace(/^mt-/, '').split('-');
+          parts.pop();
+          const title = parts.length > 0
+            ? parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
+            : 'Shell';
+          newTabs.push({
+            id: orphanId,
+            title,
+            cwd: workspacePath,
+            tmuxSession: orphanId,
+            reconnecting: true,
+          });
+        }
+        if (newTabs.length > 0) {
+          onTabsChange(newTabs);
+          onActiveTabChange(newTabs[0].id);
+        }
+      } else if (currentTabs.length > 0) {
+        // Remove stale tabs whose sessions no longer exist
+        const staleTabs = currentTabs.filter(tab =>
+          !allSessionIds.has(tab.id) && !spawnedRef.current.has(tab.id)
+        );
+        if (staleTabs.length > 0) {
+          const staleIds = new Set(staleTabs.map(t => t.id));
+          onTabsChange(prev => {
+            const remaining = prev.filter(t => !staleIds.has(t.id));
+            onActiveTabChange(prevActive => {
+              if (prevActive && staleIds.has(prevActive)) {
+                return remaining.length > 0 ? remaining[remaining.length - 1].id : null;
+              }
+              return prevActive;
+            });
+            return remaining;
+          });
+          for (const id of staleIds) {
+            spawnedRef.current.delete(id);
+            terminalWritersRef.current.delete(id);
+          }
+        }
+      }
+    }, [onTabsChange, onActiveTabChange, workspacePath]),
   });
 
   // Keep reconnectRef pointing to the latest reconnect function
   reconnectRef.current = reconnect;
+  listSessionsRef.current = listSessions;
 
   // Load profiles on mount
   useEffect(() => {
@@ -604,10 +719,22 @@ export function TerminalPanel({
       const dims = helpers.fit();
       const cols = dims?.cols || 120;
       const rows = dims?.rows || 30;
-      const requestId = crypto.randomUUID();
-      spawn(terminalId, cwd, cols, rows, command, requestId, profileName);
+
+      // If this tab has a tmuxSession (restored from sessionStorage), reconnect
+      // to the existing tmux session instead of spawning a new one
+      const tab = tabsRef.current.find(t => t.id === terminalId);
+      if (tab?.tmuxSession) {
+        pendingReconnectsRef.current.add(terminalId);
+        onTabsChange(prev => prev.map(t =>
+          t.id === terminalId ? { ...t, reconnecting: true } : t
+        ));
+        reconnectRef.current(terminalId, cols, rows);
+      } else {
+        const requestId = crypto.randomUUID();
+        spawn(terminalId, cwd, cols, rows, command, requestId, profileName);
+      }
     }
-  }, [spawn]);
+  }, [spawn, onTabsChange]);
 
   const handleTerminalInput = useCallback((terminalId: string, data: string) => {
     sendInput(terminalId, data);
@@ -624,13 +751,14 @@ export function TerminalPanel({
   }, [onTabsChange]);
 
   // Auto-spawn first terminal on initial connect only (not when user closes all tabs)
+  // Waits for recovery to complete so we don't spawn a new terminal over orphaned sessions
   const hasSpawnedInitialRef = useRef(false);
   useEffect(() => {
-    if (tabs.length === 0 && connected && !hasSpawnedInitialRef.current) {
+    if (tabs.length === 0 && connected && recoveryDone && !hasSpawnedInitialRef.current) {
       hasSpawnedInitialRef.current = true;
       spawnTerminal();
     }
-  }, [tabs.length, connected]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tabs.length, connected, recoveryDone]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="flex flex-col h-full" style={{ background: 'var(--terminal-bg, var(--bg-primary))' }}>

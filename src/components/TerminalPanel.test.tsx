@@ -16,12 +16,13 @@ const mockUseTerminal = {
   resize: vi.fn(),
   disconnect: vi.fn(),
   close: vi.fn(),
+  listSessions: vi.fn(),
 };
 
 vi.mock('../hooks/useTerminal', () => ({
   useTerminal: (options: Record<string, unknown>) => {
     // Capture the latest callbacks
-    for (const key of ['onOutput', 'onSpawned', 'onClosed', 'onError', 'onConnected', 'onRecoveryComplete']) {
+    for (const key of ['onOutput', 'onSpawned', 'onClosed', 'onError', 'onConnected', 'onRecoveryComplete', 'onTerminalList']) {
       if (typeof options[key] === 'function') {
         capturedCallbacks[key] = options[key] as (...args: unknown[]) => void;
       }
@@ -90,6 +91,7 @@ describe('TerminalPanel', () => {
     mockUseTerminal.spawn.mockClear();
     mockUseTerminal.reconnect.mockClear();
     mockUseTerminal.close.mockClear();
+    mockUseTerminal.listSessions.mockClear();
     mockUseTerminal.connected = true;
 
     // Mock fetch for profiles
@@ -193,11 +195,16 @@ describe('TerminalPanel', () => {
       expect(result[1].title).toBe('Shell');
     });
 
-    it('auto-spawns first terminal when connected with 0 tabs', () => {
+    it('auto-spawns first terminal when connected with 0 tabs after recovery', () => {
       const onTabsChange = vi.fn();
       renderPanel({ tabs: [], activeTabId: null, onTabsChange });
 
-      // The auto-spawn effect fires synchronously (useEffect with tabs.length === 0 && connected)
+      // Auto-spawn now waits for recovery to complete before spawning.
+      // Simulate recovery completing with no sessions (empty recovery).
+      if (capturedCallbacks.onRecoveryComplete) {
+        act(() => capturedCallbacks.onRecoveryComplete([]));
+      }
+
       // onTabsChange should have been called with an updater that adds a tab
       const addCall = onTabsChange.mock.calls.find(call => {
         if (typeof call[0] === 'function') {
@@ -404,18 +411,25 @@ describe('TerminalPanel', () => {
       expect(capturedCallbacks.onRecoveryComplete).toBeDefined();
     });
 
-    it('onRecoveryComplete with no tabs is a no-op', () => {
+    it('onRecoveryComplete with no tabs creates tabs from recovered sessions', () => {
       const onTabsChange = vi.fn();
-      renderPanel({ tabs: [], activeTabId: null, onTabsChange });
-
-      const callsBefore = onTabsChange.mock.calls.length;
+      const onActiveTabChange = vi.fn();
+      renderPanel({ tabs: [], activeTabId: null, onTabsChange, onActiveTabChange });
 
       if (capturedCallbacks.onRecoveryComplete) {
         act(() => capturedCallbacks.onRecoveryComplete([{ id: 'mt-bash-1', cwd: '/home' }]));
       }
 
-      // With 0 tabs, recovery returns early without calling onTabsChange
-      expect(onTabsChange.mock.calls.length).toBe(callsBefore);
+      // With 0 tabs, recovery now creates new tabs for orphaned sessions
+      const tabsCalls = onTabsChange.mock.calls;
+      // Find the call that passes a direct array of tabs (not a state updater function)
+      const recoveryCall = tabsCalls.find(call => Array.isArray(call[0]));
+      expect(recoveryCall).toBeDefined();
+      const newTabs = recoveryCall![0];
+      expect(newTabs.length).toBe(1);
+      expect(newTabs[0].id).toBe('mt-bash-1');
+      expect(newTabs[0].tmuxSession).toBe('mt-bash-1');
+      expect(newTabs[0].reconnecting).toBe(true);
     });
 
     it('onRecoveryComplete does not crash with recovered sessions matching existing tabs', () => {

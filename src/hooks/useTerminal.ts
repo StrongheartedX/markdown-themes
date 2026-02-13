@@ -18,6 +18,11 @@ export interface RecoveredSession {
   cwd: string;
 }
 
+export interface TerminalListResponse {
+  active: Array<{ id: string; tmuxSession: string; cwd: string }>;
+  orphans: string[];
+}
+
 interface UseTerminalOptions {
   onOutput?: (terminalId: string, data: string | Uint8Array) => void;
   onSpawned?: (info: { terminalId: string; tmuxSession?: string; cwd: string; cols: number; rows: number; reconnected?: boolean }) => void;
@@ -25,18 +30,19 @@ interface UseTerminalOptions {
   onError?: (terminalId: string, error: string) => void;
   onConnected?: () => void;
   onRecoveryComplete?: (recoveredSessions: RecoveredSession[]) => void;
+  onTerminalList?: (data: TerminalListResponse) => void;
 }
 
-export function useTerminal({ onOutput, onSpawned, onClosed, onError, onConnected, onRecoveryComplete }: UseTerminalOptions) {
+export function useTerminal({ onOutput, onSpawned, onClosed, onError, onConnected, onRecoveryComplete, onTerminalList }: UseTerminalOptions) {
   const wsRef = useRef<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
   const reconnectAttemptRef = useRef(0);
   const mountedRef = useRef(true);
-  const callbacksRef = useRef({ onOutput, onSpawned, onClosed, onError, onConnected, onRecoveryComplete });
+  const callbacksRef = useRef({ onOutput, onSpawned, onClosed, onError, onConnected, onRecoveryComplete, onTerminalList });
 
   // Keep callbacks fresh without re-triggering effects
   useEffect(() => {
-    callbacksRef.current = { onOutput, onSpawned, onClosed, onError, onConnected, onRecoveryComplete };
+    callbacksRef.current = { onOutput, onSpawned, onClosed, onError, onConnected, onRecoveryComplete, onTerminalList };
   });
 
   // Connect WebSocket
@@ -85,6 +91,12 @@ export function useTerminal({ onOutput, onSpawned, onClosed, onError, onConnecte
                 break;
               case 'terminal-recovery-complete':
                 callbacksRef.current.onRecoveryComplete?.(msg.recoveredSessions || []);
+                break;
+              case 'terminal-list':
+                callbacksRef.current.onTerminalList?.({
+                  active: msg.active || [],
+                  orphans: msg.orphans || [],
+                });
                 break;
             }
           } catch {
@@ -189,6 +201,11 @@ export function useTerminal({ onOutput, onSpawned, onClosed, onError, onConnecte
     });
   }, [sendMessage]);
 
+  /** Request list of active + orphaned tmux sessions from backend. */
+  const listSessions = useCallback(() => {
+    sendMessage({ type: 'terminal-list' });
+  }, [sendMessage]);
+
   return {
     connected,
     spawn,
@@ -197,5 +214,6 @@ export function useTerminal({ onOutput, onSpawned, onClosed, onError, onConnecte
     resize,
     disconnect,
     close,
+    listSessions,
   };
 }

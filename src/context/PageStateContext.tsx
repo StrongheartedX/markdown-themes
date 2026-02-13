@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import type { Tab } from '../hooks/useTabManager';
 import type { RightPaneContent } from '../hooks/useSplitView';
 import type { TerminalTab } from '../hooks/useTerminal';
@@ -103,13 +103,9 @@ function savePageState(state: PageState): void {
 const PageStateContext = createContext<PageStateContextValue | null>(null);
 
 export function PageStateProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<PageState>(defaultState);
-
-  // Load state from sessionStorage on mount
-  useEffect(() => {
-    const loaded = loadPageState();
-    setState(loaded);
-  }, []);
+  // Load synchronously so children see persisted state on first render
+  // (avoids race where Files.tsx captures empty defaults before the useEffect fires)
+  const [state, setState] = useState<PageState>(() => loadPageState());
 
   const setFilesState = useCallback((partial: Partial<FilesPageState>) => {
     setState((prev) => {
