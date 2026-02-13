@@ -315,6 +315,8 @@ export function Terminal({
       try {
         fitAddon.fit();
         onResizeRef.current?.(xterm.cols, xterm.rows);
+        // Seed prevDimensionsRef so doResize can detect narrowing
+        prevDimensionsRef.current = { cols: xterm.cols, rows: xterm.rows };
       } catch { /* ignore */ }
     }, 300);
 
@@ -457,14 +459,41 @@ export function Terminal({
       resizeCooldownRef.current = null;
     }
 
+    // Capture previous dimensions BEFORE fit
+    const prevCols = prevDimensionsRef.current.cols;
+    const prevRows = prevDimensionsRef.current.rows;
+
     try {
       fitAddonRef.current.fit();
       const xterm = xtermRef.current;
+      const newCols = xterm.cols;
+      const newRows = xterm.rows;
+
+      // Detect column narrowing or large row delta (tmux status bar reflow).
+      // When columns decrease, xterm's reflow algorithm corrupts complex ANSI
+      // sequences (box-drawing chars, colors, tmux status bars). Clear the
+      // buffer to prevent corruption and let tmux redraw cleanly.
+      const colsNarrowed = prevCols > 0 && newCols < prevCols;
+      const largeRowDelta = prevRows > 0 && Math.abs(newRows - prevRows) > 2;
+
+      if (colsNarrowed || largeRowDelta) {
+        console.log(`[doResize] Buffer clear: cols ${prevCols}->${newCols}, rows ${prevRows}->${newRows}`);
+        xterm.clear();
+
+        // Discard queued writes — they contain pre-resize content that would
+        // re-corrupt the display
+        writeQueueRef.current = [];
+        writeQueueBytesRef.current = [];
+      }
+
+      // Update tracked dimensions
+      prevDimensionsRef.current = { cols: newCols, rows: newRows };
+
       // For tmux sessions, do NOT send resize to backend here.
       // Container CSS changes (sidebar resize, split view) should only
       // update xterm locally. The resize trick handles backend communication.
       if (!tmuxManaged) {
-        onResizeRef.current?.(xterm.cols, xterm.rows);
+        onResizeRef.current?.(newCols, newRows);
       }
     } catch {
       // Ignore fit errors during resize
@@ -495,7 +524,13 @@ export function Terminal({
         });
       }
     }, RESIZE_COOLDOWN_MS);
-  }, [tmuxManaged]);
+
+    // For tmux sessions, trigger resize trick after clearing to force redraw
+    if (tmuxManaged && prevCols > 0 && (prevCols > xtermRef.current!.cols || (prevRows > 0 && Math.abs(xtermRef.current!.rows - prevRows) > 2))) {
+      // Schedule after cooldown settles
+      setTimeout(() => triggerResizeTrick(), RESIZE_COOLDOWN_MS + 50);
+    }
+  }, [tmuxManaged, triggerResizeTrick]);
 
   // ResizeObserver for container dimension changes.
   // For tmux sessions: fits xterm locally, then schedules resize trick after settling.
