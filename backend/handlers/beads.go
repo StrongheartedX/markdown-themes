@@ -77,7 +77,7 @@ func BeadsIssues(w http.ResponseWriter, r *http.Request) {
 	// Query issues (exclude deleted)
 	rows, err := db.Query(`
 		SELECT id, title, description, notes, design, status, priority,
-		       issue_type, owner, created_at, updated_at, closed_at, close_reason
+		       issue_type, assignee, created_at, updated_at, closed_at, close_reason
 		FROM issues
 		WHERE deleted_at IS NULL
 		ORDER BY created_at DESC
