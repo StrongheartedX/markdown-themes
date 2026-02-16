@@ -1095,6 +1095,10 @@ export function Files() {
       if (target?.closest?.('.terminal-container') || active?.closest?.('.terminal-container')) {
         return;
       }
+      // Don't handle if an iframe (e.g. HTML game viewer) is focused
+      if (target instanceof HTMLIFrameElement || active instanceof HTMLIFrameElement) {
+        return;
+      }
 
       // / - Focus search
       if (e.key === '/') {

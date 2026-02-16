@@ -74,6 +74,18 @@ html { scrollbar-color: ${colors.thumb} ${colors.track}; scrollbar-width: thin; 
     window.open(baseServeUrl, '_blank');
   }, [baseServeUrl]);
 
+  const handleBack = useCallback(() => {
+    try { iframeRef.current?.contentWindow?.history.back(); } catch { /* cross-origin */ }
+  }, []);
+
+  const handleForward = useCallback(() => {
+    try { iframeRef.current?.contentWindow?.history.forward(); } catch { /* cross-origin */ }
+  }, []);
+
+  const handleRefresh = useCallback(() => {
+    try { iframeRef.current?.contentWindow?.location.reload(); } catch { /* cross-origin */ }
+  }, []);
+
   // Listen for terminal-command messages from iframe
   useEffect(() => {
     if (!termCtx) return;
@@ -136,6 +148,43 @@ html { scrollbar-color: ${colors.thumb} ${colors.track}; scrollbar-width: thin; 
           Source
         </button>
 
+        {/* Navigation controls */}
+        {viewMode === 'preview' && (
+          <div className="flex items-center gap-0.5 ml-2">
+            <button
+              onClick={handleBack}
+              className="p-1.5 rounded hover:opacity-80"
+              style={{ color: 'var(--text-secondary)' }}
+              title="Back"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <button
+              onClick={handleForward}
+              className="p-1.5 rounded hover:opacity-80"
+              style={{ color: 'var(--text-secondary)' }}
+              title="Forward"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+            <button
+              onClick={handleRefresh}
+              className="p-1.5 rounded hover:opacity-80"
+              style={{ color: 'var(--text-secondary)' }}
+              title="Refresh"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="23 4 23 10 17 10" />
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {/* Right side */}
         <div className="ml-auto flex items-center gap-4">
           {isStreaming && (
@@ -182,7 +231,7 @@ html { scrollbar-color: ${colors.thumb} ${colors.track}; scrollbar-width: thin; 
             ref={iframeRef}
             srcDoc={srcdoc}
             title={fileName}
-            sandbox="allow-scripts"
+            sandbox="allow-scripts allow-same-origin"
             className="w-full h-full border-0"
             style={{
               backgroundColor: 'white',
