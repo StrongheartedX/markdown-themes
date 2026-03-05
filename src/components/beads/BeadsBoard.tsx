@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { RefreshCw, ChevronDown, ChevronRight, Inbox } from 'lucide-react';
-import { fetchBeadsIssues, type BeadsIssue } from '../../lib/api';
+import { fetchBeadsIssues, fetchBeadsBlocked, fetchBeadsProjects, type BeadsIssue, type BeadsProject } from '../../lib/api';
 import { BeadsCard } from './BeadsCard';
 import { BeadsDetail } from './BeadsDetail';
 
 interface BeadsBoardProps {
-  workspacePath: string | null;
+  workspacePath?: string | null;
   fontSize?: number;
   /** When provided, issue selection is delegated to parent (e.g. open in left pane) */
   onSelectIssue?: (issue: BeadsIssue) => void;
@@ -25,7 +25,9 @@ const COLUMNS: ColumnDef[] = [
   { key: 'done', title: 'Done', defaultExpanded: false },
 ];
 
-export function BeadsBoard({ workspacePath, fontSize = 100, onSelectIssue }: BeadsBoardProps) {
+const STORAGE_KEY = 'beads-board-prefix';
+
+export function BeadsBoard({ fontSize = 100, onSelectIssue }: BeadsBoardProps) {
   const [issues, setIssues] = useState<BeadsIssue[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,47 +40,56 @@ export function BeadsBoard({ workspacePath, fontSize = 100, onSelectIssue }: Bea
     return initial;
   });
 
+  // Project prefix state
+  const [projects, setProjects] = useState<BeadsProject[]>([]);
+  const [selectedPrefix, setSelectedPrefix] = useState<string>(() => {
+    return localStorage.getItem(STORAGE_KEY) ?? '';
+  });
+  // Blocked-by map from the blocked API
+  const [blockedByMap, setBlockedByMap] = useState<Map<string, string[]>>(new Map());
+
+  // Load available projects on mount
+  useEffect(() => {
+    fetchBeadsProjects().then(setProjects).catch(() => {});
+  }, []);
+
   const loadIssues = useCallback(async () => {
-    if (!workspacePath) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchBeadsIssues(workspacePath);
+      const [data, blocked] = await Promise.all([
+        fetchBeadsIssues(selectedPrefix || undefined),
+        fetchBeadsBlocked(),
+      ]);
       setIssues(data);
+
+      // Build blocked-by map
+      const map = new Map<string, string[]>();
+      for (const b of blocked) {
+        if (b.blocked_by?.length > 0) {
+          map.set(b.id, b.blocked_by);
+        }
+      }
+      setBlockedByMap(map);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load issues');
     } finally {
       setLoading(false);
     }
-  }, [workspacePath]);
+  }, [selectedPrefix]);
 
   useEffect(() => {
     loadIssues();
   }, [loadIssues]);
 
-  // Build a set of open issue IDs for dependency resolution
-  const openIssueIds = useMemo(() => {
-    const ids = new Set<string>();
-    issues.forEach((issue) => {
-      if (issue.status !== 'closed') ids.add(issue.id);
-    });
-    return ids;
-  }, [issues]);
-
-  // Compute blocking dependencies for each issue (only unresolved ones)
-  const blockedByMap = useMemo(() => {
-    const map = new Map<string, string[]>();
-    issues.forEach((issue) => {
-      if (!issue.dependencies) return;
-      const blockers = issue.dependencies
-        .filter((d) => d.type === 'blocks' && d.depends_on_id !== issue.id && openIssueIds.has(d.depends_on_id))
-        .map((d) => d.depends_on_id);
-      if (blockers.length > 0) {
-        map.set(issue.id, blockers);
-      }
-    });
-    return map;
-  }, [issues, openIssueIds]);
+  const handlePrefixChange = useCallback((prefix: string) => {
+    setSelectedPrefix(prefix);
+    if (prefix) {
+      localStorage.setItem(STORAGE_KEY, prefix);
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }, []);
 
   // Categorize issues into columns
   const columns = useMemo(() => {
@@ -131,14 +142,6 @@ export function BeadsBoard({ workspacePath, fontSize = 100, onSelectIssue }: Bea
 
   const scale = fontSize / 100;
 
-  if (!workspacePath) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p style={{ color: 'var(--text-secondary)' }}>No workspace selected</p>
-      </div>
-    );
-  }
-
   // Show detail view when an issue is selected
   if (selectedIssue) {
     return (
@@ -160,9 +163,29 @@ export function BeadsBoard({ workspacePath, fontSize = 100, onSelectIssue }: Bea
           backgroundColor: 'var(--bg-secondary)',
         }}
       >
-        <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-          Beads Board
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+            Beads Board
+          </span>
+          <select
+            value={selectedPrefix}
+            onChange={(e) => handlePrefixChange(e.target.value)}
+            className="text-xs px-1.5 py-0.5 rounded"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border)',
+              outline: 'none',
+            }}
+          >
+            <option value="">All Projects</option>
+            {projects.map((p) => (
+              <option key={p.prefix} value={p.prefix}>
+                {p.name} ({p.prefix})
+              </option>
+            ))}
+          </select>
+        </div>
         <button
           onClick={loadIssues}
           disabled={loading}
@@ -194,10 +217,10 @@ export function BeadsBoard({ workspacePath, fontSize = 100, onSelectIssue }: Bea
         <div className="flex flex-col items-center justify-center h-full gap-2">
           <Inbox size={40} style={{ color: 'var(--text-secondary)', opacity: 0.5 }} />
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            No .beads/ directory found
+            No issues found{selectedPrefix ? ` for "${selectedPrefix}"` : ''}
           </p>
           <p className="text-xs" style={{ color: 'var(--text-secondary)', opacity: 0.7 }}>
-            Run <code style={{ fontFamily: 'var(--font-mono)' }}>bd create --title="..."</code> to get started
+            Run <code style={{ fontFamily: 'var(--font-mono)' }}>ggbd create --title="..."</code> to get started
           </p>
         </div>
       )}

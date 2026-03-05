@@ -557,3 +557,7 @@ For themes with **dark code blocks**, always add a catch-all selector for `<pre>
 ```
 
 Without these rules, code blocks outside `.prose` will show light text (from Shiki) on light backgrounds (from page), causing invisible/hard-to-read code.
+
+## Beads
+
+- At session start, call beads MCP `context(workspace_root='/home/marci/projects/markdown-themes')` to scope issues to this project's `mt` prefix

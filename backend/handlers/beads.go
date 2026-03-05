@@ -1,100 +1,148 @@
 package handlers
 
 import (
-	"bufio"
 	"encoding/json"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"sort"
-	"strings"
 )
 
-// BeadsIssue represents a single issue from .beads/issues.jsonl
-type BeadsIssue struct {
-	ID           string            `json:"id"`
-	Title        string            `json:"title"`
-	Description  string            `json:"description,omitempty"`
-	Notes        string            `json:"notes,omitempty"`
-	Design       string            `json:"design,omitempty"`
-	Status       string            `json:"status"`
-	Priority     int               `json:"priority"`
-	IssueType    string            `json:"issue_type,omitempty"`
-	Owner        string            `json:"owner,omitempty"`
-	Labels       []string          `json:"labels,omitempty"`
-	Dependencies []BeadsDependency `json:"dependencies,omitempty"`
-	CreatedAt    string            `json:"created_at,omitempty"`
-	UpdatedAt    string            `json:"updated_at,omitempty"`
-	ClosedAt     string            `json:"closed_at,omitempty"`
-	CloseReason  string            `json:"close_reason,omitempty"`
-}
-
-// BeadsDependency represents a dependency between issues
-type BeadsDependency struct {
-	IssueID     string `json:"issue_id"`
-	DependsOnID string `json:"depends_on_id"`
-	Type        string `json:"type"`
-	CreatedAt   string `json:"created_at,omitempty"`
-}
-
-// BeadsIssues handles GET /api/beads/issues
+// BeadsIssues handles GET /api/beads/issues?prefix=mt
+// Shells out to ggbd CLI which handles Supabase/Postgres via Go's pgx.
 func BeadsIssues(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Query().Get("path")
-	if path == "" {
-		http.Error(w, `{"error": "path parameter required"}`, http.StatusBadRequest)
-		return
+	prefix := r.URL.Query().Get("prefix")
+
+	// Find ggbd binary
+	home, _ := os.UserHomeDir()
+	ggbd := filepath.Join(home, "projects", "ggbeads", "ggbd")
+	if _, err := os.Stat(ggbd); err != nil {
+		// Fallback to PATH
+		ggbd = "bd"
 	}
 
-	// Expand home directory
-	if strings.HasPrefix(path, "~") {
-		home, err := os.UserHomeDir()
-		if err == nil {
-			path = filepath.Join(home, path[1:])
-		}
+	// Build command: ggbd list --all --json [--prefix X]
+	args := []string{"list", "--all", "--json"}
+	if prefix != "" {
+		args = append(args, "--prefix", prefix)
 	}
 
-	jsonlPath := filepath.Join(filepath.Clean(path), ".beads", "issues.jsonl")
+	cmd := exec.Command(ggbd, args...)
+	// Run from a directory with .beads/ so ggbd finds config
+	cmd.Dir = filepath.Join(home, "projects", "markdown-themes")
+	// Pass through BD_POSTGRES_URL
+	cmd.Env = append(os.Environ())
 
-	f, err := os.Open(jsonlPath)
+	output, err := cmd.Output()
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
+		errMsg := "failed to run ggbd"
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			errMsg = string(exitErr.Stderr)
+		}
+		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"issues": []BeadsIssue{},
-			"count":  0,
+			"error": errMsg,
 		})
 		return
 	}
-	defer f.Close()
 
-	var issues []BeadsIssue
-	scanner := bufio.NewScanner(f)
-	// JSONL lines can be large (long descriptions/notes)
-	scanner.Buffer(make([]byte, 0, 1024*1024), 1024*1024)
-
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			continue
-		}
-		var issue BeadsIssue
-		if err := json.Unmarshal([]byte(line), &issue); err != nil {
-			continue
-		}
-		issues = append(issues, issue)
+	// Parse ggbd JSON array output
+	var issues []json.RawMessage
+	if err := json.Unmarshal(output, &issues); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": "failed to parse ggbd output: " + err.Error(),
+		})
+		return
 	}
 
-	// Sort by created_at descending (newest first)
-	sort.Slice(issues, func(i, j int) bool {
-		return issues[i].CreatedAt > issues[j].CreatedAt
-	})
-
 	if issues == nil {
-		issues = []BeadsIssue{}
+		issues = []json.RawMessage{}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"issues": issues,
 		"count":  len(issues),
+	})
+}
+
+// BeadsBlocked handles GET /api/beads/blocked
+// Returns issues that are blocked by open dependencies.
+func BeadsBlocked(w http.ResponseWriter, r *http.Request) {
+	home, _ := os.UserHomeDir()
+	ggbd := filepath.Join(home, "projects", "ggbeads", "ggbd")
+	if _, err := os.Stat(ggbd); err != nil {
+		ggbd = "bd"
+	}
+
+	cmd := exec.Command(ggbd, "blocked", "--json")
+	cmd.Dir = filepath.Join(home, "projects", "markdown-themes")
+	cmd.Env = append(os.Environ())
+
+	output, err := cmd.Output()
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"blocked": []interface{}{},
+		})
+		return
+	}
+
+	var blocked []json.RawMessage
+	if err := json.Unmarshal(output, &blocked); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"blocked": []interface{}{},
+		})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"blocked": blocked,
+	})
+}
+
+// BeadsPrefixes handles GET /api/beads/prefixes
+// Returns registered projects from the Postgres projects table via ggbd project list.
+func BeadsPrefixes(w http.ResponseWriter, r *http.Request) {
+	home, _ := os.UserHomeDir()
+	ggbd := filepath.Join(home, "projects", "ggbeads", "ggbd")
+	if _, err := os.Stat(ggbd); err != nil {
+		ggbd = "bd"
+	}
+
+	cmd := exec.Command(ggbd, "project", "list", "--json")
+	cmd.Dir = filepath.Join(home, "projects", "markdown-themes")
+	cmd.Env = append(os.Environ())
+
+	output, err := cmd.Output()
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"projects": []interface{}{},
+		})
+		return
+	}
+
+	var projects []json.RawMessage
+	if err := json.Unmarshal(output, &projects); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"projects": []interface{}{},
+		})
+		return
+	}
+
+	if projects == nil {
+		projects = []json.RawMessage{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"projects": projects,
 	})
 }

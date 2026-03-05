@@ -474,27 +474,48 @@ export interface BeadsIssue {
   issue_type?: string;
   owner?: string;
   labels?: string[];
-  dependencies?: BeadsDependency[];
+  dependency_count?: number;
+  dependent_count?: number;
   created_at?: string;
   updated_at?: string;
   closed_at?: string;
   close_reason?: string;
 }
 
-export interface BeadsDependency {
-  issue_id: string;
-  depends_on_id: string;
-  type: string;
+export interface BeadsBlockedIssue {
+  id: string;
+  blocked_by: string[];
 }
 
-export async function fetchBeadsIssues(workspacePath: string): Promise<BeadsIssue[]> {
-  const params = new URLSearchParams({ path: workspacePath });
+export async function fetchBeadsIssues(prefix?: string): Promise<BeadsIssue[]> {
+  const params = new URLSearchParams();
+  if (prefix) params.set('prefix', prefix);
   const response = await fetch(`${API_BASE}/api/beads/issues?${params}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch beads issues: ${response.status}`);
   }
   const data = await response.json();
   return data.issues ?? [];
+}
+
+export async function fetchBeadsBlocked(): Promise<BeadsBlockedIssue[]> {
+  const response = await fetch(`${API_BASE}/api/beads/blocked`);
+  if (!response.ok) return [];
+  const data = await response.json();
+  return data.blocked ?? [];
+}
+
+export interface BeadsProject {
+  prefix: string;
+  name: string;
+  description?: string;
+}
+
+export async function fetchBeadsProjects(): Promise<BeadsProject[]> {
+  const response = await fetch(`${API_BASE}/api/beads/prefixes`);
+  if (!response.ok) return [];
+  const data = await response.json();
+  return data.projects ?? [];
 }
 
 export async function deleteConversationAPI(id: string): Promise<void> {

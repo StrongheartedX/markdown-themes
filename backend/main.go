@@ -128,6 +128,8 @@ func main() {
 
 		// Beads
 		r.Get("/beads/issues", handlers.BeadsIssues)
+		r.Get("/beads/blocked", handlers.BeadsBlocked)
+		r.Get("/beads/prefixes", handlers.BeadsPrefixes)
 
 		// TTS (proxy to Python TTS server)
 		r.Handle("/tts/*", http.HandlerFunc(handlers.TTSProxy))
