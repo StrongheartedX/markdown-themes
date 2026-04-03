@@ -1,1 +1,7 @@
-{"database":"postgres","backend":"postgres","postgres_url_env":"BD_POSTGRES_URL","postgres_schema":"beads"}
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "mt",
+  "project_id": "7f11df9a-51c2-4a4d-9852-7b5b8056a20e"
+}
