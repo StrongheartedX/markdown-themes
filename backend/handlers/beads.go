@@ -9,17 +9,54 @@ import (
 	"strings"
 )
 
-// beadsWorkDir returns the markdown-themes project root so bd can find .beads/.
+// findBeadsDir walks up from start looking for .beads/metadata.json, then
+// falls back to scanning ~/projects/*. Returns start if nothing found.
+func findBeadsDir(start string) string {
+	dir := start
+	for {
+		if _, err := os.Stat(filepath.Join(dir, ".beads", "metadata.json")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	home, _ := os.UserHomeDir()
+	projectsDir := filepath.Join(home, "projects")
+	entries, err := os.ReadDir(projectsDir)
+	if err == nil {
+		for _, e := range entries {
+			if e.IsDir() {
+				candidate := filepath.Join(projectsDir, e.Name())
+				if _, err := os.Stat(filepath.Join(candidate, ".beads", "metadata.json")); err == nil {
+					return candidate
+				}
+			}
+		}
+	}
+	return start
+}
+
+// beadsWorkDir returns the default project root so bd can find .beads/.
 func beadsWorkDir() string {
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, "projects", "markdown-themes")
 }
 
+// resolveWorkDir returns the workspace from the query param, or the default.
+func resolveWorkDir(r *http.Request) string {
+	if ws := r.URL.Query().Get("workspace"); ws != "" {
+		return findBeadsDir(ws)
+	}
+	return beadsWorkDir()
+}
+
 // runBd executes the upstream bd CLI with the given args and returns stdout.
-// It runs from the markdown-themes directory so bd discovers the embedded Dolt database.
-func runBd(args ...string) ([]byte, error) {
+func runBd(workDir string, args ...string) ([]byte, error) {
 	cmd := exec.Command("bd", args...)
-	cmd.Dir = beadsWorkDir()
+	cmd.Dir = workDir
 	cmd.Env = os.Environ()
 	return cmd.Output()
 }
@@ -28,12 +65,9 @@ func runBd(args ...string) ([]byte, error) {
 // Shells out to upstream bd CLI which uses the embedded Dolt database.
 func BeadsIssues(w http.ResponseWriter, r *http.Request) {
 	prefix := r.URL.Query().Get("prefix")
+	workDir := resolveWorkDir(r)
 
-	// Build command: bd list --all --json
-	// Note: upstream bd does not have a --prefix flag. The embedded Dolt database
-	// is scoped to this project already, so all returned issues belong to it.
-	// If a prefix filter is requested, we filter the results client-side.
-	output, err := runBd("list", "--all", "--json")
+	output, err := runBd(workDir, "list", "--all", "--json")
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		errMsg := "failed to run bd"
@@ -89,9 +123,10 @@ func BeadsIssues(w http.ResponseWriter, r *http.Request) {
 // wisp_dependencies table error that bd dep list triggers on some databases.
 func BeadsBlocked(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	workDir := resolveWorkDir(r)
 
 	// Get all open issues
-	allOut, err := runBd("list", "--status", "open", "--json")
+	allOut, err := runBd(workDir, "list", "--status", "open", "--json")
 	if err != nil {
 		json.NewEncoder(w).Encode(map[string]interface{}{"blocked": []interface{}{}})
 		return
@@ -106,7 +141,7 @@ func BeadsBlocked(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get ready issues (open with no active blockers)
-	readyOut, err := runBd("ready", "--json")
+	readyOut, err := runBd(workDir, "ready", "--json")
 	if err != nil {
 		// If ready fails, assume nothing is blocked
 		json.NewEncoder(w).Encode(map[string]interface{}{"blocked": []interface{}{}})
@@ -150,50 +185,58 @@ func BeadsBlocked(w http.ResponseWriter, r *http.Request) {
 // BeadsPrefixes handles GET /api/beads/prefixes
 // The upstream bd CLI does not have a "project list" command, so we derive the
 // prefix from the local .beads/metadata.json configuration.
+// BeadsPrefixes handles GET /api/beads/prefixes
+// Scans ~/projects/ for .beads/metadata.json files to discover all projects.
 func BeadsPrefixes(w http.ResponseWriter, r *http.Request) {
-	metaPath := filepath.Join(beadsWorkDir(), ".beads", "metadata.json")
-	data, err := os.ReadFile(metaPath)
+	w.Header().Set("Content-Type", "application/json")
+
+	home, _ := os.UserHomeDir()
+	projectsDir := filepath.Join(home, "projects")
+	entries, err := os.ReadDir(projectsDir)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"projects": []interface{}{},
-		})
+		json.NewEncoder(w).Encode(map[string]interface{}{"projects": []interface{}{}})
 		return
 	}
 
-	var meta struct {
-		Database    string `json:"dolt_database"`
-		Prefix      string `json:"prefix"`
+	type project struct {
+		Prefix string `json:"prefix"`
+		Name   string `json:"name"`
+		Path   string `json:"path"`
 	}
-	if json.Unmarshal(data, &meta) != nil {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"projects": []interface{}{},
-		})
-		return
-	}
+	var projects []project
 
-	// Derive prefix: use explicit prefix field, or fall back to dolt_database name
-	prefix := meta.Prefix
-	if prefix == "" {
-		prefix = meta.Database
-	}
-
-	var projects []map[string]string
-	if prefix != "" {
-		projects = append(projects, map[string]string{
-			"prefix":      prefix,
-			"name":        prefix,
-			"description": "Local beads project",
-		})
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		metaPath := filepath.Join(projectsDir, e.Name(), ".beads", "metadata.json")
+		data, err := os.ReadFile(metaPath)
+		if err != nil {
+			continue
+		}
+		var meta struct {
+			Database string `json:"dolt_database"`
+			Prefix   string `json:"prefix"`
+		}
+		if json.Unmarshal(data, &meta) != nil {
+			continue
+		}
+		prefix := meta.Prefix
+		if prefix == "" {
+			prefix = meta.Database
+		}
+		if prefix != "" {
+			projects = append(projects, project{
+				Prefix: prefix,
+				Name:   e.Name(),
+				Path:   filepath.Join(projectsDir, e.Name()),
+			})
+		}
 	}
 
 	if projects == nil {
-		projects = []map[string]string{}
+		projects = []project{}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"projects": projects,
-	})
+	json.NewEncoder(w).Encode(map[string]interface{}{"projects": projects})
 }

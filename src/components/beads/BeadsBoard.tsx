@@ -27,7 +27,7 @@ const COLUMNS: ColumnDef[] = [
 
 const STORAGE_KEY = 'beads-board-prefix';
 
-export function BeadsBoard({ fontSize = 100, onSelectIssue }: BeadsBoardProps) {
+export function BeadsBoard({ workspacePath, fontSize = 100, onSelectIssue }: BeadsBoardProps) {
   const [issues, setIssues] = useState<BeadsIssue[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,8 +58,8 @@ export function BeadsBoard({ fontSize = 100, onSelectIssue }: BeadsBoardProps) {
     setError(null);
     try {
       const [data, blocked] = await Promise.all([
-        fetchBeadsIssues(selectedPrefix || undefined),
-        fetchBeadsBlocked(),
+        fetchBeadsIssues(selectedPrefix || undefined, workspacePath),
+        fetchBeadsBlocked(workspacePath),
       ]);
       setIssues(data);
 

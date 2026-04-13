@@ -487,9 +487,10 @@ export interface BeadsBlockedIssue {
   blocked_by: string[];
 }
 
-export async function fetchBeadsIssues(prefix?: string): Promise<BeadsIssue[]> {
+export async function fetchBeadsIssues(prefix?: string, workspace?: string | null): Promise<BeadsIssue[]> {
   const params = new URLSearchParams();
   if (prefix) params.set('prefix', prefix);
+  if (workspace) params.set('workspace', workspace);
   const response = await fetch(`${API_BASE}/api/beads/issues?${params}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch beads issues: ${response.status}`);
@@ -498,8 +499,10 @@ export async function fetchBeadsIssues(prefix?: string): Promise<BeadsIssue[]> {
   return data.issues ?? [];
 }
 
-export async function fetchBeadsBlocked(): Promise<BeadsBlockedIssue[]> {
-  const response = await fetch(`${API_BASE}/api/beads/blocked`);
+export async function fetchBeadsBlocked(workspace?: string | null): Promise<BeadsBlockedIssue[]> {
+  const params = new URLSearchParams();
+  if (workspace) params.set('workspace', workspace);
+  const response = await fetch(`${API_BASE}/api/beads/blocked?${params}`);
   if (!response.ok) return [];
   const data = await response.json();
   return data.blocked ?? [];
