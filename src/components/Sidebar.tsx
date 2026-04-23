@@ -16,7 +16,10 @@ import { themes, type ThemeId } from '../themes';
  */
 function isProjectsDirectory(path: string | null): boolean {
   if (!path) return false;
-  return /\/(projects|Projects|repos|code|dev)$/.test(path);
+  // Treat projects dirs AND user home dirs as large roots — shallow + start collapsed
+  if (/\/(projects|Projects|repos|code|dev)$/.test(path)) return true;
+  if (/^(\/home\/[^/]+|\/Users\/[^/]+|\/root)$/.test(path)) return true;
+  return false;
 }
 
 // Context menu state interface

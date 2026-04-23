@@ -464,6 +464,18 @@ export function Files() {
   const [thirdColumnWidth, setThirdColumnWidth] = useState(filesState.thirdColumnWidth);
   const thirdColumnResizeRef = useRef<HTMLDivElement>(null);
 
+  // TerminalPanel is heavy (mounts xterm, auto-spawns tmux sessions). Keep it unmounted
+  // until the user actually opens the terminal panel — mounting it inside a display:none
+  // container causes xterm's renderer to init with zero dimensions and crash later.
+  // Once mounted, keep it mounted to preserve xterm state across hide/show.
+  const terminalEverOpenedInitial = filesState.thirdColumnOpen && filesState.thirdColumnMode === 'terminal';
+  const [terminalEverOpened, setTerminalEverOpened] = useState(terminalEverOpenedInitial);
+  useEffect(() => {
+    if (thirdColumnOpen && thirdColumnMode === 'terminal') {
+      setTerminalEverOpened(true);
+    }
+  }, [thirdColumnOpen, thirdColumnMode]);
+
   // Terminal tab state
   const [terminalTabs, setTerminalTabs] = useState<TerminalTab[]>(filesState.terminalTabs);
   const [activeTerminalTabId, setActiveTerminalTabId] = useState<string | null>(filesState.activeTerminalTabId);
@@ -1197,9 +1209,9 @@ export function Files() {
       openTerminal={openTerminalPanel}
     >
       <div className="flex-1 flex overflow-hidden">
-        {workspacePath && sidebarVisible && (
+        {sidebarVisible && (
           <Sidebar
-            key={workspacePath}
+            key={workspacePath ?? '__no_workspace__'}
             fileTree={fileTree}
             currentFile={currentFile}
             workspacePath={workspacePath}
@@ -1616,27 +1628,30 @@ export function Files() {
           </>
         )}
 
-        {/* Terminal panel — always mounted to preserve xterm instances, hidden via CSS */}
-        <div
-          className="h-full flex flex-col"
-          style={{
-            width: `${thirdColumnWidth}px`,
-            flexShrink: 0,
-            display: thirdColumnOpen && thirdColumnMode === 'terminal' ? 'flex' : 'none',
-          }}
-        >
-          <TerminalPanel
-            tabs={terminalTabs}
-            activeTabId={activeTerminalTabId}
-            workspacePath={workspacePath || ''}
-            fontSize={14}
-            themeId={appState.theme}
-            onTabsChange={setTerminalTabs}
-            onActiveTabChange={setActiveTerminalTabId}
-            onClose={handleTerminalToggle}
-            sendInputRef={terminalSendInputRef}
-          />
-        </div>
+        {/* Terminal panel — lazy-mounted on first open, then kept mounted (hidden via CSS)
+            to preserve xterm instances across hide/show. */}
+        {terminalEverOpened && (
+          <div
+            className="h-full flex flex-col"
+            style={{
+              width: `${thirdColumnWidth}px`,
+              flexShrink: 0,
+              display: thirdColumnOpen && thirdColumnMode === 'terminal' ? 'flex' : 'none',
+            }}
+          >
+            <TerminalPanel
+              tabs={terminalTabs}
+              activeTabId={activeTerminalTabId}
+              workspacePath={workspacePath || ''}
+              fontSize={14}
+              themeId={appState.theme}
+              onTabsChange={setTerminalTabs}
+              onActiveTabChange={setActiveTerminalTabId}
+              onClose={handleTerminalToggle}
+              sendInputRef={terminalSendInputRef}
+            />
+          </div>
+        )}
       </div>
 
       {/* Tab context menu */}

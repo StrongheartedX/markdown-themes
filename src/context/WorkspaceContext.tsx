@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { fetchFileTree, type FileTreeNode as APIFileTreeNode } from '../lib/api';
 import { useAppStore, type FileSortMode } from './AppStoreContext';
 
@@ -65,6 +65,21 @@ const allowedHiddenNames = new Set([
 function isProjectsDirectory(path: string): boolean {
   // Match common patterns: ~/projects, ~/Projects, ~/repos, ~/code, ~/dev
   return /\/(projects|Projects|repos|code|dev)$/.test(path);
+}
+
+/**
+ * Check if a path is a user home directory. Home dirs can contain thousands of files
+ * and should be loaded shallowly just like a projects directory.
+ */
+function isHomeDirectory(path: string): boolean {
+  if (path === '~') return true;
+  return /^(\/home\/[^/]+|\/Users\/[^/]+|\/root)$/.test(path);
+}
+
+/** Paths that should be loaded shallow + start collapsed. */
+function shouldLoadShallow(path: string | null): boolean {
+  if (!path) return false;
+  return isProjectsDirectory(path) || isHomeDirectory(path);
 }
 
 function shouldInclude(name: string): boolean {
@@ -176,14 +191,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setLoadingPaths(new Set());
 
     try {
-      // Use shallow depth for projects directories to avoid performance issues
-      const depth = isProjectsDirectory(path) ? 1 : 5;
+      // Shallow-load for projects dirs and home dirs (they can be huge);
+      // deep-load (5) for everything else so the tree feels fast.
+      const depth = shouldLoadShallow(path) ? 1 : 5;
       const apiTree = await fetchFileTree(path, depth, false);
+
+      // Backend expands ~ and normalizes — use the resolved path as canonical
+      const resolvedPath = apiTree.path || path;
+
       const converted = convertTree(apiTree);
       const children = converted?.children || [];
 
       setRawFileTree(children);
-      setWorkspacePath(path);
+      setWorkspacePath(resolvedPath);
       setIsGitRepo(apiTree.isGitRepo === true);
       return true;
     } catch (err) {
@@ -283,15 +303,23 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   }, [loadedPaths, loadingPaths]);
 
-  // Restore last workspace on mount
+  // Restore last workspace on mount, or default to ~ if none is set
+  const didAutoRestore = useRef(false);
   useEffect(() => {
-    if (!storeLoading && appState.lastWorkspace && !workspacePath) {
+    if (storeLoading || workspacePath || didAutoRestore.current) return;
+    didAutoRestore.current = true;
+
+    if (appState.lastWorkspace) {
       loadWorkspace(appState.lastWorkspace).then((success) => {
         if (!success) {
-          // Path doesn't exist anymore, clear it from storage
+          // Saved path is gone — forget it and fall back to ~
           saveLastWorkspace(null);
+          loadWorkspace('~');
         }
       });
+    } else {
+      // First run on this device — default to the user's home directory
+      loadWorkspace('~');
     }
   }, [storeLoading, appState.lastWorkspace, workspacePath, loadWorkspace, saveLastWorkspace]);
 
@@ -299,7 +327,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!workspacePath) return;
 
-    const depth = isProjectsDirectory(workspacePath) ? 1 : 5;
+    const shallow = shouldLoadShallow(workspacePath);
+    const depth = shallow ? 1 : 5;
     const interval = setInterval(() => {
       // Silent refresh - don't set loading state to avoid UI flicker
       fetchFileTree(workspacePath, depth, false)
@@ -307,8 +336,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           const converted = convertTree(apiTree);
           const children = converted?.children || [];
 
-          // For projects directories, preserve lazy-loaded children during refresh
-          if (isProjectsDirectory(workspacePath)) {
+          // For shallow-loaded roots, preserve lazy-loaded children during refresh
+          if (shallow) {
             setRawFileTree(prevTree => {
               // Merge: keep existing children for folders that were lazy-loaded
               return children.map(newNode => {
